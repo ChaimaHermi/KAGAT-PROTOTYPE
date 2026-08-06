@@ -91,13 +91,13 @@ function makeInitialData() {
   return {
     establishment: {
       id: "est1", name: "École Al Amal", country: "Algérie", region: "Alger",
-      city: "Alger", type: "Public", level: "Primaire",
+      city: "Alger", type: "Public", level: "Primaire", accountType: "institution",
     },
-    admin: { id: "admin1", name: "Karim Haddad", username: "admin", password: "admin123" },
+    admin: { id: "admin1", name: "Karim Haddad", nationality: "Algérienne", country: "Algérie", city: "Alger", birthDate: "1985-03-12", gender: "M", email: "admin@ecole.dz", phone: "", username: "admin", password: "admin123", createdAt: Date.now() - 60 * 86400000, lastLoginAt: Date.now() - 86400000, selfTeacherId: null },
     subjectCatalog: [...SUBJECT_CATALOG_SEED],
     teachers: [
-      { id: "t1", name: "Amina Diallo", contact: "+213 555 000 111", username: "amina.diallo", password: "prof123", mustChangePassword: false, active: true },
-      { id: "t2", name: "Youssef Kara", contact: "+213 555 222 333", username: "youssef.kara", password: "Tmp8k2r", mustChangePassword: true, active: true },
+      { id: "t1", name: "Amina Diallo", birthDate: "1990-07-22", gender: "F", email: "amina.diallo@ecole.dz", phone: "+213 555 000 111", username: "amina.diallo", password: "prof123", mustChangePassword: false, active: true, createdAt: Date.now() - 45 * 86400000, lastLoginAt: Date.now() - 3600000 },
+      { id: "t2", name: "Youssef Kara", birthDate: "1988-11-05", gender: "M", email: "", phone: "+213 555 222 333", username: "youssef.kara", password: "Tmp8k2r", mustChangePassword: true, active: true, createdAt: Date.now() - 2 * 86400000, lastLoginAt: null },
     ],
     years: [
       {
@@ -185,6 +185,25 @@ function generateTempPassword() {
   let out = "";
   for (let i = 0; i < 7; i++) out += chars[Math.floor(Math.random() * chars.length)];
   return out;
+}
+function calcAge(birthDate) {
+  if (!birthDate) return null;
+  const b = new Date(birthDate);
+  if (isNaN(b.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - b.getFullYear();
+  const m = now.getMonth() - b.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < b.getDate())) age--;
+  return age;
+}
+function formatDateFr(timestamp) {
+  if (!timestamp) return null;
+  return new Date(timestamp).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
+}
+function genderLabel(g) {
+  if (g === "F") return "Femme";
+  if (g === "M") return "Homme";
+  return null;
 }
 function getSyncAlertLevel(data) {
   const pending = data.sessions.filter((s) => s.syncStatus !== "synced");
@@ -404,9 +423,22 @@ const TEACHER_TABS = [
   { key: "resultats", label: "Résultats", icon: BarChart3, root: "resultsList" },
   { key: "profil", label: "Profil", icon: User, root: "myProfile" },
 ];
+/* Compte indépendant : un seul enseignant qui gère aussi ses classes/matières — tabs fusionnés */
+const INDEPENDENT_TABS = [
+  { key: "accueil", label: "Accueil", icon: Home, root: "teacherDashboard" },
+  { key: "classes", label: "Classes", icon: School, root: "years" },
+  { key: "evaluations", label: "Évaluations", icon: ClipboardList, root: "evaluationsList" },
+  { key: "resultats", label: "Résultats", icon: BarChart3, root: "resultsList" },
+  { key: "profil", label: "Profil", icon: User, root: "myProfile" },
+];
+function getTabsFor(ctx) {
+  if (ctx.currentUser?.type === "admin") return ADMIN_TABS;
+  if (ctx.data.establishment?.accountType === "independent") return INDEPENDENT_TABS;
+  return TEACHER_TABS;
+}
 
 function BottomTabBar({ ctx }) {
-  const tabs = ctx.currentUser?.type === "admin" ? ADMIN_TABS : TEACHER_TABS;
+  const tabs = getTabsFor(ctx);
   return (
     <div className="flex items-stretch px-1 py-1.5 sticky bottom-0 z-20" style={{ background: COLORS.surface, borderTop: `1px solid ${COLORS.border}` }}>
       {tabs.map((t) => {
@@ -462,7 +494,7 @@ function WelcomeScreen({ ctx }) {
         </p>
         <Btn full icon={LogIn} onClick={() => ctx.nav.push("login")}>Se connecter</Btn>
         <button onClick={() => ctx.nav.push("register")} className="mt-4 text-center">
-          <span className="text-[12.5px] font-semibold" style={{ color: COLORS.primary }}>Créer mon compte directeur</span>
+          <span className="text-[12.5px] font-semibold" style={{ color: COLORS.primary }}>Créer mon compte gestionnaire</span>
           <p className="text-[11px] mt-0.5" style={{ color: COLORS.muted }}>Vous ajouterez votre établissement une fois inscrit</p>
         </button>
       </div>
@@ -470,78 +502,197 @@ function WelcomeScreen({ ctx }) {
   );
 }
 
-function RegisterScreen({ ctx }) {
+function RegisterWizardScreen({ ctx }) {
+  const [step, setStep] = useState(0);
+  const [accountType, setAccountType] = useState(""); // "institution" | "independent"
+  const [channel, setChannel] = useState(""); // "email" | "phone"
+  const [contact, setContact] = useState("");
+  const [demoCode, setDemoCode] = useState("");
+  const [codeInput, setCodeInput] = useState("");
+  const [verifyError, setVerifyError] = useState("");
+  const [resent, setResent] = useState(false);
   const [name, setName] = useState("");
-  const [identifier, setIdentifier] = useState("");
+  const [nationality, setNationality] = useState("");
+  const [personCountry, setPersonCountry] = useState("");
+  const [personCity, setPersonCity] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [gender, setGender] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [error, setError] = useState("");
+  const [pwdError, setPwdError] = useState("");
+  const [school, setSchool] = useState({ name: "", country: "", region: "", city: "", type: "Public", level: "Primaire" });
 
-  const canSubmit = name.trim() && identifier.trim() && password.length >= 4 && password === confirm;
+  const chooseAccountType = (type) => { setAccountType(type); setStep(1); };
+  const chooseChannel = (ch) => { setChannel(ch); setContact(""); setStep(2); };
 
-  const submit = () => {
-    setError("");
-    if (!canSubmit) { setError("Vérifiez les champs : mot de passe (4 caractères min.) et confirmation identiques."); return; }
+  const sendCode = () => {
+    if (!contact.trim()) return;
+    setDemoCode(String(Math.floor(100000 + Math.random() * 900000)));
+    setCodeInput(""); setVerifyError("");
+    setStep(3);
+  };
+
+  const verifyCode = () => {
+    if (codeInput.trim() === demoCode) { setVerifyError(""); setStep(4); }
+    else setVerifyError("Code incorrect. Vérifiez et réessayez.");
+  };
+  const resendCode = () => {
+    setDemoCode(String(Math.floor(100000 + Math.random() * 900000)));
+    setResent(true); setVerifyError("");
+    setTimeout(() => setResent(false), 2500);
+  };
+
+  const goPassword = () => {
+    if (password.length < 4 || password !== confirm) { setPwdError("Le mot de passe doit faire au moins 4 caractères et être confirmé."); return; }
+    setPwdError(""); setStep(6);
+  };
+
+  const finish = () => {
+    if (!school.name.trim() || !school.country.trim()) return;
+    const adminId = uid("admin");
+    const isIndependent = accountType === "independent";
+    const selfTeacherId = isIndependent ? uid("t") : null;
     ctx.setData((d) => ({
       ...d,
-      admin: { id: uid("admin"), name: name.trim(), username: identifier.trim(), password },
-      establishment: null, years: [], teachers: [], sessions: [], subjectCatalog: [...SUBJECT_CATALOG_SEED],
+      admin: {
+        id: adminId, name: name.trim(), nationality: nationality.trim(), country: personCountry.trim(), city: personCity.trim(),
+        birthDate, gender,
+        email: channel === "email" ? contact.trim() : "",
+        phone: channel === "phone" ? contact.trim() : "",
+        username: contact.trim(), password,
+        createdAt: Date.now(), lastLoginAt: Date.now(),
+        selfTeacherId,
+      },
+      establishment: { id: uid("est"), name: school.name.trim(), country: school.country.trim(), region: school.region.trim(), city: school.city.trim(), type: school.type, level: school.level, accountType: isIndependent ? "independent" : "institution" },
+      years: [], sessions: [], subjectCatalog: [...SUBJECT_CATALOG_SEED],
+      teachers: isIndependent ? [{
+        id: selfTeacherId, name: name.trim(), nationality: nationality.trim(), country: personCountry.trim(), city: personCity.trim(), birthDate, gender,
+        email: channel === "email" ? contact.trim() : "", phone: channel === "phone" ? contact.trim() : "",
+        username: contact.trim(), password, mustChangePassword: false, active: true,
+        createdAt: Date.now(), lastLoginAt: Date.now(),
+      }] : [],
     }));
-    ctx.setCurrentUser({ type: "admin", id: "admin" });
-    ctx.nav.push("createEstablishment");
+    if (isIndependent) { ctx.setCurrentUser({ type: "teacher", id: selfTeacherId }); ctx.enterApp("teacher"); }
+    else { ctx.setCurrentUser({ type: "admin", id: adminId }); ctx.enterApp("admin"); }
   };
 
-  return (
-    <Screen>
-      <TopBar title="Créer mon compte" onBack={() => ctx.nav.pop()} />
-      <div className="px-4 pt-4">
-        <Card className="mb-4" style={{ background: COLORS.primarySoft, border: "none" }}>
-          <p className="text-[12px]" style={{ color: COLORS.primaryDark }}>Créez d'abord votre compte de directeur. Vous ajouterez votre établissement juste après, une fois connecté.</p>
+  const goBack = () => {
+    if (step === 0) { ctx.nav.pop(); return; }
+    setStep((s) => s - 1);
+  };
+
+  let title = "", body = null;
+  if (step === 0) {
+    title = "Comment allez-vous utiliser KAGAT ?";
+    body = (
+      <div className="px-4">
+        <OptionCard icon={School} title="Je gère une école" subtitle="Plusieurs enseignants, une administration commune" selected={accountType === "institution"} onClick={() => chooseAccountType("institution")} />
+        <OptionCard icon={User} title="J'enseigne seul(e)" subtitle="Je crée mes classes et évaluations moi-même" selected={accountType === "independent"} onClick={() => chooseAccountType("independent")} />
+      </div>
+    );
+  } else if (step === 1) {
+    title = "Comment voulez-vous vous inscrire ?";
+    body = (
+      <div className="px-4">
+        <OptionCard icon={Send} title="Par email" subtitle="Recevoir un code de vérification par email" onClick={() => chooseChannel("email")} />
+        <OptionCard icon={Phone} title="Par téléphone" subtitle="Recevoir un code par SMS ou WhatsApp" onClick={() => chooseChannel("phone")} />
+      </div>
+    );
+  } else if (step === 2) {
+    title = channel === "email" ? "Votre email" : "Votre téléphone";
+    body = (
+      <div className="px-4">
+        <Field label={channel === "email" ? "Adresse email" : "Numéro de téléphone"}>
+          <TextInput autoFocus value={contact} onChange={(e) => setContact(e.target.value)} placeholder={channel === "email" ? "Ex. karim.haddad@ecole.dz" : "Ex. +213 555 000 000"} autoCapitalize="none" />
+        </Field>
+        <Btn full icon={ArrowRight} disabled={!contact.trim()} onClick={sendCode}>Recevoir le code</Btn>
+      </div>
+    );
+  } else if (step === 3) {
+    const masked = channel === "email"
+      ? contact.replace(/^(.{2}).*(@.*)$/, "$1***$2")
+      : contact.replace(/(.{3})(.*)(.{2})$/, "$1***$3");
+    title = "Vérification";
+    body = (
+      <div className="px-4">
+        <p className="text-[12.5px] mb-4" style={{ color: COLORS.muted }}>Un code à 6 chiffres a été envoyé {channel === "email" ? "par email" : "par SMS ou WhatsApp"} à <b>{masked}</b>.</p>
+        <Field label="Code de vérification">
+          <TextInput autoFocus value={codeInput} onChange={(e) => { setCodeInput(e.target.value); setVerifyError(""); }} placeholder="123456" maxLength={6} style={{ letterSpacing: "0.3em", fontSize: 18, textAlign: "center" }} />
+        </Field>
+        {verifyError && <p className="text-[12px] mb-3 font-semibold" style={{ color: COLORS.danger }}>{verifyError}</p>}
+        <Btn full icon={ShieldCheck} disabled={codeInput.trim().length < 6} onClick={verifyCode}>Vérifier</Btn>
+        <button onClick={resendCode} className="w-full text-center mt-4"><span className="text-[12px] font-semibold" style={{ color: COLORS.primary }}>Renvoyer le code</span></button>
+        {resent && <p className="text-[11px] text-center mt-2 font-semibold" style={{ color: COLORS.success }}>Nouveau code envoyé.</p>}
+        <Card className="mt-5" style={{ background: COLORS.warningSoft, border: "none" }}>
+          <p className="text-[11px]" style={{ color: COLORS.warning }}>Aperçu de démonstration — dans l'application réelle, ce code n'est jamais affiché ici. Code de test : <b>{demoCode}</b></p>
         </Card>
+      </div>
+    );
+  } else if (step === 4) {
+    title = "Vos informations";
+    body = (
+      <div className="px-4">
+        <p className="text-[12.5px] mb-4" style={{ color: COLORS.muted }}>Compte vérifié. Parlez-nous un peu de vous.</p>
         <Field label="Nom complet"><TextInput autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex. Karim Haddad" /></Field>
-        <Field label="Email ou identifiant"><TextInput value={identifier} onChange={(e) => setIdentifier(e.target.value)} placeholder="Ex. karim.haddad@ecole.dz" autoCapitalize="none" /></Field>
-        <Field label="Mot de passe"><TextInput type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Au moins 4 caractères" /></Field>
-        <Field label="Confirmer le mot de passe"><TextInput type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Retapez le mot de passe" /></Field>
-        {error && <p className="text-[12px] mb-3 font-semibold" style={{ color: COLORS.danger }}>{error}</p>}
-        <Btn full icon={ShieldCheck} onClick={submit}>S'inscrire</Btn>
+        <Field label="Nationalité (facultatif)"><TextInput value={nationality} onChange={(e) => setNationality(e.target.value)} placeholder="Ex. Algérienne" /></Field>
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Pays de résidence"><TextInput value={personCountry} onChange={(e) => setPersonCountry(e.target.value)} placeholder="Ex. Algérie" /></Field>
+          <Field label="Ville"><TextInput value={personCity} onChange={(e) => setPersonCity(e.target.value)} placeholder="Ex. Alger" /></Field>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Date de naissance (facultatif)"><TextInput type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} /></Field>
+          <Field label="Genre (facultatif)">
+            <select style={inputStyle} value={gender} onChange={(e) => setGender(e.target.value)}>
+              <option value="">Préfère ne pas préciser</option>
+              <option value="F">Femme</option>
+              <option value="M">Homme</option>
+            </select>
+          </Field>
+        </div>
+        <Btn full icon={ArrowRight} disabled={!name.trim()} onClick={() => setStep(5)}>Continuer</Btn>
       </div>
-    </Screen>
-  );
-}
-
-function CreateEstablishmentScreen({ ctx }) {
-  const [form, setForm] = useState({ name: "", country: "", region: "", city: "", type: "Public", level: "Primaire" });
-  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
-  const canSubmit = form.name.trim() && form.country.trim();
-
-  const submit = () => {
-    if (!canSubmit) return;
-    ctx.setData((d) => ({ ...d, establishment: { id: uid("est"), name: form.name.trim(), country: form.country.trim(), region: form.region.trim(), city: form.city.trim(), type: form.type, level: form.level } }));
-    ctx.enterApp("admin");
-  };
+    );
+  } else if (step === 5) {
+    title = "Créer un mot de passe";
+    body = (
+      <div className="px-4">
+        <Field label="Mot de passe"><TextInput type="password" autoFocus value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Au moins 4 caractères" /></Field>
+        <Field label="Confirmer le mot de passe"><TextInput type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Retapez le mot de passe" /></Field>
+        {pwdError && <p className="text-[12px] mb-3 font-semibold" style={{ color: COLORS.danger }}>{pwdError}</p>}
+        <Btn full icon={ArrowRight} disabled={password.length < 4 || !confirm} onClick={goPassword}>Continuer</Btn>
+      </div>
+    );
+  } else if (step === 6) {
+    title = accountType === "independent" ? "Votre contexte" : "Votre établissement";
+    const setS = (k) => (e) => setSchool((s) => ({ ...s, [k]: e.target.value }));
+    body = (
+      <div className="px-4">
+        <p className="text-[12.5px] mb-4" style={{ color: COLORS.muted }}>Dernière étape avant d'entrer dans l'application.</p>
+        <Field label={accountType === "independent" ? "Nom de l'école (ou un nom de votre choix)" : "Nom de l'établissement"}><TextInput autoFocus value={school.name} onChange={setS("name")} placeholder="Ex. École Al Amal" /></Field>
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Pays"><TextInput value={school.country} onChange={setS("country")} placeholder="Ex. Algérie" /></Field>
+          <Field label="Région"><TextInput value={school.region} onChange={setS("region")} placeholder="Ex. Alger" /></Field>
+        </div>
+        <Field label="Ville"><TextInput value={school.city} onChange={setS("city")} placeholder="Ex. Alger" /></Field>
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Type"><select style={inputStyle} value={school.type} onChange={setS("type")}><option>Public</option><option>Privé</option></select></Field>
+          <Field label="Niveau"><select style={inputStyle} value={school.level} onChange={setS("level")}><option>Primaire</option><option>Collège</option><option>Lycée</option></select></Field>
+        </div>
+        <Btn full icon={School} disabled={!school.name.trim() || !school.country.trim()} onClick={finish}>Entrer dans KAGAT</Btn>
+      </div>
+    );
+  }
 
   return (
     <Screen>
-      <TopBar title="Ajouter mon établissement" />
-      <div className="px-4 pt-4">
-        <Card className="mb-4" style={{ background: COLORS.primarySoft, border: "none" }}>
-          <p className="text-[12px]" style={{ color: COLORS.primaryDark }}>Bienvenue ! Dernière étape avant d'entrer dans l'application : renseignez votre établissement.</p>
-        </Card>
-        <Field label="Nom de l'établissement"><TextInput autoFocus value={form.name} onChange={set("name")} placeholder="Ex. École Al Amal" /></Field>
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="Pays"><TextInput value={form.country} onChange={set("country")} placeholder="Ex. Algérie" /></Field>
-          <Field label="Région"><TextInput value={form.region} onChange={set("region")} placeholder="Ex. Alger" /></Field>
-        </div>
-        <Field label="Ville"><TextInput value={form.city} onChange={set("city")} placeholder="Ex. Alger" /></Field>
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="Type"><select style={inputStyle} value={form.type} onChange={set("type")}><option>Public</option><option>Privé</option></select></Field>
-          <Field label="Niveau"><select style={inputStyle} value={form.level} onChange={set("level")}><option>Primaire</option><option>Collège</option><option>Lycée</option></select></Field>
-        </div>
-        <Btn full icon={School} disabled={!canSubmit} onClick={submit}>Entrer dans KAGAT</Btn>
-      </div>
+      <TopBar title={title} onBack={goBack} />
+      <WizardProgress step={step} totalSteps={7} crumbs={[]} />
+      <div className="pt-2">{body}</div>
     </Screen>
   );
 }
+
+
 
 function LoginScreen({ ctx }) {
   const [username, setUsername] = useState("");
@@ -550,13 +701,25 @@ function LoginScreen({ ctx }) {
 
   const submit = () => {
     setError("");
-    if (ctx.data.admin && username.trim() === ctx.data.admin.username && password === ctx.data.admin.password) {
-      ctx.setCurrentUser({ type: "admin", id: ctx.data.admin.id });
-      ctx.enterApp("admin");
+    const input = username.trim();
+    const admin = ctx.data.admin;
+    const adminMatches = admin && (input === admin.username || (admin.email && input === admin.email) || (admin.phone && input === admin.phone));
+    if (adminMatches && password === admin.password) {
+      const isIndependent = ctx.data.establishment?.accountType === "independent" && admin.selfTeacherId;
+      if (isIndependent) {
+        ctx.setData((d) => ({ ...d, teachers: d.teachers.map((t) => (t.id === admin.selfTeacherId ? { ...t, lastLoginAt: Date.now() } : t)) }));
+        ctx.setCurrentUser({ type: "teacher", id: admin.selfTeacherId });
+        ctx.enterApp("teacher");
+      } else {
+        ctx.setData((d) => ({ ...d, admin: { ...d.admin, lastLoginAt: Date.now() } }));
+        ctx.setCurrentUser({ type: "admin", id: admin.id });
+        ctx.enterApp("admin");
+      }
       return;
     }
-    const teacher = ctx.data.teachers.find((t) => t.username === username.trim() && t.password === password && t.active);
+    const teacher = ctx.data.teachers.find((t) => t.active && (t.username === input || (t.email && t.email === input) || (t.phone && t.phone === input)) && t.password === password);
     if (teacher) {
+      ctx.setData((d) => ({ ...d, teachers: d.teachers.map((t) => (t.id === teacher.id ? { ...t, lastLoginAt: Date.now() } : t)) }));
       ctx.setCurrentUser({ type: "teacher", id: teacher.id });
       if (teacher.mustChangePassword) ctx.nav.push("forcedPasswordChange");
       else ctx.enterApp("teacher");
@@ -569,7 +732,7 @@ function LoginScreen({ ctx }) {
     <Screen>
       <TopBar title="Connexion" onBack={() => ctx.nav.pop()} />
       <div className="px-4 pt-6">
-        <Field label="Email ou identifiant"><TextInput value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Ex. karim.haddad@ecole.dz" autoCapitalize="none" /></Field>
+        <Field label="Email ou téléphone"><TextInput value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Ex. karim.haddad@ecole.dz" autoCapitalize="none" /></Field>
         <Field label="Mot de passe"><TextInput type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Votre mot de passe" /></Field>
         {error && <p className="text-[12px] mb-3 font-semibold" style={{ color: COLORS.danger }}>{error}</p>}
 
@@ -585,7 +748,7 @@ function LoginScreen({ ctx }) {
           <span className="text-[12px] font-semibold" style={{ color: COLORS.primary }}>Mot de passe oublié ?</span>
         </button>
         <p className="text-[11px] mt-4 text-center" style={{ color: COLORS.muted }}>
-          Démo : admin / admin123 (directeur) · amina.diallo / prof123 (enseignante)
+          Démo : admin / admin123 (gestionnaire) · amina.diallo / prof123 (enseignante)
         </p>
       </div>
     </Screen>
@@ -615,7 +778,7 @@ function ForgotPasswordScreen({ ctx }) {
       <TopBar title="Mot de passe oublié" onBack={() => ctx.nav.pop()} />
       <div className="px-4 pt-6">
         <Card className="mb-4" style={{ background: COLORS.primarySoft, border: "none" }}>
-          <p className="text-[12px]" style={{ color: COLORS.primaryDark }}>Entrez l'email ou l'identifiant de votre compte (directeur ou enseignant). Un lien de réinitialisation vous sera envoyé.</p>
+          <p className="text-[12px]" style={{ color: COLORS.primaryDark }}>Entrez l'email ou l'identifiant de votre compte (gestionnaire ou enseignant). Un lien de réinitialisation vous sera envoyé.</p>
         </Card>
         <Field label="Email ou identifiant"><TextInput autoFocus value={identifier} onChange={(e) => setIdentifier(e.target.value)} placeholder="Ex. karim.haddad@ecole.dz" autoCapitalize="none" /></Field>
         <Btn full icon={Send} disabled={!identifier.trim()} onClick={submit}>Envoyer le lien</Btn>
@@ -656,6 +819,7 @@ function ForcedPasswordChangeScreen({ ctx }) {
 function MyProfileScreen({ ctx }) {
   const isAdmin = ctx.currentUser.type === "admin";
   const person = isAdmin ? ctx.data.admin : findTeacher(ctx.data, ctx.currentUser.id);
+  const isSelfTeacher = !isAdmin && ctx.data.admin?.selfTeacherId === ctx.currentUser.id;
   const [editing, setEditing] = useState(false);
   const [oldPwd, setOldPwd] = useState("");
   const [newPwd, setNewPwd] = useState("");
@@ -668,6 +832,7 @@ function MyProfileScreen({ ctx }) {
     if (oldPwd !== person.password) { setError("Ancien mot de passe incorrect."); return; }
     if (newPwd.length < 4 || newPwd !== confirm) { setError("Le nouveau mot de passe doit faire au moins 4 caractères et être confirmé."); return; }
     if (isAdmin) ctx.setData((d) => ({ ...d, admin: { ...d.admin, password: newPwd } }));
+    else if (isSelfTeacher) ctx.setData((d) => ({ ...d, admin: { ...d.admin, password: newPwd }, teachers: d.teachers.map((t) => (t.id === person.id ? { ...t, password: newPwd } : t)) }));
     else ctx.setData((d) => ({ ...d, teachers: d.teachers.map((t) => (t.id === person.id ? { ...t, password: newPwd } : t)) }));
     setDone(true); setEditing(false); setOldPwd(""); setNewPwd(""); setConfirm("");
   };
@@ -684,11 +849,25 @@ function MyProfileScreen({ ctx }) {
           </div>
           <div>
             <p className="font-bold text-[14px]" style={{ color: COLORS.text }}>{person.name}</p>
-            <p className="text-[12px]" style={{ color: COLORS.muted }}>{isAdmin ? "Administrateur établissement" : "Enseignant"} · {person.username}</p>
+            <p className="text-[12px]" style={{ color: COLORS.muted }}>{isAdmin ? "Gestionnaire de l'école" : isSelfTeacher ? "Enseignant indépendant" : "Enseignant"} · {person.username}</p>
+            {(person.city || person.country || person.nationality) && (
+              <p className="text-[11px] mt-0.5" style={{ color: COLORS.muted }}>
+                {[person.nationality, [person.city, person.country].filter(Boolean).join(", ")].filter(Boolean).join(" · ")}
+              </p>
+            )}
           </div>
         </Card>
 
-        {isAdmin && (
+        <Card className="mb-4">
+          <p className="text-[11px] font-bold uppercase mb-2" style={{ color: COLORS.muted, letterSpacing: "0.06em" }}>Informations</p>
+          <div className="space-y-1.5 text-[12px]" style={{ color: COLORS.text }}>
+            {calcAge(person.birthDate) !== null && <p>🎂 {calcAge(person.birthDate)} ans{genderLabel(person.gender) ? ` · ${genderLabel(person.gender)}` : ""}</p>}
+            {formatDateFr(person.createdAt) && <p>📅 Membre depuis le {formatDateFr(person.createdAt)}</p>}
+            {formatDateFr(person.lastLoginAt) && <p>🔑 Dernière connexion : {formatDateFr(person.lastLoginAt)}</p>}
+          </div>
+        </Card>
+
+        {(isAdmin || isSelfTeacher) && (
           <Card onClick={() => ctx.nav.push("myEstablishment")} className="flex items-center gap-3 mb-3">
             <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: COLORS.primarySoft }}><School size={16} color={COLORS.primary} /></div>
             <div className="flex-1"><p className="font-bold text-[13px]" style={{ color: COLORS.text }}>Mon établissement</p><p className="text-[11px]" style={{ color: COLORS.muted }}>Nom, localisation, informations</p></div>
@@ -896,7 +1075,8 @@ function ClassesScreen({ ctx }) {
     setSelectedSubjects((prev) => new Set(prev).add(name));
   };
   const createClass = () => {
-    const subjects = [...selectedSubjects].map((name) => ({ id: uid("s"), name, teacherId: null, archived: false, questionnaires: [] }));
+    const selfId = ctx.data.establishment?.accountType === "independent" ? ctx.data.admin.selfTeacherId : null;
+    const subjects = [...selectedSubjects].map((name) => ({ id: uid("s"), name, teacherId: selfId, archived: false, questionnaires: [] }));
     const cardCount = Math.max(1, parseInt(form.cardCount, 10) || 40);
     const newClassId = uid("c");
     ctx.setData((d) => updateYear(d, year.id, (y) => ({ ...y, classes: [...y.classes, { id: newClassId, name: form.name.trim(), level: form.level, cardCount, students: [], subjects, archived: false }] })));
@@ -1224,7 +1404,8 @@ function SubjectsScreen({ ctx }) {
     setSelectedSubjects((prev) => new Set(prev).add(name));
   };
   const confirmAdd = () => {
-    const newSubjects = [...selectedSubjects].map((name) => ({ id: uid("s"), name, teacherId: null, archived: false, questionnaires: [] }));
+    const selfId = ctx.data.establishment?.accountType === "independent" ? ctx.data.admin.selfTeacherId : null;
+    const newSubjects = [...selectedSubjects].map((name) => ({ id: uid("s"), name, teacherId: selfId, archived: false, questionnaires: [] }));
     ctx.setData((d) => updateClass(d, classId, (c) => ({ ...c, subjects: [...c.subjects, ...newSubjects] })));
     ctx.showToast(newSubjects.length > 1 ? `${newSubjects.length} matières ajoutées` : "Matière ajoutée");
     setSelectedSubjects(new Set()); setAdding(false);
@@ -1271,6 +1452,7 @@ function SubjectsScreen({ ctx }) {
 /* Enseignants (Admin) */
 function TeachersListScreen({ ctx }) {
   const [resendId, setResendId] = useState(null);
+  const [search, setSearch] = useState("");
   const resend = (teacherId) => {
     const pwd = generateTempPassword();
     ctx.setData((d) => ({ ...d, teachers: d.teachers.map((t) => (t.id === teacherId ? { ...t, password: pwd, mustChangePassword: true } : t)) }));
@@ -1283,12 +1465,18 @@ function TeachersListScreen({ ctx }) {
     if (willBeActive) ctx.showToast(`${teacher.name} réactivé`);
     else ctx.showToast(`${teacher.name} désactivé`, { actionLabel: "Annuler", onAction: () => ctx.setData((d) => ({ ...d, teachers: d.teachers.map((t) => (t.id === teacherId ? { ...t, active: true } : t)) })) });
   };
+  const filteredTeachers = ctx.data.teachers.filter((t) => t.name.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <Screen>
       <TopBar title="Enseignants" subtitle={ctx.data.establishment.name} />
       <div className="px-4 pt-4 space-y-2">
-        {ctx.data.teachers.map((t) => {
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl mb-1" style={{ background: "#F2F4F7" }}>
+          <Search size={15} color={COLORS.muted} />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher un enseignant" className="flex-1 bg-transparent outline-none text-[13px]" />
+        </div>
+        {filteredTeachers.length === 0 && <div className="py-8 text-center text-[12.5px]" style={{ color: COLORS.muted }}>Aucun enseignant ne correspond.</div>}
+        {filteredTeachers.map((t) => {
           const assignments = getTeacherAssignments(ctx.data, t.id);
           const byClass = [];
           assignments.forEach(({ cls, subject }) => {
@@ -1302,7 +1490,7 @@ function TeachersListScreen({ ctx }) {
                 <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: COLORS.primarySoft }}><User size={18} color={COLORS.primary} /></div>
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-[13.5px] truncate" style={{ color: COLORS.text }}>{t.name}</p>
-                  <p className="text-[11.5px] truncate" style={{ color: COLORS.muted }}>{t.username}{t.city || t.country ? ` · ${[t.city, t.country].filter(Boolean).join(", ")}` : ""}</p>
+                  <p className="text-[11.5px] truncate" style={{ color: COLORS.muted }}>{t.email || t.phone || t.username}{t.city || t.country ? ` · ${[t.city, t.country].filter(Boolean).join(", ")}` : ""}</p>
                 </div>
                 <Badge tone={t.active ? "success" : "neutral"}>{t.active ? "Actif" : "Désactivé"}</Badge>
               </div>
@@ -1320,7 +1508,7 @@ function TeachersListScreen({ ctx }) {
               )}
               <div className="flex gap-2">
                 <Btn variant="secondary" size="sm" icon={Share2} onClick={() => resend(t.id)}>Renvoyer les identifiants</Btn>
-                <Btn variant="accent" size="sm" icon={BookOpen} onClick={() => ctx.nav.push("assignClassesToTeacher", { teacherId: t.id })}>Assigner</Btn>
+                <Btn variant="accent" size="sm" icon={BookOpen} onClick={() => ctx.nav.push("assignClassesToTeacher", { teacherId: t.id })}>Assigner des matières</Btn>
               </div>
               <div className="mt-2">
                 <Btn variant="ghost" size="sm" full onClick={() => toggleActive(t.id)}>{t.active ? "Désactiver" : "Réactiver"}</Btn>
@@ -1339,26 +1527,40 @@ function CreateTeacherScreen({ ctx }) {
   const [nationality, setNationality] = useState("");
   const [country, setCountry] = useState("");
   const [city, setCity] = useState("");
-  const [contact, setContact] = useState("");
-  const canSubmit = name.trim().length > 1;
+  const [birthDate, setBirthDate] = useState("");
+  const [gender, setGender] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const hasContact = email.trim() || phone.trim();
+  const canSubmit = name.trim().length > 1 && hasContact;
 
   const submit = () => {
     if (!canSubmit) return;
     const username = generateUsername(name, ctx.data.teachers.map((t) => t.username));
     const password = generateTempPassword();
     const newId = uid("t");
-    ctx.setData((d) => ({ ...d, teachers: [...d.teachers, { id: newId, name: name.trim(), nationality: nationality.trim(), country: country.trim(), city: city.trim(), contact: contact.trim(), username, password, mustChangePassword: true, active: true }] }));
+    ctx.setData((d) => ({ ...d, teachers: [...d.teachers, { id: newId, name: name.trim(), nationality: nationality.trim(), country: country.trim(), city: city.trim(), birthDate, gender, email: email.trim(), phone: phone.trim(), username, password, mustChangePassword: true, active: true, createdAt: Date.now(), lastLoginAt: null }] }));
     ctx.showToast("Compte enseignant créé");
     ctx.nav.push("shareCredentials", { teacherId: newId, mode: "create" });
   };
 
   return (
     <Screen>
-      <TopBar title="Nouveau compte enseignant" onBack={() => ctx.nav.pop()} />
+      <TopBar title="Nouvel enseignant" onBack={() => ctx.nav.pop()} />
       <div className="px-4 pt-4">
         <p className="text-[12px] font-bold mb-2" style={{ color: COLORS.primary }}>Identité</p>
         <Field label="Nom complet"><TextInput autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex. Chaïma Rahal" /></Field>
         <Field label="Nationalité (facultatif)"><TextInput value={nationality} onChange={(e) => setNationality(e.target.value)} placeholder="Ex. Algérienne" /></Field>
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Date de naissance"><TextInput type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} /></Field>
+          <Field label="Genre">
+            <select style={inputStyle} value={gender} onChange={(e) => setGender(e.target.value)}>
+              <option value="">Non précisé</option>
+              <option value="F">Femme</option>
+              <option value="M">Homme</option>
+            </select>
+          </Field>
+        </div>
 
         <p className="text-[12px] font-bold mb-2 mt-2" style={{ color: COLORS.primary }}>Localisation</p>
         <div className="grid grid-cols-2 gap-2">
@@ -1367,7 +1569,9 @@ function CreateTeacherScreen({ ctx }) {
         </div>
 
         <p className="text-[12px] font-bold mb-2 mt-2" style={{ color: COLORS.primary }}>Contact</p>
-        <Field label="Téléphone ou email (facultatif)"><TextInput value={contact} onChange={(e) => setContact(e.target.value)} placeholder="Ex. +213 555 111 222" /></Field>
+        <Field label="Email (facultatif si téléphone renseigné)"><TextInput value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Ex. chaima.rahal@ecole.dz" autoCapitalize="none" /></Field>
+        <Field label="Téléphone (facultatif si email renseigné)"><TextInput value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Ex. +213 555 111 222" /></Field>
+        {!hasContact && <p className="text-[11px] -mt-2 mb-3 font-semibold" style={{ color: COLORS.warning }}>Obligatoire : au moins l'un des deux, pour lui envoyer ses identifiants.</p>}
 
         <Btn full icon={UserPlus} disabled={!canSubmit} onClick={submit}>Créer le compte</Btn>
       </div>
@@ -1379,18 +1583,21 @@ function ShareCredentialsScreen({ ctx }) {
   const { teacherId, mode } = ctx.nav.current.params;
   const teacher = findTeacher(ctx.data, teacherId);
   const [copied, setCopied] = useState(false);
-  const [note, setNote] = useState("");
   if (!teacher) return null;
 
   const message = `Bonjour ${teacher.name}, voici vos identifiants KAGAT :\nIdentifiant : ${teacher.username}\nMot de passe : ${teacher.password}\n(à changer à la première connexion)`;
 
   const copy = async () => {
     try { await navigator.clipboard.writeText(message); setCopied(true); setTimeout(() => setCopied(false), 2000); }
-    catch (e) { setNote("Copie indisponible ici — sélectionnez le texte ci-dessous manuellement."); }
+    catch (e) { /* copie manuelle possible depuis le champ ci-dessous */ }
   };
-  const share = async () => {
-    try { if (navigator.share) await navigator.share({ text: message }); else setNote("Partage natif indisponible dans cet aperçu — utilisez « Copier » puis collez dans WhatsApp/SMS."); }
-    catch (e) { /* annulé par l'utilisateur */ }
+  const sendByEmail = () => {
+    const subject = encodeURIComponent("Vos identifiants KAGAT");
+    window.location.href = `mailto:${teacher.email}?subject=${subject}&body=${encodeURIComponent(message)}`;
+  };
+  const sendByWhatsapp = () => {
+    const digits = teacher.phone.replace(/[^\d+]/g, "");
+    window.open(`https://wa.me/${digits.replace("+", "")}?text=${encodeURIComponent(message)}`, "_blank");
   };
 
   return (
@@ -1398,20 +1605,17 @@ function ShareCredentialsScreen({ ctx }) {
       <TopBar title={mode === "create" ? "Compte créé" : "Identifiants renvoyés"} onBack={() => ctx.nav.resetTo("teachersList")} />
       <div className="px-4 pt-4">
         <Card className="mb-3" style={{ background: COLORS.successSoft, border: "none" }}>
-          <p className="text-[12.5px] font-semibold" style={{ color: COLORS.success }}>{mode === "create" ? "Le compte a été créé." : "Un nouveau mot de passe a été généré."} Partagez-le avec {teacher.name}.</p>
+          <p className="text-[12.5px] font-semibold" style={{ color: COLORS.success }}>{mode === "create" ? "Le compte a été créé." : "Un nouveau mot de passe a été généré."} Envoyez-le à {teacher.name}.</p>
         </Card>
         <Card className="mb-3">
           <TextArea readOnly rows={5} value={message} style={{ background: "#F7F8FA" }} />
         </Card>
-        {note && <p className="text-[11.5px] mb-3" style={{ color: COLORS.warning }}>{note}</p>}
-        <div className="flex gap-2 mb-2">
-          <Btn variant="secondary" full icon={Copy} onClick={copy}>{copied ? "Copié !" : "Copier"}</Btn>
-          <Btn full icon={Share2} onClick={share}>Partager (WhatsApp, SMS...)</Btn>
+        <div className="space-y-2 mb-2">
+          {teacher.email && <Btn full icon={Send} onClick={sendByEmail}>Envoyer par email</Btn>}
+          {teacher.phone && <Btn full variant={teacher.email ? "secondary" : "primary"} icon={Phone} onClick={sendByWhatsapp}>Envoyer par WhatsApp</Btn>}
+          <Btn variant="ghost" full icon={Copy} onClick={copy}>{copied ? "Copié !" : "Copier le message"}</Btn>
         </div>
-        {mode === "create" && (
-          <Btn variant="accent" full icon={BookOpen} onClick={() => ctx.nav.push("assignClassesToTeacher", { teacherId })}>Assigner ses matières maintenant</Btn>
-        )}
-        <div className="mt-2"><Btn variant="ghost" full onClick={() => ctx.nav.resetTo("teachersList")}>Terminer</Btn></div>
+        <div className="mt-2"><Btn full onClick={() => ctx.nav.resetTo("teachersList")}>Voir la liste des enseignants</Btn></div>
       </div>
     </Screen>
   );
@@ -1599,7 +1803,7 @@ function TeacherDashboardScreen({ ctx }) {
 
         <SectionLabel>Mes classes et matières</SectionLabel>
         {byClass.length === 0 ? (
-          <Card className="text-center py-6"><p className="text-[12.5px]" style={{ color: COLORS.muted }}>Aucune classe/matière assignée pour l'instant. Contactez votre directeur.</p></Card>
+          <Card className="text-center py-6"><p className="text-[12.5px]" style={{ color: COLORS.muted }}>Aucune classe/matière assignée pour l'instant. Contactez votre gestionnaire d'école.</p></Card>
         ) : byClass.map((e) => (
           <Card key={e.classId}>
             <div className="flex items-center gap-3 mb-2">
@@ -2689,7 +2893,7 @@ function SyncScreen({ ctx }) {
 
 /* ================================ APP ROOT ================================ */
 const SCREENS = {
-  welcome: WelcomeScreen, register: RegisterScreen, createEstablishment: CreateEstablishmentScreen, login: LoginScreen,
+  welcome: WelcomeScreen, register: RegisterWizardScreen, login: LoginScreen,
   forcedPasswordChange: ForcedPasswordChangeScreen, forgotPassword: ForgotPasswordScreen, myProfile: MyProfileScreen,
   adminDashboard: AdminDashboardScreen, myEstablishment: MyEstablishmentScreen,
   years: YearsScreen, classes: ClassesScreen, classDetails: ClassDetailsScreen,
@@ -2746,7 +2950,7 @@ export default function KagatPrototype() {
   }, [isOnline, data.sessions]);
 
   const enterApp = (role) => {
-    const tabs = role === "admin" ? ADMIN_TABS : TEACHER_TABS;
+    const tabs = role === "admin" ? ADMIN_TABS : (data.establishment?.accountType === "independent" ? INDEPENDENT_TABS : TEACHER_TABS);
     const initial = {};
     tabs.forEach((t) => { initial[t.key] = [{ screen: t.root, params: {} }]; });
     setTabStacks(initial);
@@ -2770,7 +2974,7 @@ export default function KagatPrototype() {
     },
     switchTab: (tabKey) => {
       if (tabKey === activeTab) {
-        const tabs = currentUser?.type === "admin" ? ADMIN_TABS : TEACHER_TABS;
+        const tabs = currentUser?.type === "admin" ? ADMIN_TABS : (data.establishment?.accountType === "independent" ? INDEPENDENT_TABS : TEACHER_TABS);
         const root = tabs.find((t) => t.key === tabKey)?.root;
         setTabStacks((prev) => ({ ...prev, [tabKey]: [{ screen: root, params: {} }] }));
       } else setActiveTab(tabKey);
