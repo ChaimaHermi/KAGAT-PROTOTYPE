@@ -6,7 +6,7 @@ import {
   FileSpreadsheet, CreditCard, GraduationCap, School, Search, Home,
   PlayCircle, Camera, Save, X, ListChecks, UserCheck, UserX,
   Clock, CloudOff, UploadCloud, LogIn, Info, Pencil, MapPin, KeyRound, Copy,
-  Share2, Archive, Lock, UserPlus, Settings, LogOut, ShieldCheck, Phone, Send, Sparkles
+  Share2, Archive, Lock, UserPlus, Settings, LogOut, ShieldCheck, Phone, Send, Sparkles, SlidersHorizontal
 } from "lucide-react";
 
 /* =========================================================================
@@ -18,23 +18,23 @@ import {
 
 /* ------------------------------- THEME ---------------------------------- */
 const COLORS = {
-  bg: "#F5F7FA",
+  bg: "#F6F7FB",
   surface: "#FFFFFF",
-  primary: "#1E4B8F",
-  primaryDark: "#153864",
-  primarySoft: "#E7EEF9",
-  accent: "#6D4FA8",
-  accentDark: "#4A3475",
-  accentSoft: "#EFEAF9",
-  success: "#1D8A72",
-  successSoft: "#E4F4EF",
-  warning: "#C97A1A",
-  warningSoft: "#FBF0DF",
-  danger: "#C0392B",
-  dangerSoft: "#FBEAE8",
-  text: "#1F2933",
-  muted: "#6B7280",
-  border: "#E3E7EC",
+  primary: "#3558D4",
+  primaryDark: "#20399A",
+  primarySoft: "#EBEFFF",
+  accent: "#7C4DDB",
+  accentDark: "#5630A5",
+  accentSoft: "#F2ECFF",
+  success: "#16866F",
+  successSoft: "#E4F7F1",
+  warning: "#B96B13",
+  warningSoft: "#FFF3E2",
+  danger: "#C43D4B",
+  dangerSoft: "#FDECEE",
+  text: "#172033",
+  muted: "#687083",
+  border: "#E7E9F1",
 };
 
 /* ---------------------------- DONNEES DEMO ------------------------------- */
@@ -107,18 +107,23 @@ function makeInitialData() {
             id: "c1", name: "5e année A", level: "5e année", cardCount: 100, archived: false,
             students: generateStudents(100, "a"),
             subjects: [
-              { id: "s1", name: "Mathématiques", teacherId: "t1", archived: false, questionnaires: [
-                { id: "qz1", title: "Les fractions", description: "Notions de base sur les fractions", archived: false, questions: FRACTIONS_QUESTIONS },
-              ] },
-              { id: "s2", name: "Français", teacherId: null, archived: false, questionnaires: [] },
-              { id: "s3", name: "Sciences", teacherId: null, archived: false, questionnaires: [] },
+              { id: "s1", name: "Mathématiques", teacherId: "t1", archived: false,
+                courses: [{ id: "co1", title: "Les fractions", description: "Comprendre et manipuler les fractions", competencies: [
+                  { id: "cp1", title: "Reconnaître une fraction", description: "Identifier le numérateur et le dénominateur" },
+                  { id: "cp2", title: "Comparer des fractions", description: "Comparer des fractions simples" },
+                ] }],
+                questionnaires: [
+                  { id: "qz1", title: "Les fractions", description: "Notions de base sur les fractions", courseId: "co1", competencyIds: ["cp1"], archived: false, questions: FRACTIONS_QUESTIONS },
+                ] },
+              { id: "s2", name: "Français", teacherId: null, archived: false, courses: [], questionnaires: [] },
+              { id: "s3", name: "Sciences", teacherId: null, archived: false, courses: [], questionnaires: [] },
             ],
           },
           {
             id: "c2", name: "4e année B", level: "4e année", cardCount: 30, archived: false,
             students: generateStudents(30, "b"),
             subjects: [
-              { id: "s4", name: "Mathématiques", teacherId: "t1", archived: false, questionnaires: [] },
+              { id: "s4", name: "Mathématiques", teacherId: "t1", archived: false, courses: [], questionnaires: [] },
             ],
           },
         ],
@@ -217,14 +222,14 @@ function getSyncAlertLevel(data) {
 /* ------------------------------ UI PRIMITIVES ----------------------------- */
 function TopBar({ title, subtitle, onBack, right }) {
   return (
-    <div className="flex items-center gap-2 px-4 pt-3 pb-3 sticky top-0 z-20" style={{ background: COLORS.surface, borderBottom: `1px solid ${COLORS.border}` }}>
+    <div className="app-topbar flex items-center gap-3 px-4 pt-3 pb-3 sticky top-0 z-20" style={{ background: "rgba(246,247,251,.94)" }}>
       {onBack ? (
-        <button onClick={onBack} className="w-9 h-9 flex items-center justify-center rounded-full -ml-1 active:scale-95 transition" style={{ background: COLORS.primarySoft }} aria-label="Retour">
+        <button onClick={onBack} className="topbar-action w-10 h-10 flex items-center justify-center rounded-[14px] -ml-1 active:scale-95 transition" aria-label="Retour">
           <ChevronLeft size={20} color={COLORS.primary} />
         </button>
-      ) : <div className="w-9 h-9" />}
+      ) : <div className="topbar-brand w-10 h-10 rounded-[14px] flex items-center justify-center"><GraduationCap size={20} /></div>}
       <div className="flex-1 min-w-0">
-        <h1 className="text-[17px] font-extrabold tracking-tight truncate" style={{ color: COLORS.text }}>{title}</h1>
+        <h1 className="text-[17px] font-extrabold tracking-[-0.025em] truncate" style={{ color: COLORS.text }}>{title}</h1>
         {subtitle && <p className="text-[11px] truncate" style={{ color: COLORS.muted }}>{subtitle}</p>}
       </div>
       {right}
@@ -233,7 +238,11 @@ function TopBar({ title, subtitle, onBack, right }) {
 }
 
 function SectionLabel({ children }) {
-  return <p className="text-[10.5px] font-bold uppercase px-0.5" style={{ color: COLORS.muted, letterSpacing: "0.07em" }}>{children}</p>;
+  return <div className="section-label flex items-center gap-2 px-0.5"><span /><p className="text-[10.5px] font-extrabold uppercase" style={{ color: COLORS.muted, letterSpacing: "0.09em" }}>{children}</p></div>;
+}
+function getQuestionnaireCompetencies(subject, questionnaire) {
+  const ids = questionnaire?.competencyIds || [];
+  return (subject?.courses || []).flatMap((course) => course.competencies || []).filter((competency) => ids.includes(competency.id));
 }
 
 function Btn({ children, onClick, variant = "primary", full, disabled, icon: Icon, size = "md", type = "button" }) {
@@ -245,10 +254,10 @@ function Btn({ children, onClick, variant = "primary", full, disabled, icon: Ico
     danger: { background: disabled ? "#E9B8B2" : COLORS.danger, color: "#fff" },
     success: { background: disabled ? "#A9D3C6" : COLORS.success, color: "#fff" },
   };
-  const pad = size === "sm" ? "py-2 px-3 text-[12.5px]" : "py-3 px-4 text-[14px]";
+  const pad = size === "sm" ? "py-1.5 px-2.5 text-[11px]" : "py-2.5 px-3.5 text-[12.5px]";
   return (
     <button type={type} onClick={disabled ? undefined : onClick} disabled={disabled}
-      className={`rounded-xl font-semibold flex items-center justify-center gap-2 transition active:scale-[0.98] ${pad} ${full ? "w-full" : ""} ${disabled ? "cursor-not-allowed" : ""}`}
+      className={`app-button rounded-[13px] font-bold flex items-center justify-center gap-1.5 transition active:scale-[0.98] ${pad} ${full ? "w-full" : ""} ${disabled ? "cursor-not-allowed" : ""}`}
       style={styles[variant]}>
       {Icon && <Icon size={size === "sm" ? 15 : 17} />}
       {children}
@@ -258,8 +267,8 @@ function Btn({ children, onClick, variant = "primary", full, disabled, icon: Ico
 
 function Card({ children, className = "", onClick, style }) {
   return (
-    <div onClick={onClick} className={`rounded-[20px] p-4 ${onClick ? "cursor-pointer active:scale-[0.99] transition" : ""} ${className}`}
-      style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, boxShadow: "0 1px 2px rgba(15,23,33,0.04), 0 1px 8px rgba(15,23,33,0.03)", ...style }}>
+    <div onClick={onClick} className={`app-card rounded-[22px] p-4 ${onClick ? "app-card--interactive cursor-pointer active:scale-[0.99] transition" : ""} ${className}`}
+      style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, boxShadow: "0 8px 24px rgba(38,48,82,0.055)", ...style }}>
       {children}
     </div>
   );
@@ -276,7 +285,7 @@ function Badge({ children, tone = "neutral", icon: Icon }) {
   };
   const t = tones[tone];
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold" style={{ background: t.bg, color: t.fg }}>
+    <span className="app-badge inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10.5px] font-bold" style={{ background: t.bg, color: t.fg }}>
       {Icon && <Icon size={12} />}{children}
     </span>
   );
@@ -284,22 +293,22 @@ function Badge({ children, tone = "neutral", icon: Icon }) {
 
 function Field({ label, children }) {
   return (
-    <label className="block mb-3">
-      <span className="block text-[12px] font-semibold mb-1.5" style={{ color: COLORS.text }}>{label}</span>
+    <label className="app-field block mb-4">
+      <span className="block text-[11px] font-bold mb-2 ml-0.5" style={{ color: COLORS.text }}>{label}</span>
       {children}
     </label>
   );
 }
 
-const inputStyle = { width: "100%", padding: "11px 12px", borderRadius: 12, border: `1px solid ${COLORS.border}`, fontSize: 13.5, color: COLORS.text, background: "#FBFCFD", outline: "none" };
+const inputStyle = { width: "100%", padding: "12px 13px", minHeight: 46, borderRadius: 14, border: `1px solid ${COLORS.border}`, fontSize: 13.5, color: COLORS.text, background: "#FFFFFF", outline: "none" };
 function TextInput(props) { return <input {...props} style={{ ...inputStyle, ...(props.style || {}) }} />; }
 function TextArea(props) { return <textarea {...props} style={{ ...inputStyle, resize: "none", ...(props.style || {}) }} />; }
 
 function EmptyState({ icon: Icon, title, text, action }) {
   return (
-    <div className="flex flex-col items-center text-center py-10 px-6">
-      <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3" style={{ background: COLORS.primarySoft }}>
-        <Icon size={24} color={COLORS.primary} />
+    <div className="empty-state flex flex-col items-center text-center py-10 px-6">
+      <div className="empty-state-icon w-16 h-16 rounded-[22px] flex items-center justify-center mb-4" style={{ background: COLORS.primarySoft }}>
+        <Icon size={27} color={COLORS.primary} />
       </div>
       <p className="font-bold text-[14px] mb-1" style={{ color: COLORS.text }}>{title}</p>
       <p className="text-[12.5px] mb-4" style={{ color: COLORS.muted }}>{text}</p>
@@ -307,7 +316,7 @@ function EmptyState({ icon: Icon, title, text, action }) {
     </div>
   );
 }
-function Screen({ children }) { return <div className="pb-6">{children}</div>; }
+function Screen({ children }) { return <div className="app-screen pb-7">{children}</div>; }
 
 /* Confirmation renforcée pour les actions les plus lourdes : il faut retaper le nom pour activer le bouton */
 function TypedConfirmModal({ open, title, text, confirmWord, onCancel, onConfirm, confirmLabel = "Confirmer" }) {
@@ -385,7 +394,7 @@ function OptionCard({ selected, onClick, title, subtitle, icon: Icon, disabled }
   return (
     <Card onClick={disabled ? undefined : onClick} className="flex items-center gap-3 mb-2"
       style={{ opacity: disabled ? 0.45 : 1, borderColor: selected ? COLORS.primary : COLORS.border, borderWidth: selected ? 2 : 1, background: selected ? COLORS.primarySoft : COLORS.surface }}>
-      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: selected ? COLORS.primary : COLORS.primarySoft }}>
+      <div className="option-icon w-11 h-11 rounded-[15px] flex items-center justify-center shrink-0" style={{ background: selected ? COLORS.primary : COLORS.primarySoft }}>
         <Icon size={18} color={selected ? "#fff" : COLORS.primary} />
       </div>
       <div className="flex-1 min-w-0">
@@ -396,16 +405,31 @@ function OptionCard({ selected, onClick, title, subtitle, icon: Icon, disabled }
     </Card>
   );
 }
-function WizardProgress({ step, totalSteps, crumbs }) {
+function WizardProgress({ step, totalSteps, crumbs = [], labels = [], helperText }) {
+  const safeStep = Math.min(step, totalSteps - 1);
+  const activeLabel = labels[safeStep] || `Étape ${safeStep + 1}`;
   return (
-    <div className="px-4 pt-3 pb-1">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-[11px] font-semibold" style={{ color: COLORS.primary }}>Étape {Math.min(step + 1, totalSteps)} sur {totalSteps}</span>
-        {crumbs.length > 0 && <span className="text-[11px] truncate max-w-[220px]" style={{ color: COLORS.muted }}>{crumbs.join(" › ")}</span>}
+    <div className="wizard-shell mx-4 mt-3 mb-2 p-4">
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="wizard-count">{String(safeStep + 1).padStart(2, "0")}</span>
+            <div><p className="text-[12px] font-extrabold" style={{ color: COLORS.text }}>{activeLabel}</p><p className="text-[9.5px] font-semibold mt-0.5" style={{ color: COLORS.muted }}>{helperText || "Quelques secondes suffisent"}</p></div>
+          </div>
+        </div>
+        <span className="text-[10px] font-bold shrink-0" style={{ color: COLORS.muted }}>{safeStep + 1}/{totalSteps}</span>
       </div>
-      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: COLORS.border }}>
-        <div className="h-full rounded-full transition-all" style={{ width: `${((step + 1) / totalSteps) * 100}%`, background: COLORS.primary }} />
+      <div className="wizard-steps flex items-center">
+        {Array.from({ length: totalSteps }).map((_, i) => (
+          <React.Fragment key={i}>
+            <div className={`wizard-dot ${i < safeStep ? "done" : i === safeStep ? "active" : ""}`}>
+              {i < safeStep ? <Check size={11} /> : <span />}
+            </div>
+            {i < totalSteps - 1 && <div className={`wizard-line ${i < safeStep ? "done" : ""}`} />}
+          </React.Fragment>
+        ))}
       </div>
+      {crumbs.length > 0 && <div className="wizard-summary mt-3"><CheckCircle2 size={12}/><span className="truncate">{crumbs.join(" · ")}</span></div>}
     </div>
   );
 }
@@ -440,12 +464,12 @@ function getTabsFor(ctx) {
 function BottomTabBar({ ctx }) {
   const tabs = getTabsFor(ctx);
   return (
-    <div className="flex items-stretch px-1 py-1.5 sticky bottom-0 z-20" style={{ background: COLORS.surface, borderTop: `1px solid ${COLORS.border}` }}>
+    <div className="app-bottom-nav flex items-stretch px-2 pt-2 pb-2 sticky bottom-0 z-20" style={{ background: "rgba(255,255,255,.96)" }}>
       {tabs.map((t) => {
         const active = ctx.nav.activeTab === t.key;
         return (
-          <button key={t.key} onClick={() => ctx.nav.switchTab(t.key)} className="flex-1 flex flex-col items-center gap-1 py-1.5">
-            <div className="w-full flex items-center justify-center rounded-xl py-1" style={{ background: active ? COLORS.primarySoft : "transparent" }}>
+          <button key={t.key} onClick={() => ctx.nav.switchTab(t.key)} className="flex-1 flex flex-col items-center gap-1 py-1">
+            <div className="nav-icon w-12 flex items-center justify-center rounded-full py-1.5 transition-all" style={{ background: active ? COLORS.primarySoft : "transparent", transform: active ? "translateY(-1px)" : "none" }}>
               <t.icon size={19} color={active ? COLORS.primary : COLORS.muted} />
             </div>
             <span className="text-[10px] font-semibold" style={{ color: active ? COLORS.primary : COLORS.muted }}>{t.label}</span>
@@ -484,16 +508,18 @@ function OnboardingTip({ ctx, text }) {
 function WelcomeScreen({ ctx }) {
   return (
     <Screen>
-      <div className="flex flex-col items-center justify-center pt-16 px-6 pb-8">
-        <div className="w-20 h-20 rounded-3xl flex items-center justify-center mb-5" style={{ background: COLORS.primary }}>
-          <ScanLine size={34} color="#fff" />
+      <div className="welcome-hero flex flex-col items-center justify-center pt-14 px-6 pb-8">
+        <Badge tone="success" icon={Wifi}>Conçu pour fonctionner hors ligne</Badge>
+        <div className="brand-mark w-24 h-24 rounded-[30px] flex items-center justify-center mt-7 mb-5" style={{ background: `linear-gradient(145deg, ${COLORS.primary}, ${COLORS.accent})` }}>
+          <ScanLine size={40} color="#fff" />
         </div>
-        <h1 className="text-[22px] font-extrabold mb-1" style={{ color: COLORS.text }}>KAGAT</h1>
-        <p className="text-[13px] text-center mb-10" style={{ color: COLORS.muted }}>
+        <h1 className="text-[28px] font-black mb-1 tracking-[-0.04em]" style={{ color: COLORS.text }}>KAGAT</h1>
+        <p className="text-[14px] font-semibold text-center mb-2" style={{ color: COLORS.text }}>Chaque réponse devient une opportunité d'apprendre.</p>
+        <p className="text-[12.5px] leading-5 text-center mb-9 max-w-[300px]" style={{ color: COLORS.muted }}>
           Évaluation formative par cartes-réponses,<br />même sans connexion Internet.
         </p>
         <Btn full icon={LogIn} onClick={() => ctx.nav.push("login")}>Se connecter</Btn>
-        <button onClick={() => ctx.nav.push("register")} className="mt-4 text-center">
+        <button onClick={() => ctx.nav.push("register")} className="mt-5 text-center">
           <span className="text-[12.5px] font-semibold" style={{ color: COLORS.primary }}>Créer mon compte gestionnaire</span>
           <p className="text-[11px] mt-0.5" style={{ color: COLORS.muted }}>Vous ajouterez votre établissement une fois inscrit</p>
         </button>
@@ -580,6 +606,10 @@ function RegisterWizardScreen({ ctx }) {
     if (step === 0) { ctx.nav.pop(); return; }
     setStep((s) => s - 1);
   };
+
+  // Les 7 interactions techniques sont regroupées en 4 jalons compréhensibles.
+  const registrationPhase = step <= 2 ? 0 : step === 3 ? 1 : step <= 5 ? 2 : 3;
+  const registrationLabels = ["Choisir le compte", "Vérifier l'accès", "Créer votre profil", "Configurer l'école"];
 
   let title = "", body = null;
   if (step === 0) {
@@ -686,7 +716,7 @@ function RegisterWizardScreen({ ctx }) {
   return (
     <Screen>
       <TopBar title={title} onBack={goBack} />
-      <WizardProgress step={step} totalSteps={7} crumbs={[]} />
+      <WizardProgress step={registrationPhase} totalSteps={4} labels={registrationLabels} helperText="Votre progression est enregistrée sur cet écran" />
       <div className="pt-2">{body}</div>
     </Screen>
   );
@@ -744,12 +774,14 @@ function LoginScreen({ ctx }) {
         </Card>
 
         <Btn full icon={LogIn} onClick={submit}>Se connecter</Btn>
+        <div className="grid grid-cols-2 gap-2 mt-3">
+          <button onClick={() => { setUsername("admin"); setPassword("admin123"); setError(""); }} className="demo-account-button">Démo gestionnaire</button>
+          <button onClick={() => { setUsername("amina.diallo"); setPassword("prof123"); setError(""); }} className="demo-account-button">Démo enseignante</button>
+        </div>
         <button onClick={() => ctx.nav.push("forgotPassword")} className="w-full text-center mt-3">
           <span className="text-[12px] font-semibold" style={{ color: COLORS.primary }}>Mot de passe oublié ?</span>
         </button>
-        <p className="text-[11px] mt-4 text-center" style={{ color: COLORS.muted }}>
-          Démo : admin / admin123 (gestionnaire) · amina.diallo / prof123 (enseignante)
-        </p>
+        <p className="text-[11px] mt-4 text-center" style={{ color: COLORS.muted }}>Touchez un profil démo pour préremplir les accès.</p>
       </div>
     </Screen>
   );
@@ -919,28 +951,23 @@ function AdminDashboardScreen({ ctx }) {
   const totalStudents = data.years.flatMap((y) => y.classes).filter((c) => !c.archived).reduce((sum, c) => sum + c.students.filter((s) => !s.archived).length, 0);
   const totalTeachers = data.teachers.filter((t) => t.active).length;
   const totalSubjects = data.years.flatMap((y) => y.classes).filter((c) => !c.archived).reduce((sum, c) => sum + c.subjects.filter((s) => !s.archived).length, 0);
-  const unassigned = getUnassignedSubjects(data);
 
   return (
     <Screen>
       <TopBar title={`Bienvenue, ${firstName}`} subtitle={`${data.establishment.name} · KAGAT`} right={<SyncIndicator ctx={ctx} />} />
-      <div className="px-4 pt-4 space-y-3">
-        <p className="text-[12.5px]" style={{ color: COLORS.muted }}>Gérez vos classes, vos enseignants et vos matières depuis cet espace.</p>
-        <OnboardingTip ctx={ctx} text="Pour commencer : créez une classe, importez vos élèves (cartes attribuées automatiquement), puis ajoutez un enseignant et assignez-lui ses matières." />
-        <div className="grid grid-cols-2 gap-3">
-          <Card className="text-center"><p className="text-[22px] font-extrabold" style={{ color: COLORS.primary }}>{totalClasses}</p><p className="text-[11px]" style={{ color: COLORS.muted }}>Classes</p></Card>
-          <Card className="text-center"><p className="text-[22px] font-extrabold" style={{ color: COLORS.primary }}>{totalStudents}</p><p className="text-[11px]" style={{ color: COLORS.muted }}>Élèves</p></Card>
-          <Card className="text-center"><p className="text-[22px] font-extrabold" style={{ color: COLORS.primary }}>{totalTeachers}</p><p className="text-[11px]" style={{ color: COLORS.muted }}>Enseignants</p></Card>
-          <Card className="text-center"><p className="text-[22px] font-extrabold" style={{ color: COLORS.primary }}>{totalSubjects}</p><p className="text-[11px]" style={{ color: COLORS.muted }}>Matières</p></Card>
+      <div className="px-4 pt-3 space-y-4">
+        <div className="dashboard-hero">
+          <div className="dashboard-hero-icon"><School size={24} /></div>
+          <div><Badge tone="accent">Espace gestionnaire</Badge><p>Votre établissement, organisé en un coup d'œil.</p></div>
         </div>
-
-        {unassigned.length > 0 && (
-          <Card onClick={() => ctx.nav.push("assignTeacher", {})} className="flex items-center gap-2" style={{ background: COLORS.warningSoft, border: "none" }}>
-            <AlertTriangle size={17} color={COLORS.warning} />
-            <p className="text-[12.5px] font-semibold flex-1" style={{ color: COLORS.warning }}>{unassigned.length} matière(s) sans enseignant assigné</p>
-            <ChevronRight size={16} color={COLORS.warning} />
-          </Card>
-        )}
+        <OnboardingTip ctx={ctx} text="Pour commencer : créez une classe, importez vos élèves (cartes attribuées automatiquement), puis ajoutez un enseignant et assignez-lui ses matières." />
+        <SectionLabel>Vue d'ensemble</SectionLabel>
+        <div className="grid grid-cols-2 gap-3">
+          <StatCard icon={School} value={totalClasses} label="Classes actives" />
+          <StatCard icon={GraduationCap} value={totalStudents} label="Élèves inscrits" tone="success" />
+          <StatCard icon={Users} value={totalTeachers} label="Enseignants" tone="accent" />
+          <StatCard icon={BookOpen} value={totalSubjects} label="Matières" tone="warning" />
+        </div>
 
         <SectionLabel>Accès rapide</SectionLabel>
         <div className="grid grid-cols-2 gap-3">
@@ -1000,6 +1027,13 @@ function YearsScreen({ ctx }) {
     <Screen>
       <TopBar title="Années scolaires" subtitle={ctx.data.establishment.name} />
       <div className="px-4 pt-4 space-y-2">
+        {adding ? (
+          <Card className="mb-3">
+            <Field label="Année scolaire"><TextInput autoFocus value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Ex. 2026–2027" /></Field>
+            <div className="flex gap-2"><Btn variant="ghost" full onClick={() => setAdding(false)}>Annuler</Btn><Btn full onClick={addYear}>Créer</Btn></div>
+          </Card>
+        ) : <PageAction icon={Plus} title="Ajouter une année" subtitle="Préparer une nouvelle période scolaire" onClick={() => setAdding(true)} />}
+        <SectionLabel>Années disponibles</SectionLabel>
         {ctx.data.years.map((y) => (
           <Card key={y.id} onClick={() => ctx.nav.push("classes", { yearId: y.id })} className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: COLORS.primarySoft }}><Calendar size={18} color={COLORS.primary} /></div>
@@ -1008,12 +1042,6 @@ function YearsScreen({ ctx }) {
           </Card>
         ))}
         {ctx.data.years.length === 0 && <EmptyState icon={Calendar} title="Aucune année scolaire" text="Créez votre première année scolaire pour commencer à ajouter des classes." />}
-        {adding ? (
-          <Card>
-            <Field label="Année scolaire"><TextInput autoFocus value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Ex. 2026–2027" /></Field>
-            <div className="flex gap-2"><Btn variant="ghost" full onClick={() => setAdding(false)}>Annuler</Btn><Btn full onClick={addYear}>Créer</Btn></div>
-          </Card>
-        ) : <Btn variant="secondary" full icon={Plus} onClick={() => setAdding(true)}>Ajouter une année scolaire</Btn>}
       </div>
     </Screen>
   );
@@ -1076,7 +1104,7 @@ function ClassesScreen({ ctx }) {
   };
   const createClass = () => {
     const selfId = ctx.data.establishment?.accountType === "independent" ? ctx.data.admin.selfTeacherId : null;
-    const subjects = [...selectedSubjects].map((name) => ({ id: uid("s"), name, teacherId: selfId, archived: false, questionnaires: [] }));
+    const subjects = [...selectedSubjects].map((name) => ({ id: uid("s"), name, teacherId: selfId, archived: false, courses: [], questionnaires: [] }));
     const cardCount = Math.max(1, parseInt(form.cardCount, 10) || 40);
     const newClassId = uid("c");
     ctx.setData((d) => updateYear(d, year.id, (y) => ({ ...y, classes: [...y.classes, { id: newClassId, name: form.name.trim(), level: form.level, cardCount, students: [], subjects, archived: false }] })));
@@ -1089,6 +1117,8 @@ function ClassesScreen({ ctx }) {
     <Screen>
       <TopBar title="Classes" subtitle={year.label} onBack={() => ctx.nav.pop()} />
       <div className="px-4 pt-4 space-y-2">
+        <PageAction icon={Plus} title="Créer une classe" subtitle="Ajouter le groupe, les matières et les élèves" onClick={openAdd} />
+        <SectionLabel>Classes de {year.label}</SectionLabel>
         {year.classes.filter((c) => !c.archived).map((c) => (
           <Card key={c.id} onClick={() => ctx.nav.push("classDetails", { classId: c.id })}>
             <div className="flex items-center gap-3">
@@ -1104,13 +1134,12 @@ function ClassesScreen({ ctx }) {
           </Card>
         ))}
         {year.classes.filter((c) => !c.archived).length === 0 && <EmptyState icon={GraduationCap} title="Aucune classe" text="Créez votre première classe pour commencer." />}
-        <Btn variant="secondary" full icon={Plus} onClick={openAdd}>Créer une classe</Btn>
       </div>
 
       {addStep > 0 && (
         <div className="absolute inset-0 z-40 flex flex-col" style={{ background: COLORS.bg }}>
           <TopBar title={addStep === 1 ? "Nouvelle classe" : "Choisir les matières"} subtitle={addStep === 2 ? form.name : undefined} onBack={() => setAddStep((s) => (s === 1 ? 0 : 1))} />
-          <WizardProgress step={addStep - 1} totalSteps={2} crumbs={[]} />
+          <WizardProgress step={addStep - 1} totalSteps={2} labels={["Informations", "Matières"]} helperText={addStep === 1 ? "Définissez votre groupe d'élèves" : "Personnalisez le programme de la classe"} />
           <div className="px-4 pt-3 flex-1 overflow-y-auto">
             {addStep === 1 ? (
               <>
@@ -1405,7 +1434,7 @@ function SubjectsScreen({ ctx }) {
   };
   const confirmAdd = () => {
     const selfId = ctx.data.establishment?.accountType === "independent" ? ctx.data.admin.selfTeacherId : null;
-    const newSubjects = [...selectedSubjects].map((name) => ({ id: uid("s"), name, teacherId: selfId, archived: false, questionnaires: [] }));
+    const newSubjects = [...selectedSubjects].map((name) => ({ id: uid("s"), name, teacherId: selfId, archived: false, courses: [], questionnaires: [] }));
     ctx.setData((d) => updateClass(d, classId, (c) => ({ ...c, subjects: [...c.subjects, ...newSubjects] })));
     ctx.showToast(newSubjects.length > 1 ? `${newSubjects.length} matières ajoutées` : "Matière ajoutée");
     setSelectedSubjects(new Set()); setAdding(false);
@@ -1416,6 +1445,17 @@ function SubjectsScreen({ ctx }) {
     <Screen>
       <TopBar title="Matières" subtitle={cls.name} onBack={() => ctx.nav.pop()} />
       <div className="px-4 pt-4 space-y-2">
+        {adding ? (
+          <Card className="mb-3">
+            <p className="text-[11.5px] mb-2" style={{ color: COLORS.muted }}>Cochez les matières à ajouter à cette classe.</p>
+            <SubjectPicker catalog={ctx.data.subjectCatalog} selected={selectedSubjects} onToggle={toggleSubject} onAddCustom={addCustomToCatalog} excluded={existingNames} />
+            <div className="flex gap-2 mt-3">
+              <Btn variant="ghost" full onClick={() => { setAdding(false); setSelectedSubjects(new Set()); }}>Annuler</Btn>
+              <Btn full disabled={selectedSubjects.size === 0} onClick={confirmAdd}>Ajouter ({selectedSubjects.size})</Btn>
+            </div>
+          </Card>
+        ) : <PageAction icon={Plus} title="Ajouter une matière" subtitle="Compléter le programme de cette classe" onClick={() => setAdding(true)} />}
+        <SectionLabel>Matières de la classe</SectionLabel>
         {cls.subjects.filter((s) => !s.archived).map((s) => {
           const teacher = s.teacherId ? findTeacher(ctx.data, s.teacherId) : null;
           const canDelete = s.questionnaires.length === 0;
@@ -1433,16 +1473,6 @@ function SubjectsScreen({ ctx }) {
             </Card>
           );
         })}
-        {adding ? (
-          <Card>
-            <p className="text-[11.5px] mb-2" style={{ color: COLORS.muted }}>Cochez les matières à ajouter à cette classe.</p>
-            <SubjectPicker catalog={ctx.data.subjectCatalog} selected={selectedSubjects} onToggle={toggleSubject} onAddCustom={addCustomToCatalog} excluded={existingNames} />
-            <div className="flex gap-2 mt-3">
-              <Btn variant="ghost" full onClick={() => { setAdding(false); setSelectedSubjects(new Set()); }}>Annuler</Btn>
-              <Btn full disabled={selectedSubjects.size === 0} onClick={confirmAdd}>Ajouter ({selectedSubjects.size})</Btn>
-            </div>
-          </Card>
-        ) : <Btn variant="secondary" full icon={Plus} onClick={() => setAdding(true)}>Ajouter une matière</Btn>}
       </div>
       <ConfirmModal open={!!confirmDeleteId} title="Supprimer cette matière ?" text="Cette action est définitive. Possible uniquement si aucun questionnaire n'y est rattaché." onCancel={() => setConfirmDeleteId(null)} onConfirm={() => deleteSubject(confirmDeleteId)} confirmLabel="Supprimer" danger />
     </Screen>
@@ -1471,6 +1501,7 @@ function TeachersListScreen({ ctx }) {
     <Screen>
       <TopBar title="Enseignants" subtitle={ctx.data.establishment.name} />
       <div className="px-4 pt-4 space-y-2">
+        <PageAction icon={UserPlus} title="Nouvel enseignant" subtitle="Créer son accès et l'affecter à une classe" onClick={() => ctx.nav.push("createTeacher")} />
         <div className="flex items-center gap-2 px-3 py-2 rounded-xl mb-1" style={{ background: "#F2F4F7" }}>
           <Search size={15} color={COLORS.muted} />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher un enseignant" className="flex-1 bg-transparent outline-none text-[13px]" />
@@ -1516,7 +1547,6 @@ function TeachersListScreen({ ctx }) {
             </Card>
           );
         })}
-        <Btn variant="secondary" full icon={UserPlus} onClick={() => ctx.nav.push("createTeacher")}>Créer un compte enseignant</Btn>
       </div>
     </Screen>
   );
@@ -1766,7 +1796,7 @@ function AssignTeacherScreen({ ctx }) {
   return (
     <Screen>
       <TopBar title={title} subtitle={[cls?.name, subject?.name, presetTeacher?.name].filter(Boolean).join(" · ") || undefined} onBack={goBack} />
-      <WizardProgress step={stepIndex} totalSteps={Math.max(needed.length, 1)} crumbs={[]} />
+      <WizardProgress step={stepIndex} totalSteps={Math.max(needed.length, 1)} labels={needed.map((x) => ({ class: "Choisir la classe", subject: "Choisir la matière", teacher: "Choisir l'enseignant" }[x]))} helperText="Une sélection guidée, sans saisie inutile" />
       <div className="pt-2">{body}</div>
     </Screen>
   );
@@ -1788,8 +1818,12 @@ function TeacherDashboardScreen({ ctx }) {
   return (
     <Screen>
       <TopBar title={`Bienvenue, ${teacher.name.split(" ")[0]}`} subtitle={`${ctx.data.establishment.name} · KAGAT`} right={<SyncIndicator ctx={ctx} />} />
-      <div className="px-4 pt-4 space-y-3">
-        <p className="text-[12.5px]" style={{ color: COLORS.muted }}>Retrouvez vos classes, créez vos questionnaires et lancez vos évaluations. Pour démarrer une évaluation, touchez une matière ci-dessous ou l'onglet « Évaluations ».</p>
+      <div className="px-4 pt-3 space-y-4">
+        <div className="dashboard-hero teacher-hero">
+          <div className="dashboard-hero-icon"><ScanLine size={24} /></div>
+          <div className="flex-1"><Badge tone="success">Prêt pour la classe</Badge><p>Lancez une évaluation en quelques secondes.</p></div>
+          <button onClick={() => ctx.nav.push("evalPrep", {})} className="hero-play" aria-label="Nouvelle évaluation"><PlayCircle size={21}/></button>
+        </div>
         <OnboardingTip ctx={ctx} text="Touchez une matière pour créer un questionnaire, puis lancez une évaluation et scannez les cartes de vos élèves." />
 
         {alert.level !== "ok" && (
@@ -1805,14 +1839,15 @@ function TeacherDashboardScreen({ ctx }) {
         {byClass.length === 0 ? (
           <Card className="text-center py-6"><p className="text-[12.5px]" style={{ color: COLORS.muted }}>Aucune classe/matière assignée pour l'instant. Contactez votre gestionnaire d'école.</p></Card>
         ) : byClass.map((e) => (
-          <Card key={e.classId}>
+          <Card key={e.classId} className="class-card">
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: COLORS.primarySoft }}><GraduationCap size={18} color={COLORS.primary} /></div>
-              <div className="flex-1"><p className="font-bold text-[13.5px]" style={{ color: COLORS.text }}>{e.className}</p><p className="text-[11px]" style={{ color: COLORS.muted }}>{e.level}</p></div>
+              <div className="w-11 h-11 rounded-[15px] flex items-center justify-center" style={{ background: COLORS.primarySoft }}><GraduationCap size={19} color={COLORS.primary} /></div>
+              <div className="flex-1"><p className="font-bold text-[13.5px]" style={{ color: COLORS.text }}>{e.className}</p><p className="text-[11px]" style={{ color: COLORS.muted }}>{e.level} · {e.subjects.length} matière(s)</p></div>
+              <ChevronRight size={17} color={COLORS.muted}/>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {e.subjects.map((s) => (
-                <button key={s.id} onClick={() => ctx.nav.push("affectationDetails", { classId: e.classId, subjectId: s.id })} className="px-2.5 py-1 rounded-full text-[11.5px] font-semibold" style={{ background: COLORS.primarySoft, color: COLORS.primary }}>
+                <button key={s.id} onClick={() => ctx.nav.push("affectationDetails", { classId: e.classId, subjectId: s.id })} className="subject-chip px-3 py-1.5 rounded-full text-[11px] font-bold" style={{ background: COLORS.primarySoft, color: COLORS.primary }}>
                   {s.name}
                 </button>
               ))}
@@ -1904,27 +1939,20 @@ function EvaluationsListScreen({ ctx }) {
           <Btn full variant="accent" icon={PlayCircle} onClick={() => ctx.nav.push("evalPrep", scoped ? { classId: scope.classId, subjectId: scope.subjectId } : {})}>Nouvelle évaluation</Btn>
         )}
 
-        {myClasses.length > 1 && (
-          <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
-            <button onClick={() => setClassFilter("all")} className="shrink-0 px-3 py-1.5 rounded-full text-[11.5px] font-semibold" style={{ background: classFilter === "all" ? COLORS.primary : COLORS.primarySoft, color: classFilter === "all" ? "#fff" : COLORS.primary }}>Toutes les classes</button>
-            {myClasses.map((c) => (
-              <button key={c.id} onClick={() => setClassFilter(c.id)} className="shrink-0 px-3 py-1.5 rounded-full text-[11.5px] font-semibold" style={{ background: classFilter === c.id ? COLORS.primary : COLORS.primarySoft, color: classFilter === c.id ? "#fff" : COLORS.primary }}>{c.name}</button>
-            ))}
-          </div>
-        )}
-        {mySubjects.length > 1 && (
-          <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
-            <button onClick={() => setSubjectFilter("all")} className="shrink-0 px-3 py-1.5 rounded-full text-[11.5px] font-semibold" style={{ background: subjectFilter === "all" ? COLORS.accent : COLORS.accentSoft, color: subjectFilter === "all" ? "#fff" : COLORS.accent }}>Toutes les matières</button>
-            {mySubjects.map((name) => (
-              <button key={name} onClick={() => setSubjectFilter(name)} className="shrink-0 px-3 py-1.5 rounded-full text-[11.5px] font-semibold" style={{ background: subjectFilter === name ? COLORS.accent : COLORS.accentSoft, color: subjectFilter === name ? "#fff" : COLORS.accent }}>{name}</button>
-            ))}
+        {!scoped && (myClasses.length > 1 || mySubjects.length > 1) && (
+          <div className="mobile-filter-panel">
+            <div className="filter-heading"><SlidersHorizontal size={15}/><span>Affiner la liste</span><Badge tone="primary">{sessions.length}</Badge></div>
+            <div className="grid grid-cols-2 gap-2">
+              <label><span>Classe</span><select value={classFilter} onChange={(e) => setClassFilter(e.target.value)}><option value="all">Toutes</option>{myClasses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+              <label><span>Matière</span><select value={subjectFilter} onChange={(e) => setSubjectFilter(e.target.value)}><option value="all">Toutes</option>{mySubjects.map((name) => <option key={name} value={name}>{name}</option>)}</select></label>
+            </div>
           </div>
         )}
 
         {!isResultsTab && (
-          <div className="flex gap-2 pt-1">
+          <div className="mobile-segmented flex p-1">
             {[{ key: "all", label: `Toutes (${counts.all})` }, { key: "inprogress", label: `En cours (${counts.inprogress})` }, { key: "completed", label: `Terminées (${counts.completed})` }].map((f) => (
-              <button key={f.key} onClick={() => setFilter(f.key)} className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold" style={{ background: filter === f.key ? COLORS.primary : COLORS.primarySoft, color: filter === f.key ? "#fff" : COLORS.primary }}>{f.label}</button>
+              <button key={f.key} onClick={() => setFilter(f.key)} className={filter === f.key ? "active" : ""}>{f.label}</button>
             ))}
           </div>
         )}
@@ -1962,7 +1990,7 @@ function AffectationDetailsScreen({ ctx }) {
   const { subject } = findQuestionnaire(loc.cls, subjectId, null);
   const sessionsHere = ctx.data.sessions.filter((s) => s.classId === classId && s.subjectId === subjectId);
   const items = [
-    { key: "q", label: "Questionnaires", icon: ClipboardList, sub: `${subject.questionnaires.filter((q) => !q.archived).length} questionnaire(s)`, go: () => ctx.nav.push("questionnaires", { classId, subjectId }) },
+    { key: "c", label: "Cours", icon: BookOpen, sub: `${(subject.courses || []).length} cours · ${(subject.courses || []).reduce((n, c) => n + c.competencies.length, 0)} compétence(s)`, go: () => ctx.nav.push("courses", { classId, subjectId }) },
     { key: "e", label: "Nouvelle évaluation", icon: PlayCircle, sub: "Lancer une session", go: () => ctx.nav.push("evalPrep", { classId, subjectId }) },
     { key: "r", label: "Résultats", icon: BarChart3, sub: `${sessionsHere.length} session(s)`, go: () => ctx.nav.push("evaluationsList", { classId, subjectId, completedOnly: true }) },
   ];
@@ -1982,20 +2010,100 @@ function AffectationDetailsScreen({ ctx }) {
   );
 }
 
-function QuestionnairesScreen({ ctx }) {
+function CoursesScreen({ ctx }) {
   const { classId, subjectId } = ctx.nav.current.params;
+  const loc = locateClass(ctx.data, classId);
+  const subject = loc?.cls.subjects.find((s) => s.id === subjectId);
+  const [adding, setAdding] = useState(false);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  if (!loc || !subject) return null;
+  const courses = subject.courses || [];
+  const addCourse = () => {
+    if (!title.trim()) return;
+    const course = { id: uid("co"), title: title.trim(), description: description.trim(), competencies: [] };
+    ctx.setData((d) => updateClass(d, classId, (c) => ({ ...c, subjects: c.subjects.map((s) => s.id === subjectId ? { ...s, courses: [...(s.courses || []), course] } : s) })));
+    setTitle(""); setDescription(""); setAdding(false); ctx.showToast("Cours ajouté");
+  };
+  return (
+    <Screen>
+      <TopBar title="Cours" subtitle={`${loc.cls.name} · ${subject.name}`} onBack={() => ctx.nav.pop()} />
+      <div className="px-4 pt-4 space-y-2">
+        {adding ? <Card className="mb-3">
+          <Field label="Nom du cours ou chapitre"><TextInput autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex. Les fractions" /></Field>
+          <Field label="Objectif (facultatif)"><TextArea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ce que les élèves vont apprendre" /></Field>
+          <div className="flex gap-2"><Btn full variant="ghost" onClick={() => setAdding(false)}>Annuler</Btn><Btn full disabled={!title.trim()} onClick={addCourse}>Ajouter</Btn></div>
+        </Card> : <PageAction icon={Plus} title="Ajouter un cours" subtitle="Créer un chapitre puis définir ses compétences" onClick={() => setAdding(true)} />}
+        <SectionLabel>Programme de la matière</SectionLabel>
+        {courses.length === 0 && <EmptyState icon={BookOpen} title="Aucun cours" text="Ajoutez un premier cours pour organiser les compétences à évaluer." />}
+        {courses.map((course, index) => <Card key={course.id} onClick={() => ctx.nav.push("competencies", { classId, subjectId, courseId: course.id })} className="course-card flex items-center gap-3">
+          <div className="course-number">{String(index + 1).padStart(2, "0")}</div>
+          <div className="flex-1 min-w-0"><p className="font-bold text-[13px] truncate" style={{color:COLORS.text}}>{course.title}</p><p className="text-[10.5px] truncate" style={{color:COLORS.muted}}>{course.competencies.length} compétence(s){course.description ? ` · ${course.description}` : ""}</p></div>
+          <ChevronRight size={17} color={COLORS.muted}/>
+        </Card>)}
+      </div>
+    </Screen>
+  );
+}
+
+function CompetenciesScreen({ ctx }) {
+  const { classId, subjectId, courseId } = ctx.nav.current.params;
+  const loc = locateClass(ctx.data, classId);
+  const subject = loc?.cls.subjects.find((s) => s.id === subjectId);
+  const course = (subject?.courses || []).find((c) => c.id === courseId);
+  const [adding, setAdding] = useState(false);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  if (!loc || !subject || !course) return null;
+  const addCompetency = () => {
+    if (!title.trim()) return;
+    const competency = { id: uid("cp"), title: title.trim(), description: description.trim() };
+    ctx.setData((d) => updateClass(d, classId, (c) => ({ ...c, subjects: c.subjects.map((s) => s.id === subjectId ? { ...s, courses: (s.courses || []).map((co) => co.id === courseId ? { ...co, competencies: [...co.competencies, competency] } : co) } : s) })));
+    setTitle(""); setDescription(""); setAdding(false); ctx.showToast("Compétence ajoutée");
+  };
+  return (
+    <Screen>
+      <TopBar title={course.title} subtitle={`${subject.name} · Compétences`} onBack={() => ctx.nav.pop()} />
+      <div className="px-4 pt-4 space-y-2">
+        {adding ? <Card className="mb-3">
+          <Field label="Compétence à maîtriser"><TextInput autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex. Comparer deux fractions" /></Field>
+          <Field label="Critère de réussite (facultatif)"><TextArea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Décrivez le résultat attendu" /></Field>
+          <div className="flex gap-2"><Btn full variant="ghost" onClick={() => setAdding(false)}>Annuler</Btn><Btn full disabled={!title.trim()} onClick={addCompetency}>Ajouter</Btn></div>
+        </Card> : <PageAction icon={Plus} title="Ajouter une compétence" subtitle="Définir précisément ce qui sera évalué" onClick={() => setAdding(true)} />}
+        <SectionLabel>Compétences du cours</SectionLabel>
+        {course.competencies.length === 0 && <EmptyState icon={CheckCircle2} title="Aucune compétence" text="Définissez une compétence avant de créer son questionnaire." />}
+        {course.competencies.map((competency) => {
+          const count = subject.questionnaires.filter((q) => !q.archived && (q.competencyIds || []).includes(competency.id)).length;
+          return <Card key={competency.id} onClick={() => ctx.nav.push("questionnaires", { classId, subjectId, courseId, competencyId: competency.id })} className="competency-card flex items-center gap-3">
+            <div className="competency-check"><Check size={15}/></div>
+            <div className="flex-1 min-w-0"><p className="font-bold text-[12.5px]" style={{color:COLORS.text}}>{competency.title}</p><p className="text-[10.5px] truncate" style={{color:COLORS.muted}}>{count} questionnaire(s){competency.description ? ` · ${competency.description}` : ""}</p></div>
+            <ChevronRight size={17} color={COLORS.muted}/>
+          </Card>;
+        })}
+      </div>
+    </Screen>
+  );
+}
+
+function QuestionnairesScreen({ ctx }) {
+  const { classId, subjectId, courseId, competencyId } = ctx.nav.current.params;
   const loc = locateClass(ctx.data, classId);
   if (!loc) return null;
   const { cls } = loc;
   const subject = cls.subjects.find((s) => s.id === subjectId);
   if (!subject) return null;
+  const course = (subject.courses || []).find((c) => c.id === courseId);
+  const competency = course?.competencies.find((c) => c.id === competencyId);
+  const visibleQuestionnaires = subject.questionnaires.filter((q) => !q.archived && (!competencyId || (q.competencyIds || []).includes(competencyId)));
   return (
     <Screen>
-      <TopBar title="Questionnaires" subtitle={`${cls.name} · ${subject.name}`} onBack={() => ctx.nav.pop()} />
+      <TopBar title="Questionnaires" subtitle={competency ? competency.title : `${cls.name} · ${subject.name}`} onBack={() => ctx.nav.pop()} />
       <div className="px-4 pt-4 space-y-2">
-        {subject.questionnaires.filter((q) => !q.archived).length === 0 && <EmptyState icon={ClipboardList} title="Aucun questionnaire" text="Créez le premier questionnaire de cette matière." />}
-        {subject.questionnaires.filter((q) => !q.archived).map((q) => (
-          <Card key={q.id} onClick={() => ctx.nav.push("createQuestionnaire", { classId, subjectId, questionnaireId: q.id })}>
+        <PageAction icon={Plus} title="Créer un questionnaire" subtitle={competency ? `Évaluer : ${competency.title}` : "Préparer une nouvelle activité"} onClick={() => ctx.nav.push("createQuestionnaire", { classId, subjectId, courseId, competencyId })} />
+        <SectionLabel>Questionnaires disponibles</SectionLabel>
+        {visibleQuestionnaires.length === 0 && <EmptyState icon={ClipboardList} title="Aucun questionnaire" text={competency ? "Créez un questionnaire pour mesurer cette compétence." : "Créez le premier questionnaire de cette matière."} />}
+        {visibleQuestionnaires.map((q) => (
+          <Card key={q.id} onClick={() => ctx.nav.push("createQuestionnaire", { classId, subjectId, courseId: q.courseId, competencyId, questionnaireId: q.id })}>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: COLORS.primarySoft }}><ListChecks size={18} color={COLORS.primary} /></div>
               <div className="flex-1"><p className="font-bold text-[13.5px]" style={{ color: COLORS.text }}>{q.title}</p><p className="text-[11.5px]" style={{ color: COLORS.muted }}>{q.questions.length} question(s)</p></div>
@@ -2003,19 +2111,20 @@ function QuestionnairesScreen({ ctx }) {
             </div>
           </Card>
         ))}
-        <Btn variant="secondary" full icon={Plus} onClick={() => ctx.nav.push("createQuestionnaire", { classId, subjectId })}>Créer un questionnaire</Btn>
       </div>
     </Screen>
   );
 }
 
 function CreateQuestionnaireScreen({ ctx }) {
-  const { classId, subjectId, questionnaireId } = ctx.nav.current.params;
+  const { classId, subjectId, questionnaireId, courseId, competencyId } = ctx.nav.current.params;
   const loc = locateClass(ctx.data, classId);
   if (!loc) return null;
   const { cls } = loc;
   const subject = cls.subjects.find((s) => s.id === subjectId);
   const existing = questionnaireId ? subject.questionnaires.find((q) => q.id === questionnaireId) : null;
+  const linkedCourse = (subject.courses || []).find((c) => c.id === (courseId || existing?.courseId));
+  const linkedCompetency = linkedCourse?.competencies.find((c) => c.id === competencyId || (existing?.competencyIds || []).includes(c.id));
   const locked = existing ? questionnaireHasSessions(ctx.data, existing.id) : false;
 
   const [title, setTitle] = useState(existing?.title || "");
@@ -2027,18 +2136,18 @@ function CreateQuestionnaireScreen({ ctx }) {
   const save = () => {
     if (!title.trim()) return;
     if (qId) {
-      ctx.setData((d) => updateClass(d, classId, (c) => ({ ...c, subjects: c.subjects.map((s) => (s.id === subjectId ? { ...s, questionnaires: s.questionnaires.map((q) => (q.id === qId ? { ...q, title, description } : q)) } : s)) })));
-      ctx.nav.push("questionnaires", { classId, subjectId });
+      ctx.setData((d) => updateClass(d, classId, (c) => ({ ...c, subjects: c.subjects.map((s) => (s.id === subjectId ? { ...s, questionnaires: s.questionnaires.map((q) => (q.id === qId ? { ...q, title, description, courseId: courseId || q.courseId, competencyIds: competencyId ? Array.from(new Set([...(q.competencyIds || []), competencyId])) : (q.competencyIds || []) } : q)) } : s)) })));
+      ctx.nav.push("questionnaires", { classId, subjectId, courseId: courseId || existing?.courseId, competencyId });
     } else {
       const newId = uid("qz");
-      ctx.setData((d) => updateClass(d, classId, (c) => ({ ...c, subjects: c.subjects.map((s) => (s.id === subjectId ? { ...s, questionnaires: [...s.questionnaires, { id: newId, title, description, archived: false, questions: [] }] } : s)) })));
-      ctx.nav.push("createQuestion", { classId, subjectId, questionnaireId: newId });
+      ctx.setData((d) => updateClass(d, classId, (c) => ({ ...c, subjects: c.subjects.map((s) => (s.id === subjectId ? { ...s, questionnaires: [...s.questionnaires, { id: newId, title, description, courseId: courseId || null, competencyIds: competencyId ? [competencyId] : [], archived: false, questions: [] }] } : s)) })));
+      ctx.nav.push("createQuestion", { classId, subjectId, questionnaireId: newId, courseId, competencyId });
     }
   };
   const doDelete = () => {
     if (locked) { ctx.setData((d) => updateClass(d, classId, (c) => ({ ...c, subjects: c.subjects.map((s) => (s.id === subjectId ? { ...s, questionnaires: s.questionnaires.map((q) => (q.id === qId ? { ...q, archived: true } : q)) } : s)) }))); }
     else { ctx.setData((d) => updateClass(d, classId, (c) => ({ ...c, subjects: c.subjects.map((s) => (s.id === subjectId ? { ...s, questionnaires: s.questionnaires.filter((q) => q.id !== qId) } : s)) }))); }
-    ctx.nav.push("questionnaires", { classId, subjectId });
+    ctx.nav.push("questionnaires", { classId, subjectId, courseId: courseId || existing?.courseId, competencyId });
   };
   const deleteQuestion = (questionId) => {
     ctx.setData((d) => updateClass(d, classId, (c) => ({ ...c, subjects: c.subjects.map((s) => (s.id === subjectId ? { ...s, questionnaires: s.questionnaires.map((q) => (q.id === qId ? { ...q, questions: q.questions.filter((qu) => qu.id !== questionId) } : q)) } : s)) })));
@@ -2058,6 +2167,8 @@ function CreateQuestionnaireScreen({ ctx }) {
         )}
         <Field label="Titre du questionnaire"><TextInput autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex. Les fractions" /></Field>
         <Field label="Matière"><TextInput disabled value={subject.name} style={{ color: COLORS.muted, background: "#F2F4F7" }} /></Field>
+        {linkedCourse && <Field label="Cours"><TextInput disabled value={linkedCourse.title} style={{ color: COLORS.muted, background: "#F2F4F7" }} /></Field>}
+        {linkedCompetency && <Field label="Compétence évaluée"><TextInput disabled value={linkedCompetency.title} style={{ color: COLORS.success, background: COLORS.successSoft }} /></Field>}
         <Field label="Description (facultative)"><TextArea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ex. Notions de base sur les fractions" /></Field>
 
         {locked && (
@@ -2078,7 +2189,7 @@ function CreateQuestionnaireScreen({ ctx }) {
                     <Badge tone="success">{q.correct}</Badge>
                     {!locked && (
                       <>
-                        <button onClick={() => ctx.nav.push("createQuestion", { classId, subjectId, questionnaireId: qId, editQuestionId: q.id })} className="p-1"><Pencil size={13} color={COLORS.muted} /></button>
+                        <button onClick={() => ctx.nav.push("createQuestion", { classId, subjectId, questionnaireId: qId, editQuestionId: q.id, courseId: courseId || existing?.courseId, competencyId })} className="p-1"><Pencil size={13} color={COLORS.muted} /></button>
                         <button onClick={() => setConfirmDeleteQ(q.id)} className="p-1"><Trash2 size={13} color={COLORS.danger} /></button>
                       </>
                     )}
@@ -2094,7 +2205,7 @@ function CreateQuestionnaireScreen({ ctx }) {
           <Btn full icon={Save} onClick={save} disabled={!title.trim()}>{qId ? "Enregistrer" : "Continuer"}</Btn>
         </div>
         {existing && !locked && (
-          <div className="mt-2"><Btn variant="secondary" full icon={Plus} onClick={() => ctx.nav.push("createQuestion", { classId, subjectId, questionnaireId: qId })}>Ajouter une question</Btn></div>
+          <div className="mt-2"><Btn variant="secondary" full icon={Plus} onClick={() => ctx.nav.push("createQuestion", { classId, subjectId, questionnaireId: qId, courseId: courseId || existing?.courseId, competencyId })}>Ajouter une question</Btn></div>
         )}
         {existing && (
           <div className="mt-2"><Btn variant="ghost" full icon={locked ? Archive : Trash2} onClick={() => setConfirmDelete(true)}>{locked ? "Archiver ce questionnaire" : "Supprimer ce questionnaire"}</Btn></div>
@@ -2107,7 +2218,7 @@ function CreateQuestionnaireScreen({ ctx }) {
 }
 
 function CreateQuestionScreen({ ctx }) {
-  const { classId, subjectId, questionnaireId, editQuestionId } = ctx.nav.current.params;
+  const { classId, subjectId, questionnaireId, editQuestionId, courseId, competencyId } = ctx.nav.current.params;
   const loc = locateClass(ctx.data, classId);
   if (!loc) return null;
   const { cls } = loc;
@@ -2125,14 +2236,14 @@ function CreateQuestionScreen({ ctx }) {
     if (!canSave) return;
     if (editing) {
       ctx.setData((d) => updateClass(d, classId, (c) => ({ ...c, subjects: c.subjects.map((s) => (s.id === subjectId ? { ...s, questionnaires: s.questionnaires.map((q) => (q.id === questionnaireId ? { ...q, questions: q.questions.map((qu) => (qu.id === editQuestionId ? { id: qu.id, text: text.trim(), choices: { ...choices }, correct } : qu)) } : q)) } : s)) })));
-      ctx.nav.push("createQuestionnaire", { classId, subjectId, questionnaireId });
+      ctx.nav.push("createQuestionnaire", { classId, subjectId, questionnaireId, courseId, competencyId });
       return;
     }
     const newQ = { id: uid("q"), text: text.trim(), choices: { ...choices }, correct };
     ctx.setData((d) => updateClass(d, classId, (c) => ({ ...c, subjects: c.subjects.map((s) => (s.id === subjectId ? { ...s, questionnaires: s.questionnaires.map((qz) => (qz.id === questionnaireId ? { ...qz, questions: [...qz.questions, newQ] } : qz)) } : s)) })));
     setCount((n) => n + 1);
     if (addAnother) { setText(""); setChoices({ A: "", B: "", C: "", D: "" }); setCorrect("A"); }
-    else ctx.nav.push("createQuestionnaire", { classId, subjectId, questionnaireId });
+    else ctx.nav.push("createQuestionnaire", { classId, subjectId, questionnaireId, courseId, competencyId });
   };
 
   return (
@@ -2169,25 +2280,29 @@ function CreateQuestionScreen({ ctx }) {
 
 /* Préparation d'évaluation — scopée aux affectations de l'enseignant */
 function EvalPrepScreen({ ctx }) {
-  const preset = ctx.nav.current.params || {};
   const teacher = findTeacher(ctx.data, ctx.currentUser.id);
   const assignments = getTeacherAssignments(ctx.data, teacher.id);
 
-  const [classId, setClassId] = useState(preset.classId || "");
-  const [subjectId, setSubjectId] = useState(preset.subjectId || "");
+  const [classId, setClassId] = useState("");
+  const [subjectId, setSubjectId] = useState("");
+  const [courseId, setCourseId] = useState("");
   const [questionnaireId, setQuestionnaireId] = useState("");
-  const [step, setStep] = useState(preset.classId ? 1 : 0);
+  const [step, setStep] = useState(0);
 
   const loc = classId ? locateClass(ctx.data, classId) : null;
   const cls = loc?.cls;
   const subject = cls?.subjects.find((s) => s.id === subjectId);
+  const course = (subject?.courses || []).find((c) => c.id === courseId);
   const questionnaire = subject?.questionnaires.find((q) => q.id === questionnaireId && !q.archived);
+  const myClasses = [];
+  assignments.forEach(({ cls: assignedClass }) => { if (!myClasses.some((c) => c.id === assignedClass.id)) myClasses.push(assignedClass); });
+  const mySubjects = assignments.filter(({ cls: assignedClass }) => assignedClass.id === classId);
 
   const start = () => {
     const sessionId = uid("sess");
     const participantSnapshot = cls.students.filter((s) => !s.archived).map((s) => ({ id: s.id, name: s.name, cardNumber: s.cardNumber, studentCode: s.studentCode }));
     ctx.setData((d) => ({ ...d, sessions: [...d.sessions, {
-      id: sessionId, classId, subjectId, questionnaireId, teacherId: teacher.id,
+      id: sessionId, classId, subjectId, courseId, questionnaireId, teacherId: teacher.id,
       date: new Date().toLocaleDateString("fr-FR"), createdAt: Date.now(),
       questionIds: questionnaire.questions.map((q) => q.id), currentQuestionIndex: 0,
       participantSnapshot, answers: {}, questionStatus: {}, declaredAbsentIds: [], status: "in_progress",
@@ -2196,28 +2311,44 @@ function EvalPrepScreen({ ctx }) {
     ctx.nav.push("sessionQuestion", { sessionId, index: 0 });
   };
 
-  const goBack = () => { if (step === 0 || (step === 1 && preset.classId)) { ctx.nav.pop(); return; } setStep((s) => s - 1); };
+  const goBack = () => { if (step === 0) { ctx.nav.pop(); return; } setStep((s) => s - 1); };
 
-  let title = "Choisir l'affectation", body = null;
+  let title = "Choisir la classe", body = null;
   if (step === 0) {
-    body = <div className="px-4">{assignments.map(({ cls: c, subject: s }) => (
-      <OptionCard key={s.id} icon={BookOpen} title={c.name} subtitle={s.name} selected={classId === c.id && subjectId === s.id} onClick={() => { setClassId(c.id); setSubjectId(s.id); setQuestionnaireId(""); setStep(1); }} />
-    ))}</div>;
-  } else if (step === 1) {
-    title = "Choisir le questionnaire";
-    const qs = subject?.questionnaires.filter((q) => !q.archived) || [];
     body = <div className="px-4">
-      {qs.map((q) => <OptionCard key={q.id} icon={ListChecks} title={q.title} subtitle={`${q.questions.length} question(s)`} disabled={q.questions.length === 0} selected={questionnaireId === q.id} onClick={() => { setQuestionnaireId(q.id); setStep(2); }} />)}
-      {qs.length === 0 && <EmptyState icon={ListChecks} title="Aucun questionnaire" text="Créez-en un depuis l'écran de l'affectation avant de lancer une évaluation." />}
+      {myClasses.map((c) => <OptionCard key={c.id} icon={GraduationCap} title={c.name} subtitle={`${c.students.filter((s) => !s.archived).length} élèves`} selected={classId === c.id} onClick={() => { setClassId(c.id); setSubjectId(""); setCourseId(""); setQuestionnaireId(""); setStep(1); }} />)}
+      {myClasses.length === 0 && <EmptyState icon={GraduationCap} title="Aucune classe" text="Aucune classe ne vous est encore affectée." />}
+    </div>;
+  } else if (step === 1) {
+    title = "Choisir la matière";
+    body = <div className="px-4">
+      {mySubjects.map(({ subject: s }) => <OptionCard key={s.id} icon={BookOpen} title={s.name} subtitle={`${(s.courses || []).length} cours`} selected={subjectId === s.id} onClick={() => { setSubjectId(s.id); setCourseId(""); setQuestionnaireId(""); setStep(2); }} />)}
     </div>;
   } else if (step === 2) {
+    title = "Choisir le cours";
+    const courses = subject?.courses || [];
+    body = <div className="px-4">
+      {courses.map((c) => { const count = subject.questionnaires.filter((q) => !q.archived && q.courseId === c.id).length; return <OptionCard key={c.id} icon={BookOpen} title={c.title} subtitle={`${c.competencies.length} compétence(s) · ${count} questionnaire(s)`} selected={courseId === c.id} onClick={() => { setCourseId(c.id); setQuestionnaireId(""); setStep(3); }} />; })}
+      {courses.length === 0 && <EmptyState icon={BookOpen} title="Aucun cours disponible" text="Ajoutez d'abord un cours et ses compétences dans cette matière." action={<Btn size="sm" icon={Plus} onClick={() => ctx.nav.push("courses", { classId, subjectId })}>Ajouter un cours</Btn>} />}
+    </div>;
+  } else if (step === 3) {
+    title = "Choisir le questionnaire";
+    const qs = subject?.questionnaires.filter((q) => !q.archived && q.courseId === courseId) || [];
+    body = <div className="px-4">
+      {qs.map((q) => { const skills = getQuestionnaireCompetencies(subject, q); return <OptionCard key={q.id} icon={ListChecks} title={q.title} subtitle={`${q.questions.length} question(s)${skills.length ? ` · ${skills.map((s) => s.title).join(", ")}` : ""}`} disabled={q.questions.length === 0} selected={questionnaireId === q.id} onClick={() => { setQuestionnaireId(q.id); setStep(4); }} />; })}
+      {qs.length === 0 && <EmptyState icon={ListChecks} title="Aucun questionnaire pour ce cours" text="Créez un questionnaire depuis une compétence de ce cours avant de lancer l'évaluation." action={<Btn size="sm" icon={Plus} onClick={() => ctx.nav.push("competencies", { classId, subjectId, courseId })}>Voir les compétences</Btn>} />}
+    </div>;
+  } else if (step === 4) {
     title = "Résumé de l'évaluation";
+    const skills = getQuestionnaireCompetencies(subject, questionnaire);
     body = <div className="px-4">
       <Card className="mb-4" style={{ background: COLORS.primarySoft, border: "none" }}>
         <p className="font-bold text-[13px] mb-2" style={{ color: COLORS.primaryDark }}>Résumé</p>
         <div className="space-y-1 text-[12.5px]" style={{ color: COLORS.primaryDark }}>
           <p>🎓 {cls.name} ({cls.students.filter((s) => !s.archived).length} élèves)</p>
-          <p>📘 {subject.name} — {questionnaire.title}</p>
+          <p>📘 {subject.name} · {course.title}</p>
+          {skills.length > 0 && <p>🎯 {skills.map((s) => s.title).join(", ")}</p>}
+          <p>📋 {questionnaire.title}</p>
           <p>❓ {questionnaire.questions.length} questions</p>
         </div>
       </Card>
@@ -2228,7 +2359,7 @@ function EvalPrepScreen({ ctx }) {
   return (
     <Screen>
       <TopBar title={title} onBack={goBack} />
-      <WizardProgress step={step} totalSteps={3} crumbs={[cls?.name, subject?.name, questionnaire?.title].filter(Boolean)} />
+      <WizardProgress step={step} totalSteps={5} labels={["Choisir la classe", "Choisir la matière", "Choisir le cours", "Choisir le questionnaire", "Confirmer la séance"]} crumbs={[cls?.name, subject?.name, course?.title, questionnaire?.title].filter(Boolean)} helperText="Préparez la séance avant de lancer le scan" />
       <div className="pt-2">{body}</div>
     </Screen>
   );
@@ -2494,9 +2625,9 @@ function VerifyAnswersScreen({ ctx }) {
           <Search size={15} color={COLORS.muted} />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher un élève" className="flex-1 bg-transparent outline-none text-[13px]" />
         </div>
-        <div className="flex gap-2 mb-3">
+        <div className="mobile-segmented flex p-1 mb-3">
           {[{ key: "all", label: `Tous (${students.length})` }, { key: "detected", label: `Détectés (${detectedCount})` }, { key: "undetected", label: `Non détectés (${students.length - detectedCount})` }].map((f) => (
-            <button key={f.key} onClick={() => setFilter(f.key)} className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold" style={{ background: filter === f.key ? COLORS.primary : COLORS.primarySoft, color: filter === f.key ? "#fff" : COLORS.primary }}>{f.label}</button>
+            <button key={f.key} onClick={() => setFilter(f.key)} className={filter === f.key ? "active" : ""}>{f.label}</button>
           ))}
         </div>
         {selectMode && (
@@ -2902,6 +3033,7 @@ const SCREENS = {
   shareCredentials: ShareCredentialsScreen, assignTeacher: AssignTeacherScreen, assignClassesToTeacher: AssignClassesToTeacherScreen,
   teacherDashboard: TeacherDashboardScreen, affectationDetails: AffectationDetailsScreen,
   evaluationsList: EvaluationsListScreen, resultsList: EvaluationsListScreen,
+  courses: CoursesScreen, competencies: CompetenciesScreen,
   questionnaires: QuestionnairesScreen, createQuestionnaire: CreateQuestionnaireScreen, createQuestion: CreateQuestionScreen,
   evalPrep: EvalPrepScreen, sessionQuestion: SessionQuestionScreen, scanSimulation: ScanSimulationScreen,
   verifyAnswers: VerifyAnswersScreen, sessionResultsGlobal: ResultsGlobalScreen,
@@ -2992,18 +3124,41 @@ export default function KagatPrototype() {
   const showBottomBar = mode === "app" && !NO_BOTTOM_BAR_APP.has(current.screen);
 
   return (
-    <div className="w-full min-h-[100vh] flex items-center justify-center py-6" style={{ background: "#E5E9F0", fontFamily: "system-ui, -apple-system, 'Segoe UI', sans-serif" }}>
-      <div className="relative w-full max-w-[390px] flex flex-col overflow-hidden" style={{ background: COLORS.bg, height: 780, borderRadius: 34, border: "8px solid #14181F", boxShadow: "0 20px 50px rgba(15,23,33,0.25)" }}>
-        <div className="flex items-center justify-between px-5 pt-2 pb-1 text-[11px] font-semibold shrink-0" style={{ color: COLORS.text, background: COLORS.surface }}>
+    <div className="prototype-stage w-full min-h-[100vh] flex items-center justify-center py-6" style={{ fontFamily: "'Plus Jakarta Sans', 'Segoe UI', sans-serif" }}>
+      <div className="prototype-note hidden sm:flex"><Info size={14} /><span>Prototype déployé présentant les fonctionnalités de base de l’application KAGAT.</span></div>
+      <div className="phone-shell relative w-full max-w-[410px] flex flex-col overflow-hidden" style={{ background: COLORS.bg }}>
+        <div className="phone-status flex items-center justify-between px-6 pt-2 pb-1 text-[10px] font-bold shrink-0" style={{ color: COLORS.text, background: COLORS.surface }}>
           <span>9:41</span>
           <div className="flex items-center gap-1">{isOnline ? <Wifi size={12} /> : <WifiOff size={12} />}<span>KAGAT</span></div>
         </div>
-        <div className="flex-1 overflow-y-auto relative" style={{ background: COLORS.bg, zoom: fontScale }}>
+        <div className="app-scroll flex-1 overflow-y-auto relative" style={{ background: COLORS.bg, zoom: fontScale }}>
           <ScreenComponent ctx={ctx} />
         </div>
         {showBottomBar && <div style={{ zoom: fontScale }}><BottomTabBar ctx={ctx} /></div>}
         <ToastHost toasts={toasts} onDismiss={dismissToast} />
       </div>
     </div>
+  );
+}
+
+function StatCard({ icon: Icon, value, label, tone = "primary" }) {
+  const color = tone === "accent" ? COLORS.accent : tone === "success" ? COLORS.success : tone === "warning" ? COLORS.warning : COLORS.primary;
+  const soft = tone === "accent" ? COLORS.accentSoft : tone === "success" ? COLORS.successSoft : tone === "warning" ? COLORS.warningSoft : COLORS.primarySoft;
+  return (
+    <Card className="stat-card">
+      <div className="stat-icon" style={{ background: soft, color }}><Icon size={17} /></div>
+      <p className="text-[23px] font-extrabold tracking-[-0.04em] mt-3" style={{ color: COLORS.text }}>{value}</p>
+      <p className="text-[10.5px] font-semibold mt-0.5" style={{ color: COLORS.muted }}>{label}</p>
+    </Card>
+  );
+}
+
+function PageAction({ icon: Icon = Plus, title, subtitle, onClick, tone = "primary" }) {
+  return (
+    <button onClick={onClick} className={`page-action page-action--${tone} w-full flex items-center gap-3 text-left`}>
+      <span className="page-action-icon"><Icon size={19} /></span>
+      <span className="flex-1"><b>{title}</b>{subtitle && <small>{subtitle}</small>}</span>
+      <ChevronRight size={17} />
+    </button>
   );
 }
