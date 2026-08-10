@@ -114,8 +114,55 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .app-scroll { scrollbar-width:none; }
 .app-scroll::-webkit-scrollbar { display:none; }
 
+/* Feuille modale réservée aux créations importantes (classe, matière, cours…). */
+.app-screen:has(.important-form-modal) { position:relative; isolation:isolate; min-height:100%; }
+.app-screen:has(.important-form-modal)::before {
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:40;
+  background:rgba(22,29,49,.42);
+  pointer-events:none;
+}
+.important-form-modal {
+  position:absolute !important;
+  left:10px;
+  right:10px;
+  bottom:14px;
+  z-index:50 !important;
+  max-height:calc(100% - 32px);
+  overflow-y:auto;
+  margin:0 !important;
+  padding:26px 18px 20px !important;
+  border:1px solid rgba(231,233,241,.95);
+  border-radius:28px !important;
+  background:#fff !important;
+  box-shadow:0 24px 55px rgba(24,32,56,.22);
+  animation:form-sheet-in .24s ease-out both;
+}
+.important-form-modal::before {
+  content:"";
+  display:block;
+  width:42px;
+  height:4px;
+  margin:-15px auto 20px;
+  border-radius:999px;
+  background:#d9deea;
+}
+@keyframes form-sheet-in {
+  from { opacity:0; transform:translateY(18px) scale(.985); }
+  to { opacity:1; transform:translateY(0) scale(1); }
+}
+
 @media (max-width: 640px) {
   .prototype-stage { padding:0 !important; background:#f6f7fb; }
   .phone-shell { height:100dvh; max-width:none; zoom:1; border:0; border-radius:0; box-shadow:none; }
   .phone-status:after { display:none; }
+  .important-form-modal {
+    left:8px;
+    right:8px;
+    bottom:8px;
+    border-radius:30px 30px 22px 22px;
+    box-shadow:0 22px 48px rgba(24,32,56,.24);
+  }
 }

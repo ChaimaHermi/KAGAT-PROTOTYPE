@@ -6,7 +6,7 @@ import {
   FileSpreadsheet, CreditCard, GraduationCap, School, Search, Home,
   PlayCircle, Camera, Save, X, ListChecks, UserCheck, UserX,
   Clock, CloudOff, UploadCloud, LogIn, Info, Pencil, MapPin, KeyRound, Copy,
-  Share2, Archive, Lock, UserPlus, Settings, LogOut, ShieldCheck, Phone, Send, Sparkles, SlidersHorizontal
+  Share2, Archive, Lock, UserPlus, Settings, LogOut, ShieldCheck, Phone, Send, Sparkles, SlidersHorizontal, Cake, Target, Mail
 } from "lucide-react";
 
 /* =========================================================================
@@ -909,6 +909,18 @@ function LoginScreen({ ctx }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
+  const loadDemoAccount = (role) => {
+    const demoData = makeInitialData();
+    ctx.setData(demoData);
+    if (role === "admin") { setUsername(demoData.admin.username); setPassword(demoData.admin.password); }
+    else {
+      const demoTeacher = demoData.teachers.find((t) => t.id === "t1");
+      setUsername(demoTeacher.username); setPassword(demoTeacher.password);
+    }
+    setError("");
+    ctx.showToast(role === "admin" ? "Compte gestionnaire démo chargé" : "Compte enseignant démo chargé");
+  };
+
   const submit = () => {
     setError("");
     const input = username.trim();
@@ -955,13 +967,13 @@ function LoginScreen({ ctx }) {
 
         <Btn full icon={LogIn} onClick={submit}>Se connecter</Btn>
         <div className="grid grid-cols-2 gap-2 mt-3">
-          <button onClick={() => { setUsername("admin"); setPassword("admin123"); setError(""); }} className="demo-account-button">Démo gestionnaire</button>
-          <button onClick={() => { setUsername("amina.diallo"); setPassword("prof123"); setError(""); }} className="demo-account-button">Démo enseignante</button>
+          <button onClick={() => loadDemoAccount("admin")} className="demo-account-button">Démo gestionnaire</button>
+          <button onClick={() => loadDemoAccount("teacher")} className="demo-account-button">Démo enseignante</button>
         </div>
         <button onClick={() => ctx.nav.push("forgotPassword")} className="w-full text-center mt-3">
           <span className="text-[12px] font-semibold" style={{ color: COLORS.primary }}>Mot de passe oublié ?</span>
         </button>
-        <p className="text-[11px] mt-4 text-center" style={{ color: COLORS.muted }}>Touchez un profil démo pour préremplir les accès.</p>
+        <p className="text-[11px] mt-4 text-center" style={{ color: COLORS.muted }}>Touchez un profil pour charger ses données de démonstration, puis connectez-vous.</p>
       </div>
     </Screen>
   );
@@ -1038,11 +1050,12 @@ function MyProfileScreen({ ctx }) {
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
+  const roleLabel = isAdmin ? "Gestionnaire / administrateur" : isSelfTeacher ? "Enseignant(e) indépendant(e)" : "Enseignant(e) de l’établissement";
 
   const submit = () => {
     setError("");
     if (oldPwd !== person.password) { setError("Ancien mot de passe incorrect."); return; }
-    if (newPwd.length < 4 || newPwd !== confirm) { setError("Le nouveau mot de passe doit faire au moins 4 caractères et être confirmé."); return; }
+    if (newPwd.length < 6 || newPwd !== confirm) { setError("Le nouveau mot de passe doit faire au moins 6 caractères et être confirmé."); return; }
     if (isAdmin) ctx.setData((d) => ({ ...d, admin: { ...d.admin, password: newPwd } }));
     else if (isSelfTeacher) ctx.setData((d) => ({ ...d, admin: { ...d.admin, password: newPwd }, teachers: d.teachers.map((t) => (t.id === person.id ? { ...t, password: newPwd } : t)) }));
     else ctx.setData((d) => ({ ...d, teachers: d.teachers.map((t) => (t.id === person.id ? { ...t, password: newPwd } : t)) }));
@@ -1061,7 +1074,7 @@ function MyProfileScreen({ ctx }) {
           </div>
           <div>
             <p className="font-bold text-[14px]" style={{ color: COLORS.text }}>{person.name}</p>
-            <p className="text-[12px]" style={{ color: COLORS.muted }}>{isAdmin ? "Gestionnaire de l'école" : isSelfTeacher ? "Enseignant indépendant" : "Enseignant"} · {person.username}</p>
+            <p className="text-[12px]" style={{ color: COLORS.muted }}>{roleLabel}</p>
             {(person.city || person.country || person.nationality) && (
               <p className="text-[11px] mt-0.5" style={{ color: COLORS.muted }}>
                 {[person.nationality, [person.city, person.country].filter(Boolean).join(", ")].filter(Boolean).join(" · ")}
@@ -1071,48 +1084,42 @@ function MyProfileScreen({ ctx }) {
         </Card>
 
         <Card className="mb-4">
-          <p className="text-[11px] font-bold uppercase mb-2" style={{ color: COLORS.muted, letterSpacing: "0.06em" }}>Informations</p>
-          <div className="space-y-1.5 text-[12px]" style={{ color: COLORS.text }}>
-            {calcAge(person.birthDate) !== null && <p>🎂 {calcAge(person.birthDate)} ans{genderLabel(person.gender) ? ` · ${genderLabel(person.gender)}` : ""}</p>}
-            {formatDateFr(person.createdAt) && <p>📅 Membre depuis le {formatDateFr(person.createdAt)}</p>}
-            {formatDateFr(person.lastLoginAt) && <p>🔑 Dernière connexion : {formatDateFr(person.lastLoginAt)}</p>}
+          <div className="flex items-center justify-between mb-3"><p className="text-[11px] font-bold uppercase" style={{ color: COLORS.muted, letterSpacing: "0.06em" }}>Informations du compte</p><Badge tone="success" icon={ShieldCheck}>Compte actif</Badge></div>
+          <div className="space-y-2 text-[12px]" style={{ color: COLORS.text }}>
+            <p className="flex items-center gap-2"><User size={14} color={COLORS.primary} className="shrink-0" /><span>{roleLabel}</span></p>
+            {person.email && <p className="flex items-center gap-2"><Mail size={14} color={COLORS.primary} className="shrink-0" /><span>{person.email}</span></p>}
+            {person.phone && <p className="flex items-center gap-2"><Phone size={14} color={COLORS.primary} className="shrink-0" /><span>{person.phone}</span></p>}
+            <p className="flex items-center gap-2"><KeyRound size={14} color={COLORS.primary} className="shrink-0" /><span>Identifiant : {person.username}</span></p>
+            {(person.city || person.country) && <p className="flex items-center gap-2"><MapPin size={14} color={COLORS.primary} className="shrink-0" /><span>{[person.city, person.country].filter(Boolean).join(", ")}</span></p>}
+            {calcAge(person.birthDate) !== null && <p className="flex items-center gap-2"><Cake size={14} color={COLORS.primary} className="shrink-0" /><span>{calcAge(person.birthDate)} ans{genderLabel(person.gender) ? ` · ${genderLabel(person.gender)}` : ""}</span></p>}
+            {formatDateFr(person.createdAt) && <p className="flex items-center gap-2"><Calendar size={14} color={COLORS.primary} className="shrink-0" /><span>Membre depuis le {formatDateFr(person.createdAt)}</span></p>}
+            {formatDateFr(person.lastLoginAt) && <p className="flex items-center gap-2"><KeyRound size={14} color={COLORS.primary} className="shrink-0" /><span>Dernière connexion : {formatDateFr(person.lastLoginAt)}</span></p>}
           </div>
         </Card>
 
-        {(isAdmin || isSelfTeacher) && (
-          <Card onClick={() => ctx.nav.push("myEstablishment")} className="flex items-center gap-3 mb-3">
+        <Card onClick={(isAdmin || isSelfTeacher) ? () => ctx.nav.push("myEstablishment") : undefined} className="flex items-center gap-3 mb-3">
             <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: COLORS.primarySoft }}><School size={16} color={COLORS.primary} /></div>
-            <div className="flex-1"><p className="font-bold text-[13px]" style={{ color: COLORS.text }}>Mon établissement</p><p className="text-[11px]" style={{ color: COLORS.muted }}>Nom, localisation, informations</p></div>
-            <ChevronRight size={16} color={COLORS.muted} />
-          </Card>
-        )}
+            <div className="flex-1"><p className="font-bold text-[13px]" style={{ color: COLORS.text }}>{ctx.data.establishment.name}</p><p className="text-[11px]" style={{ color: COLORS.muted }}>{[ctx.data.establishment.city, ctx.data.establishment.country].filter(Boolean).join(", ") || "Établissement rattaché"}</p></div>
+            {(isAdmin || isSelfTeacher) && <ChevronRight size={16} color={COLORS.muted} />}
+        </Card>
 
         {done && <Card className="mb-4" style={{ background: COLORS.successSoft, border: "none" }}><p className="text-[12.5px] font-semibold" style={{ color: COLORS.success }}>Mot de passe modifié.</p></Card>}
 
         {editing ? (
-          <Card className="mb-4">
+          <Card className="important-form-modal mb-4">
+            <div className="flex items-start gap-3 mb-4"><div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: COLORS.primarySoft }}><Lock size={18} color={COLORS.primary} /></div><div><p className="font-bold text-[14px]" style={{ color: COLORS.text }}>Modifier le mot de passe</p><p className="text-[11px] mt-1" style={{ color: COLORS.muted }}>Utilisez au moins 6 caractères et ne partagez jamais votre mot de passe.</p></div></div>
             <Field label="Ancien mot de passe"><TextInput type="password" value={oldPwd} onChange={(e) => setOldPwd(e.target.value)} /></Field>
-            <Field label="Nouveau mot de passe"><TextInput type="password" value={newPwd} onChange={(e) => setNewPwd(e.target.value)} /></Field>
-            <Field label="Confirmer"><TextInput type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} /></Field>
+            <Field label="Nouveau mot de passe"><TextInput type="password" value={newPwd} onChange={(e) => setNewPwd(e.target.value)} placeholder="Au moins 6 caractères" /></Field>
+            <Field label="Confirmer le nouveau mot de passe"><TextInput type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Répétez le mot de passe" /></Field>
             {error && <p className="text-[12px] mb-3 font-semibold" style={{ color: COLORS.danger }}>{error}</p>}
             <div className="flex gap-2">
-              <Btn variant="ghost" full onClick={() => setEditing(false)}>Annuler</Btn>
-              <Btn full onClick={submit}>Enregistrer</Btn>
+              <Btn variant="ghost" full onClick={() => { setEditing(false); setError(""); }}>Annuler</Btn>
+              <Btn full icon={Save} disabled={!oldPwd || newPwd.length < 6 || !confirm} onClick={submit}>Enregistrer</Btn>
             </div>
           </Card>
         ) : (
           <Btn variant="secondary" full icon={KeyRound} onClick={() => { setEditing(true); setDone(false); }}>Modifier mon mot de passe</Btn>
         )}
-
-        <Card className="flex items-center justify-between mt-3 mb-3">
-          <div>
-            <p className="font-bold text-[13px]" style={{ color: COLORS.text }}>Texte agrandi</p>
-            <p className="text-[11px]" style={{ color: COLORS.muted }}>Pour une meilleure lisibilité</p>
-          </div>
-          <button onClick={() => ctx.setFontScale((v) => (v > 1 ? 1 : 1.15))} className="w-11 h-6 rounded-full relative transition" style={{ background: ctx.fontScale > 1 ? COLORS.primary : COLORS.border }}>
-            <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all" style={{ left: ctx.fontScale > 1 ? 22 : 2 }} />
-          </button>
-        </Card>
 
         <div className="mt-1">
           <Btn variant="ghost" full icon={LogOut} onClick={logout}>Se déconnecter</Btn>
@@ -1199,7 +1206,7 @@ function MyEstablishmentScreen({ ctx }) {
   return (
     <Screen>
       <TopBar title="Mon établissement" onBack={() => ctx.nav.pop()} />
-      <div className="px-4 pt-4">
+      <div className="important-form-modal px-4 pt-4">
         <Field label="Nom"><TextInput value={form.name} onChange={set("name")} /></Field>
         <div className="grid grid-cols-2 gap-2">
           <Field label="Pays"><TextInput value={form.country} onChange={set("country")} /></Field>
@@ -1234,7 +1241,7 @@ function YearsScreen({ ctx }) {
       <TopBar title="Années scolaires" subtitle={ctx.data.establishment.name} />
       <div className="px-4 pt-4 space-y-2">
         {adding ? (
-          <Card className="mb-3">
+          <Card className="important-form-modal mb-3">
             <Field label="Année scolaire"><TextInput autoFocus value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Ex. 2026–2027" /></Field>
             <div className="flex gap-2"><Btn variant="ghost" full onClick={() => setAdding(false)}>Annuler</Btn><Btn full onClick={addYear}>Créer</Btn></div>
           </Card>
@@ -1343,7 +1350,7 @@ function ClassesScreen({ ctx }) {
       </div>
 
       {addStep > 0 && (
-        <div className="absolute inset-0 z-40 flex flex-col" style={{ background: COLORS.bg }}>
+        <div className="important-form-modal flex flex-col">
           <TopBar title={addStep === 1 ? "Nouvelle classe" : "Choisir les matières"} subtitle={addStep === 2 ? form.name : undefined} onBack={() => setAddStep((s) => (s === 1 ? 0 : 1))} />
           <WizardProgress step={addStep - 1} totalSteps={2} labels={["Informations", "Matières"]} helperText={addStep === 1 ? "Définissez votre groupe d'élèves" : "Personnalisez le programme de la classe"} />
           <div className="px-4 pt-3 flex-1 overflow-y-auto">
@@ -1397,7 +1404,7 @@ function ClassDetailsScreen({ ctx }) {
       <TopBar title={cls.name} subtitle={cls.level} onBack={() => ctx.nav.pop()} right={<button onClick={() => setEditing((v) => !v)} className="p-1"><Pencil size={16} color={COLORS.muted} /></button>} />
       <div className="px-4 pt-4">
         {editing && (
-          <Card className="mb-3">
+          <Card className="important-form-modal mb-3">
             <Field label="Nom"><TextInput value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} /></Field>
             <Field label="Niveau"><TextInput value={form.level} onChange={(e) => setForm((f) => ({ ...f, level: e.target.value }))} /></Field>
             <div className="flex gap-2"><Btn variant="ghost" full onClick={() => setEditing(false)}>Annuler</Btn><Btn full onClick={save}>Enregistrer</Btn></div>
@@ -1503,7 +1510,7 @@ function ImportStudentsScreen({ ctx }) {
           </div>
         </Card>
         {manualOpen ? (
-          <Card>
+          <Card className="important-form-modal">
             <Field label="Nom complet de l'élève"><TextInput autoFocus value={manualName} onChange={(e) => setManualName(e.target.value)} placeholder="Ex. Karim Belkacem" /></Field>
             <div className="flex gap-2"><Btn variant="ghost" full onClick={() => setManualOpen(false)}>Annuler</Btn><Btn full onClick={addManual}>Ajouter</Btn></div>
           </Card>
@@ -1517,26 +1524,26 @@ function ImportStudentsScreen({ ctx }) {
           <div className="max-h-[420px] overflow-y-auto">
             {active.map((s, i) => (
               <div key={s.id} className="px-3 py-2.5" style={{ borderTop: i ? `1px solid ${COLORS.border}` : "none", background: i % 2 ? "#FBFCFD" : "#fff" }}>
-                {editingId === s.id ? (
-                  <div className="flex items-center gap-2">
-                    <TextInput autoFocus value={editName} onChange={(e) => setEditName(e.target.value)} />
-                    <button onClick={saveEdit} className="p-2"><Check size={16} color={COLORS.success} /></button>
-                    <button onClick={() => setEditingId(null)} className="p-2"><X size={16} color={COLORS.muted} /></button>
+                <button onClick={() => setActionsFor(s.id)} className="w-full flex items-center justify-between">
+                  <span className="text-[12.5px] font-medium truncate" style={{ color: COLORS.text }}>{s.name}</span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {s.cardAssigned ? <Badge tone="primary">#{s.cardNumber}</Badge> : <Badge tone="warning">Sans carte</Badge>}
+                    <Pencil size={13} color={COLORS.muted} />
                   </div>
-                ) : (
-                  <button onClick={() => setActionsFor(s.id)} className="w-full flex items-center justify-between">
-                    <span className="text-[12.5px] font-medium truncate" style={{ color: COLORS.text }}>{s.name}</span>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      {s.cardAssigned ? <Badge tone="primary">#{s.cardNumber}</Badge> : <Badge tone="warning">Sans carte</Badge>}
-                      <Pencil size={13} color={COLORS.muted} />
-                    </div>
-                  </button>
-                )}
+                </button>
               </div>
             ))}
           </div>
         </div>
       </div>
+
+      {editingId && (
+        <div className="important-form-modal">
+          <p className="font-bold text-[15px] mb-3" style={{ color: COLORS.text }}>Modifier le nom de l’élève</p>
+          <Field label="Nom complet"><TextInput autoFocus value={editName} onChange={(e) => setEditName(e.target.value)} /></Field>
+          <div className="flex gap-2"><Btn variant="ghost" full onClick={() => setEditingId(null)}>Annuler</Btn><Btn full onClick={saveEdit}>Enregistrer</Btn></div>
+        </div>
+      )}
 
       {actionsStudent && (
         <div className="absolute inset-0 z-50 flex items-end justify-center" style={{ background: "rgba(15,23,33,0.45)" }} onClick={() => setActionsFor(null)}>
@@ -1652,7 +1659,7 @@ function SubjectsScreen({ ctx }) {
       <TopBar title="Matières" subtitle={cls.name} onBack={() => ctx.nav.pop()} />
       <div className="px-4 pt-4 space-y-2">
         {adding ? (
-          <Card className="mb-3">
+          <Card className="important-form-modal mb-3">
             <p className="text-[11.5px] mb-2" style={{ color: COLORS.muted }}>Cochez les matières à ajouter à cette classe.</p>
             <SubjectPicker catalog={ctx.data.subjectCatalog} selected={selectedSubjects} onToggle={toggleSubject} onAddCustom={addCustomToCatalog} excluded={existingNames} />
             <div className="flex gap-2 mt-3">
@@ -1785,7 +1792,7 @@ function CreateTeacherScreen({ ctx }) {
   return (
     <Screen>
       <TopBar title="Inviter un enseignant" onBack={() => ctx.nav.pop()} />
-      <div className="px-4 pt-4">
+      <div className="important-form-modal px-4 pt-4">
         <Card className="mb-4 flex items-start gap-3" style={{ background: COLORS.primarySoft, border: "none" }}>
           <ShieldCheck size={19} color={COLORS.primary} className="shrink-0 mt-0.5" />
           <div><p className="text-[12.5px] font-bold" style={{ color: COLORS.primaryDark }}>Une invitation, pas un mot de passe</p><p className="text-[11.5px] mt-1" style={{ color: COLORS.muted }}>L’enseignant vérifiera son email et créera lui-même son mot de passe.</p></div>
@@ -2217,7 +2224,7 @@ function CoursesScreen({ ctx }) {
     <Screen>
       <TopBar title="Cours" subtitle={`${loc.cls.name} · ${subject.name}`} onBack={() => ctx.nav.pop()} />
       <div className="px-4 pt-4 space-y-2">
-        {adding ? <Card className="mb-3">
+        {adding ? <Card className="important-form-modal mb-3">
           <Field label="Nom du cours ou chapitre"><TextInput autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex. Les fractions" /></Field>
           <Field label="Objectif (facultatif)"><TextArea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ce que les élèves vont apprendre" /></Field>
           <div className="flex gap-2"><Btn full variant="ghost" onClick={() => setAdding(false)}>Annuler</Btn><Btn full disabled={!title.trim()} onClick={addCourse}>Ajouter</Btn></div>
@@ -2253,7 +2260,7 @@ function CompetenciesScreen({ ctx }) {
     <Screen>
       <TopBar title={course.title} subtitle={`${subject.name} · Compétences`} onBack={() => ctx.nav.pop()} />
       <div className="px-4 pt-4 space-y-2">
-        {adding ? <Card className="mb-3">
+        {adding ? <Card className="important-form-modal mb-3">
           <Field label="Compétence à maîtriser"><TextInput autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex. Comparer deux fractions" /></Field>
           <Field label="Critère de réussite (facultatif)"><TextArea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Décrivez le résultat attendu" /></Field>
           <div className="flex gap-2"><Btn full variant="ghost" onClick={() => setAdding(false)}>Annuler</Btn><Btn full disabled={!title.trim()} onClick={addCompetency}>Ajouter</Btn></div>
@@ -2345,7 +2352,7 @@ function CreateQuestionnaireScreen({ ctx }) {
   return (
     <Screen>
       <TopBar title={qId ? "Modifier le questionnaire" : "Nouveau questionnaire"} subtitle={subject.name} onBack={() => ctx.nav.pop()} />
-      <div className="px-4 pt-4">
+      <div className="important-form-modal px-4 pt-4">
         {locked && (
           <div className="mb-4">
             <Btn full variant="accent" icon={BarChart3} onClick={() => ctx.nav.push("evaluationsList", { classId, subjectId, questionnaireId: qId, completedOnly: true })}>
@@ -2437,7 +2444,7 @@ function CreateQuestionScreen({ ctx }) {
   return (
     <Screen>
       <TopBar title={editing ? "Modifier la question" : "Nouvelle question"} subtitle={`${questionnaire?.title} · Question ${editing ? "" : count + 1}`} onBack={() => ctx.nav.pop()} />
-      <div className="px-4 pt-4">
+      <div className="important-form-modal px-4 pt-4">
         <Field label="Texte de la question"><TextArea rows={2} value={text} onChange={(e) => setText(e.target.value)} placeholder="Ex. Quelle fraction représente..." /></Field>
         {["A", "B", "C", "D"].map((k) => (
           <Field key={k} label={`Choix ${k}`}>
@@ -2532,12 +2539,12 @@ function EvalPrepScreen({ ctx }) {
     body = <div className="px-4">
       <Card className="mb-4" style={{ background: COLORS.primarySoft, border: "none" }}>
         <p className="font-bold text-[13px] mb-2" style={{ color: COLORS.primaryDark }}>Résumé</p>
-        <div className="space-y-1 text-[12.5px]" style={{ color: COLORS.primaryDark }}>
-          <p>🎓 {cls.name} ({cls.students.filter((s) => !s.archived).length} élèves)</p>
-          <p>📘 {subject.name} · {course.title}</p>
-          {skills.length > 0 && <p>🎯 {skills.map((s) => s.title).join(", ")}</p>}
-          <p>📋 {questionnaire.title}</p>
-          <p>❓ {questionnaire.questions.length} questions</p>
+        <div className="space-y-2 text-[12.5px]" style={{ color: COLORS.primaryDark }}>
+          <p className="flex items-center gap-2"><GraduationCap size={14} className="shrink-0" />{cls.name} ({cls.students.filter((s) => !s.archived).length} élèves)</p>
+          <p className="flex items-center gap-2"><BookOpen size={14} className="shrink-0" />{subject.name} · {course.title}</p>
+          {skills.length > 0 && <p className="flex items-center gap-2"><Target size={14} className="shrink-0" />{skills.map((s) => s.title).join(", ")}</p>}
+          <p className="flex items-center gap-2"><ClipboardList size={14} className="shrink-0" />{questionnaire.title}</p>
+          <p className="flex items-center gap-2"><ListChecks size={14} className="shrink-0" />{questionnaire.questions.length} questions</p>
         </div>
       </Card>
       <Btn full variant="accent" icon={PlayCircle} onClick={start}>Démarrer l'évaluation</Btn>
@@ -2606,6 +2613,11 @@ function ScanSimulationScreen({ ctx }) {
   const question = questionnaire.questions[index];
   const students = session.participantSnapshot || loc.cls.students.filter((s) => !s.archived);
   const total = students.length;
+  const [scanMode, setScanMode] = useState(null); // "all" | "rows" | "individual"
+  const [individualStudentId, setIndividualStudentId] = useState("");
+  const [studentSearch, setStudentSearch] = useState("");
+  const [rowCount, setRowCount] = useState("");
+  const [rowsConfigured, setRowsConfigured] = useState(false);
 
   const [absentPanelOpen, setAbsentPanelOpen] = useState(false);
   const [absentSearch, setAbsentSearch] = useState("");
@@ -2619,19 +2631,27 @@ function ScanSimulationScreen({ ctx }) {
 
   const detectableStudents = useMemo(() => students.filter((s) => !declaredAbsentIds.includes(s.id)), [students, declaredAbsentIds]);
   const zones = useMemo(() => {
+    if (scanMode === "all") return [detectableStudents];
+    if (scanMode === "individual") return [detectableStudents.filter((s) => s.id === individualStudentId)];
+    if (scanMode === "rows" && rowsConfigured) {
+      const count = Math.max(1, Math.min(parseInt(rowCount, 10) || 1, detectableStudents.length || 1));
+      const perRow = Math.ceil(detectableStudents.length / count);
+      return Array.from({ length: count }, (_, i) => detectableStudents.slice(i * perRow, (i + 1) * perRow)).filter((row) => row.length > 0);
+    }
+    if (scanMode === "rows") return [[]];
     const z = [];
     for (let i = 0; i < detectableStudents.length; i += ZONE_SIZE) z.push(detectableStudents.slice(i, i + ZONE_SIZE));
     return z.length ? z : [[]];
-  }, [detectableStudents]);
+  }, [detectableStudents, scanMode, individualStudentId, rowCount, rowsConfigured]);
 
   const [zoneIndex, setZoneIndex] = useState(0);
   const currentZone = zones[Math.min(zoneIndex, zones.length - 1)] || [];
   const [detected, setDetected] = useState([]);
   const [lastFeed, setLastFeed] = useState([]);
-  const [scanning, setScanning] = useState(true);
+  const [scanning, setScanning] = useState(false);
   const detectedIdsRef = useRef(new Set());
 
-  useEffect(() => { setScanning(true); }, [zoneIndex]);
+  useEffect(() => { setScanning(!!scanMode && currentZone.length > 0 && (scanMode !== "rows" || rowsConfigured)); }, [zoneIndex, scanMode, individualStudentId, rowsConfigured]);
   useEffect(() => {
     if (!scanning) return;
     const remainingInZone = currentZone.filter((s) => !detectedIdsRef.current.has(s.id));
@@ -2640,7 +2660,8 @@ function ScanSimulationScreen({ ctx }) {
       setDetected((prev) => {
         const remaining = currentZone.filter((s) => !detectedIdsRef.current.has(s.id));
         if (remaining.length === 0) { setScanning(false); return prev; }
-        const batch = remaining.slice(0, Math.min(2, remaining.length));
+        const batchSize = scanMode === "all" ? 4 : scanMode === "individual" ? 1 : 2;
+        const batch = remaining.slice(0, Math.min(batchSize, remaining.length));
         const additions = batch.map((s) => {
           detectedIdsRef.current.add(s.id);
           const r = Math.random();
@@ -2653,7 +2674,7 @@ function ScanSimulationScreen({ ctx }) {
       });
     }, 550);
     return () => clearInterval(timer);
-  }, [scanning, currentZone, question.correct]);
+  }, [scanning, currentZone, question.correct, scanMode]);
 
   const zoneDone = currentZone.every((s) => detectedIdsRef.current.has(s.id));
   const isLastZone = zoneIndex >= zones.length - 1;
@@ -2673,12 +2694,57 @@ function ScanSimulationScreen({ ctx }) {
   };
 
   const filteredAbsentList = students.filter((s) => s.name.toLowerCase().includes(absentSearch.toLowerCase()));
+  const filteredStudents = detectableStudents.filter((s) => s.name.toLowerCase().includes(studentSearch.toLowerCase()));
+  const chooseMode = (mode) => {
+    detectedIdsRef.current = new Set(); setDetected([]); setLastFeed([]); setZoneIndex(0); setIndividualStudentId(""); setRowCount(""); setRowsConfigured(false); setScanMode(mode);
+  };
+
+  if (!scanMode) return (
+    <Screen>
+      <TopBar title="Comment souhaitez-vous scanner ?" subtitle={`Question ${index + 1}`} onBack={() => ctx.nav.pop()} />
+      <div className="px-4 pt-4">
+        <Card className="mb-4" style={{ background: COLORS.primarySoft, border: "none" }}><Badge tone="primary">Recommandé</Badge><p className="text-[12px] mt-2" style={{ color: COLORS.primaryDark }}>Choisissez le mode adapté à l’organisation de votre classe. Vous vérifierez les réponses avant leur validation.</p></Card>
+        <OptionCard icon={Camera} title="Scanner toute la classe" subtitle="Détecter automatiquement plusieurs cartes en continu" onClick={() => chooseMode("all")} />
+        <OptionCard icon={Users} title="Scanner par rangée" subtitle="Avancer groupe par groupe et repérer les absents" onClick={() => chooseMode("rows")} />
+        <OptionCard icon={User} title="Scanner un élève" subtitle="Enregistrer ou remplacer une réponse individuellement" onClick={() => chooseMode("individual")} />
+      </div>
+    </Screen>
+  );
+
+  if (scanMode === "individual" && !individualStudentId) return (
+    <Screen>
+      <TopBar title="Scanner un élève" subtitle={`Question ${index + 1}`} onBack={() => setScanMode(null)} />
+      <div className="px-4 pt-4">
+        <Field label="Rechercher un élève"><TextInput autoFocus value={studentSearch} onChange={(e) => setStudentSearch(e.target.value)} placeholder="Nom de l’élève" /></Field>
+        <div className="space-y-2 max-h-[520px] overflow-y-auto">{filteredStudents.map((student) => <Card key={student.id} onClick={() => setIndividualStudentId(student.id)} className="flex items-center gap-3 !py-3"><div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: COLORS.primarySoft }}><User size={16} color={COLORS.primary} /></div><span className="text-[12.5px] font-semibold flex-1" style={{ color: COLORS.text }}>{student.name}</span><ChevronRight size={16} color={COLORS.muted} /></Card>)}</div>
+      </div>
+    </Screen>
+  );
+
+  if (scanMode === "rows" && !rowsConfigured) {
+    const parsedRowCount = parseInt(rowCount, 10);
+    const validRowCount = Number.isInteger(parsedRowCount) && parsedRowCount >= 1 && parsedRowCount <= Math.max(1, detectableStudents.length);
+    return (
+      <Screen>
+        <TopBar title="Organiser le scan" subtitle="Mode par rangée" onBack={() => setScanMode(null)} />
+        <div className="px-4 pt-5">
+          <Card className="mb-4" style={{ background: COLORS.primarySoft, border: "none" }}><Users size={24} color={COLORS.primary} className="mb-2" /><p className="text-[13.5px] font-bold" style={{ color: COLORS.primaryDark }}>Combien de rangées voulez-vous scanner ?</p><p className="text-[11.5px] mt-1 leading-5" style={{ color: COLORS.muted }}>KAGAT répartira automatiquement les {detectableStudents.length} élèves présents entre les rangées.</p></Card>
+          <Field label="Nombre de rangées"><TextInput autoFocus type="number" min="1" max={Math.max(1, detectableStudents.length)} value={rowCount} onChange={(e) => setRowCount(e.target.value)} placeholder="Ex. 4" /></Field>
+          {validRowCount && <Card className="mb-4 !py-3"><p className="text-[12px]" style={{ color: COLORS.text }}><b>{parsedRowCount} rangée{parsedRowCount > 1 ? "s" : ""}</b> · environ {Math.ceil(detectableStudents.length / parsedRowCount)} élève(s) par rangée</p></Card>}
+          <Btn full icon={Camera} disabled={!validRowCount} onClick={() => { setZoneIndex(0); setRowsConfigured(true); }}>Commencer par la rangée 1</Btn>
+        </div>
+      </Screen>
+    );
+  }
+
+  const modeLabel = scanMode === "all" ? "Toute la classe" : scanMode === "rows" ? `Rangée ${zoneIndex + 1}/${zones.length}` : currentZone[0]?.name || "Un élève";
+  const scanStatusText = scanning ? "Recherche des cartes-réponses…" : zoneDone ? (scanMode === "rows" ? "Rangée terminée" : "Scan terminé") : "Scan en pause";
 
   return (
     <Screen>
-      <TopBar title="Scan en cours" subtitle={`Question ${index + 1} · Rangée ${zoneIndex + 1}/${zones.length}`} onBack={() => ctx.nav.pop()} />
+      <TopBar title="Scan en cours" subtitle={`Question ${index + 1} · ${modeLabel}`} onBack={() => setScanMode(null)} />
       <div className="px-4 pt-3">
-        {zones.length > 1 && (
+        {scanMode === "rows" && zones.length > 1 && (
           <div className="flex gap-1.5 overflow-x-auto pb-1 mb-3 -mx-1 px-1">
             {zones.map((z, i) => {
               const done = z.every((s) => detectedIdsRef.current.has(s.id)) && z.length > 0;
@@ -2715,7 +2781,7 @@ function ScanSimulationScreen({ ctx }) {
         <div className="rounded-2xl mb-3 flex flex-col items-center justify-center py-8 relative overflow-hidden" style={{ background: "#0F1E33" }}>
           <div className="absolute inset-4 rounded-xl" style={{ border: "2px dashed rgba(255,255,255,0.25)" }} />
           <Camera size={28} color="rgba(255,255,255,0.6)" />
-          <p className="text-[12px] mt-2" style={{ color: "rgba(255,255,255,0.7)" }}>{scanning ? "Recherche des cartes-réponses…" : zoneDone ? "Rangée terminée" : "Scan en pause"}</p>
+          <p className="text-[12px] mt-2" style={{ color: "rgba(255,255,255,0.7)" }}>{scanStatusText}</p>
           {scanning && <div className="flex gap-1 mt-2">{[0, 1, 2].map((i) => <span key={i} className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "#fff", animationDelay: `${i * 150}ms` }} />)}</div>}
           {lastFeed.length > 0 && (
             <div className="w-full mt-3 px-4 space-y-1">
@@ -2735,7 +2801,7 @@ function ScanSimulationScreen({ ctx }) {
           </div>
           <ScanLine size={26} color={COLORS.primary} />
         </Card>
-        {notDetectedInZone.length > 0 && (
+        {notDetectedInZone.length > 0 && scanMode !== "individual" && (
           <Card className="mb-4">
             <p className="font-bold text-[12.5px] mb-2" style={{ color: COLORS.text }}>Non détectés dans cette rangée ({notDetectedInZone.length})</p>
             <div className="flex flex-wrap gap-1.5">
@@ -2745,8 +2811,8 @@ function ScanSimulationScreen({ ctx }) {
           </Card>
         )}
         <div className="space-y-2">
-          {!scanning && !zoneDone && <Btn full variant="secondary" icon={ScanLine} onClick={rescanZone}>Continuer le scan de cette rangée</Btn>}
-          {zoneDone && !isLastZone && <Btn full icon={ArrowRight} onClick={goToNextZone}>Rangée {zoneIndex + 2} — continuer le scan</Btn>}
+          {!scanning && !zoneDone && <Btn full variant="secondary" icon={ScanLine} onClick={rescanZone}>Continuer le scan</Btn>}
+          {scanMode === "rows" && zoneDone && !isLastZone && <Btn full icon={ArrowRight} onClick={goToNextZone}>Rangée {zoneIndex + 2} — continuer le scan</Btn>}
           <Btn full variant={zoneDone && isLastZone ? "accent" : "ghost"} icon={ArrowRight} onClick={goVerify}>
             Vérifier les réponses {notDetectedTotal.length > 0 ? `(${notDetectedTotal.length} non détecté(s))` : ""}
           </Btn>
@@ -2969,7 +3035,7 @@ function DistBar({ dist, total, correctKey }) {
         const isCorrect = k === correctKey;
         return (
           <div key={k} className="flex items-center gap-2">
-            <span className="w-4 text-[11px] font-bold" style={{ color: isCorrect ? COLORS.success : COLORS.muted }}>{k}{isCorrect && " ✓"}</span>
+            <span className="w-7 text-[11px] font-bold flex items-center gap-0.5" style={{ color: isCorrect ? COLORS.success : COLORS.muted }}>{k}{isCorrect && <Check size={11} />}</span>
             <div className="flex-1 h-2.5 rounded-full overflow-hidden" style={{ background: "#EEF1F4" }}><div className="h-full rounded-full" style={{ width: `${pct}%`, background: isCorrect ? COLORS.success : "#B9C3D1" }} /></div>
             <span className="w-9 text-right text-[11px]" style={{ color: isCorrect ? COLORS.success : COLORS.muted, fontWeight: isCorrect ? 700 : 400 }}>{dist[k]}</span>
           </div>
@@ -3243,7 +3309,6 @@ export default function KagatPrototype() {
   });
   const [activeTab, setActiveTab] = useState("accueil");
   const [tabStacks, setTabStacks] = useState({});
-  const [fontScale, setFontScale] = useState(1); // 1 = normal, 1.15 = grand texte
   const [onboardingSeen, setOnboardingSeen] = useState(false);
   const [toasts, setToasts] = useState([]);
 
@@ -3318,7 +3383,7 @@ export default function KagatPrototype() {
     },
   };
 
-  const ctx = { data, setData, isOnline, setIsOnline, currentUser, setCurrentUser, nav, enterApp, exitApp, fontScale, setFontScale, onboardingSeen, setOnboardingSeen, showToast };
+  const ctx = { data, setData, isOnline, setIsOnline, currentUser, setCurrentUser, nav, enterApp, exitApp, onboardingSeen, setOnboardingSeen, showToast };
   const current = nav.current;
   const ScreenComponent = SCREENS[current.screen] || WelcomeScreen;
   const showBottomBar = mode === "app" && !NO_BOTTOM_BAR_APP.has(current.screen);
@@ -3331,10 +3396,10 @@ export default function KagatPrototype() {
           <span>9:41</span>
           <div className="flex items-center gap-1">{isOnline ? <Wifi size={12} /> : <WifiOff size={12} />}<span>KAGAT</span></div>
         </div>
-        <div className="app-scroll flex-1 overflow-y-auto relative" style={{ background: COLORS.bg, zoom: fontScale }}>
+        <div className="app-scroll flex-1 overflow-y-auto relative" style={{ background: COLORS.bg }}>
           <ScreenComponent ctx={ctx} />
         </div>
-        {showBottomBar && <div style={{ zoom: fontScale }}><BottomTabBar ctx={ctx} /></div>}
+        {showBottomBar && <BottomTabBar ctx={ctx} />}
         <ToastHost toasts={toasts} onDismiss={dismissToast} />
       </div>
     </div>
