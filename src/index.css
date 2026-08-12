@@ -44,9 +44,13 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .nav-icon { min-height:30px; }
 .app-screen { min-height:100%; }
 .app-card--interactive:hover { border-color:#cfd6f5 !important; box-shadow:0 12px 30px rgba(38,48,82,.09) !important; transform:translateY(-1px); }
-.app-button { min-height:42px; box-shadow:0 5px 13px rgba(53,88,212,.12); }
-.app-button svg { width:15px; height:15px; }
-.app-button:hover:not(:disabled) { filter:brightness(1.035); transform:translateY(-1px); }
+.app-button { min-height:46px; }
+.app-button svg { width:16px; height:16px; flex-shrink:0; }
+.app-button:hover:not(:disabled) { filter:brightness(1.045); transform:translateY(-1px); }
+.app-button:active:not(:disabled) { filter:brightness(.97); transform:translateY(0) scale(.97); }
+.app-button--ghost:hover:not(:disabled) { background:rgba(53,88,212,.06); }
+.app-button--text:hover:not(:disabled) { background:rgba(53,88,212,.07); transform:none; }
+.app-button--secondary:hover:not(:disabled) { filter:brightness(.98); }
 .app-badge { letter-spacing:.01em; }
 .app-field input, .app-field textarea, .app-field select { transition:border-color .2s, box-shadow .2s, background .2s; }
 .app-field input:hover, .app-field textarea:hover, .app-field select:hover { border-color:#cbd2e8 !important; }

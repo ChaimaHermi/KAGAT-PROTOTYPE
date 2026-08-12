@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   Building2, Calendar, Users, BookOpen, ClipboardList, ScanLine, CheckCircle2,
-  XCircle, Wifi, WifiOff, RefreshCw, ChevronLeft, ChevronRight, Plus, Upload,
+  XCircle, Wifi, WifiOff, RefreshCw, ChevronLeft, ChevronRight, ChevronDown, Plus, Upload,
   Edit3, Trash2, ArrowRight, BarChart3, User, Check, AlertTriangle,
   FileSpreadsheet, CreditCard, GraduationCap, School, Search, Home,
   PlayCircle, Camera, Save, X, ListChecks, UserCheck, UserX,
@@ -74,6 +74,14 @@ function generateStudents(count, prefix) {
 
 const SUBJECT_CATALOG_SEED = ["Mathématiques", "Français", "Sciences", "Éducation civique", "Arts plastiques", "Éducation physique", "Anglais", "Histoire-Géographie", "Informatique"];
 const WEAK_RESULT_THRESHOLD = 50; // % en dessous duquel une recommandation de révision s'affiche
+/* Bandes de réussite partagées entre la vue enseignant (une classe) et la vue gestionnaire
+   (tout l'établissement) — même échelle de lecture partout dans l'app. */
+const RESULT_BANDS = [
+  { key: "excellent", label: "Excellent", range: "≥ 80%", color: COLORS.success, min: 80 },
+  { key: "bien", label: "Bien", range: "60-79%", color: COLORS.primary, min: 60 },
+  { key: "moyen", label: "Moyen", range: "40-59%", color: COLORS.warning, min: 40 },
+  { key: "faible", label: "À revoir", range: "< 40%", color: COLORS.danger, min: 0 },
+];
 
 const DEFAULT_SUBJECTS_BY_LEVEL = {
   "Primaire": ["Mathématiques", "Français", "Sciences"],
@@ -88,6 +96,11 @@ const FRACTIONS_QUESTIONS = [
 ];
 
 function makeInitialData() {
+  const studentsC1 = generateStudents(100, "a");
+  const studentsC2 = generateStudents(30, "b");
+  const now = Date.now();
+  const answersC1 = {};
+  studentsC1.slice(0, 22).forEach((s, i) => { answersC1[s.id] = { q1: "B", q2: i % 3 === 0 ? "B" : "A", q3: i % 5 === 0 ? "C" : "A" }; });
   return {
     establishment: {
       id: "est1", name: "École Al Amal", country: "Algérie", region: "Alger",
@@ -102,13 +115,13 @@ function makeInitialData() {
     invitations: [],
     years: [
       {
-        id: "y1", label: "2026–2027",
-        classes: [
-          {
-            id: "c1", name: "5e année A", level: "5e année", cardCount: 100, archived: false,
-            students: generateStudents(100, "a"),
+        id: "y1", label: "2026–2027", archived: false,
+        /* Matières/cours/questionnaires vivent au niveau (partagés par toutes les sections
+           de ce niveau) — évite de dupliquer le même contenu pédagogique entre 5e A et 5e B. */
+        levels: {
+          "5e année": {
             subjects: [
-              { id: "s1", name: "Mathématiques", teacherId: "t1", archived: false,
+              { id: "s1", name: "Mathématiques", archived: false,
                 courses: [{ id: "co1", title: "Les fractions", description: "Comprendre et manipuler les fractions", competencies: [
                   { id: "cp1", title: "Reconnaître une fraction", description: "Identifier le numérateur et le dénominateur" },
                   { id: "cp2", title: "Comparer des fractions", description: "Comparer des fractions simples" },
@@ -116,22 +129,130 @@ function makeInitialData() {
                 questionnaires: [
                   { id: "qz1", title: "Les fractions", description: "Notions de base sur les fractions", courseId: "co1", competencyIds: ["cp1"], archived: false, questions: FRACTIONS_QUESTIONS },
                 ] },
-              { id: "s2", name: "Français", teacherId: null, archived: false, courses: [], questionnaires: [] },
-              { id: "s3", name: "Sciences", teacherId: null, archived: false, courses: [], questionnaires: [] },
+              { id: "s2", name: "Français", archived: false, courses: [], questionnaires: [] },
+              { id: "s3", name: "Sciences", archived: false, courses: [], questionnaires: [] },
             ],
+          },
+          "4e année": {
+            subjects: [
+              { id: "s4", name: "Mathématiques", archived: false, courses: [], questionnaires: [] },
+            ],
+          },
+        },
+        classes: [
+          {
+            id: "c1", name: "5e année A", level: "5e année", cardCount: 100, archived: false,
+            students: studentsC1,
+            teacherBySubject: { s1: "t1" }, // qui enseigne quelle matière du niveau, pour CETTE section
+            questionnaireOverrides: [], // copies locales, seulement si un enseignant a dupliqué pour adapter
           },
           {
             id: "c2", name: "4e année B", level: "4e année", cardCount: 30, archived: false,
-            students: generateStudents(30, "b"),
-            subjects: [
-              { id: "s4", name: "Mathématiques", teacherId: "t1", archived: false, courses: [], questionnaires: [] },
-            ],
+            students: studentsC2,
+            teacherBySubject: { s4: "t1" },
+            questionnaireOverrides: [],
           },
         ],
       },
     ],
-    sessions: [],
+    /* Une évaluation déjà terminée dans 5e A — pour que les écrans de résultats (enseignant
+       et gestionnaire) aient tout de suite quelque chose à montrer en démo, sans avoir à
+       lancer un scan manuellement d'abord. */
+    sessions: [
+      {
+        id: "sess1", classId: "c1", subjectId: "s1", courseId: "co1", questionnaireId: "qz1", teacherId: "t1",
+        date: new Date(now - 2 * 86400000).toLocaleDateString("fr-FR"), createdAt: now - 2 * 86400000,
+        questionIds: FRACTIONS_QUESTIONS.map((q) => q.id), currentQuestionIndex: FRACTIONS_QUESTIONS.length - 1,
+        participantSnapshot: studentsC1.map((s) => ({ id: s.id, name: s.name, cardNumber: s.cardNumber, studentCode: s.studentCode })),
+        answers: answersC1, questionStatus: {}, declaredAbsentIds: [], status: "completed",
+        syncStatus: "synced", lastSyncedAt: now - 2 * 86400000,
+      },
+    ],
   };
+}
+
+/* Démo "enseignant indépendant" : un seul niveau, deux sections du même niveau — pour montrer
+   tout de suite ce que le mode indépendant permet de voir : programme partagé entre les deux
+   classes (le même questionnaire pour les deux), mais avancement différent (5e A a déjà évalué
+   un cours, 5e B pas encore). */
+function makeIndependentDemoData() {
+  const selfId = "t_ind1";
+  const studentsA = generateStudents(12, "ia");
+  const studentsB = generateStudents(10, "ib");
+  const now = Date.now();
+  const answersA = {};
+  studentsA.forEach((s, i) => { answersA[s.id] = { q1: "B", q2: i % 4 === 0 ? "B" : "A", q3: "A" }; });
+
+  return {
+    establishment: {
+      id: "est_ind1", name: "Mon espace pédagogique", country: "Algérie", region: "Alger",
+      city: "Alger", type: "Public", level: "Primaire", accountType: "independent",
+    },
+    admin: { id: "admin_ind1", name: "Nadia Amari", nationality: "Algérienne", country: "Algérie", city: "Alger", birthDate: "1990-05-15", gender: "F", email: "nadia.amari@email.com", phone: "", username: "nadia.amari", password: "demo123", createdAt: now - 20 * 86400000, lastLoginAt: now - 3600000, selfTeacherId: selfId },
+    subjectCatalog: [...SUBJECT_CATALOG_SEED],
+    teachers: [
+      { id: selfId, name: "Nadia Amari", birthDate: "1990-05-15", gender: "F", email: "nadia.amari@email.com", phone: "", username: "nadia.amari", password: "demo123", mustChangePassword: false, active: true, createdAt: now - 20 * 86400000, lastLoginAt: now - 3600000 },
+    ],
+    invitations: [],
+    years: [
+      {
+        id: "y_ind1", label: "2026–2027", archived: false,
+        levels: {
+          "5e année": {
+            subjects: [
+              { id: "s_ind1", name: "Mathématiques", archived: false,
+                courses: [
+                  { id: "co_ind1", title: "Les fractions", description: "Comprendre et manipuler les fractions", competencies: [
+                    { id: "cp_ind1", title: "Reconnaître une fraction", description: "Identifier le numérateur et le dénominateur" },
+                    { id: "cp_ind2", title: "Comparer des fractions", description: "Comparer des fractions simples" },
+                  ] },
+                  { id: "co_ind2", title: "Les décimaux", description: "Introduction aux nombres décimaux", competencies: [
+                    { id: "cp_ind3", title: "Lire un nombre décimal", description: "Identifier partie entière et partie décimale" },
+                  ] },
+                ],
+                questionnaires: [
+                  { id: "qz_ind1", title: "Les fractions", description: "Notions de base sur les fractions", courseId: "co_ind1", competencyIds: ["cp_ind1"], archived: false, questions: FRACTIONS_QUESTIONS },
+                ] },
+              { id: "s_ind2", name: "Français", archived: false, courses: [], questionnaires: [] },
+            ],
+          },
+        },
+        classes: [
+          {
+            id: "c_ind1", name: "5e année A", level: "5e année", cardCount: 40, archived: false,
+            students: studentsA,
+            teacherBySubject: { s_ind1: selfId, s_ind2: selfId },
+            questionnaireOverrides: [],
+          },
+          {
+            id: "c_ind2", name: "5e année B", level: "5e année", cardCount: 40, archived: false,
+            students: studentsB,
+            teacherBySubject: { s_ind1: selfId, s_ind2: selfId },
+            questionnaireOverrides: [],
+          },
+        ],
+      },
+    ],
+    sessions: [
+      {
+        id: "sess_ind1", classId: "c_ind1", subjectId: "s_ind1", courseId: "co_ind1", questionnaireId: "qz_ind1", teacherId: selfId,
+        date: new Date(now - 3 * 86400000).toLocaleDateString("fr-FR"), createdAt: now - 3 * 86400000,
+        questionIds: FRACTIONS_QUESTIONS.map((q) => q.id), currentQuestionIndex: FRACTIONS_QUESTIONS.length - 1,
+        participantSnapshot: studentsA.map((s) => ({ id: s.id, name: s.name, cardNumber: s.cardNumber, studentCode: s.studentCode })),
+        answers: answersA, questionStatus: {}, declaredAbsentIds: [], status: "completed",
+        syncStatus: "synced", lastSyncedAt: now - 3 * 86400000,
+      },
+    ],
+  };
+}
+/* Connexion rapide de démonstration pour le mode indépendant — même principe que
+   quickSocialAuth, avec des données déjà remplies pour voir tout de suite comment ça marche. */
+function quickIndependentDemoAuth(ctx) {
+  const demoData = makeIndependentDemoData();
+  ctx.setData(demoData);
+  ctx.setCurrentUser({ type: "teacher", id: demoData.admin.selfTeacherId });
+  ctx.showToast("Connecté à l'espace de démonstration (enseignant indépendant).");
+  ctx.enterApp("teacher", "independent");
 }
 
 /* --------------------------- HELPERS DE DONNEES --------------------------- */
@@ -148,33 +269,136 @@ function updateClass(data, classId, updater) {
 function updateYear(data, yearId, updater) {
   return { ...data, years: data.years.map((y) => (y.id === yearId ? updater(y) : y)) };
 }
+/* Matières/cours/questionnaires vivent au niveau (partagés par toutes les sections) —
+   ces helpers lisent/écrivent year.levels[levelName], pas class.subjects. */
+function getLevelSubjects(yr, levelName) {
+  return (yr?.levels && yr.levels[levelName] && yr.levels[levelName].subjects) || [];
+}
+/* Un niveau "existe" soit parce qu'il a été créé explicitement (year.levels), soit parce
+   qu'au moins une classe non archivée l'utilise déjà — union des deux pour ne rien perdre. */
+function getYearLevelNames(yr) {
+  const names = new Set(Object.keys(yr?.levels || {}));
+  (yr?.classes || []).forEach((c) => { if (!c.archived) names.add(c.level); });
+  return [...names].sort();
+}
+function updateLevel(data, yearId, levelName, updater) {
+  return {
+    ...data,
+    years: data.years.map((y) => {
+      if (y.id !== yearId) return y;
+      const current = (y.levels && y.levels[levelName]) || { subjects: [] };
+      return { ...y, levels: { ...(y.levels || {}), [levelName]: updater(current) } };
+    }),
+  };
+}
 function updateSession(data, sessionId, updater) {
   return { ...data, sessions: data.sessions.map((s) => (s.id === sessionId ? updater(s) : s)) };
 }
 function findSession(data, sessionId) { return data.sessions.find((s) => s.id === sessionId); }
-function findQuestionnaire(cls, subjectId, questionnaireId) {
-  const subject = cls.subjects.find((s) => s.id === subjectId);
-  if (!subject) return { subject: null, questionnaire: null };
-  return { subject, questionnaire: subject.questionnaires.find((q) => q.id === questionnaireId) };
+/* Une classe peut avoir dupliqué un questionnaire partagé pour l'adapter — on la vérifie
+   d'abord ; sinon on retombe sur le questionnaire partagé du niveau. */
+function findQuestionnaire(yr, cls, subjectId, questionnaireId) {
+  const subject = getLevelSubjects(yr, cls.level).find((s) => s.id === subjectId);
+  const override = (cls.questionnaireOverrides || []).find((q) => q.id === questionnaireId && q.subjectId === subjectId);
+  if (override) return { subject, questionnaire: override, isOverride: true };
+  if (!subject) return { subject: null, questionnaire: null, isOverride: false };
+  return { subject, questionnaire: subject.questionnaires.find((q) => q.id === questionnaireId), isOverride: false };
 }
 function findTeacher(data, teacherId) { return data.teachers.find((t) => t.id === teacherId); }
 function uid(prefix) { return `${prefix}${Math.random().toString(36).slice(2, 9)}`; }
 
+/* Ne regarde que les années NON archivées : clôturer une année ne touche pas le drapeau
+   "archived" de chaque classe une par une, seulement celui de l'année. Sans ce filtre, les
+   affectations d'une année clôturée resteraient mélangées indéfiniment avec la nouvelle —
+   un enseignant garderait pour toujours ses anciennes classes dans "Mes classes", même après
+   promotion. L'historique reste consultable (lecture seule) depuis Classes → l'année archivée. */
 function getTeacherAssignments(data, teacherId) {
   const out = [];
-  data.years.forEach((yr) => yr.classes.forEach((cls) => {
-    if (cls.archived) return;
-    cls.subjects.forEach((s) => { if (s.teacherId === teacherId && !s.archived) out.push({ cls, subject: s }); });
-  }));
+  data.years.forEach((yr) => {
+    if (yr.archived) return;
+    yr.classes.forEach((cls) => {
+      if (cls.archived) return;
+      const subjects = getLevelSubjects(yr, cls.level);
+      Object.entries(cls.teacherBySubject || {}).forEach(([subjectId, tId]) => {
+        if (tId !== teacherId) return;
+        const subject = subjects.find((s) => s.id === subjectId);
+        if (subject && !subject.archived) out.push({ cls, subject });
+      });
+    });
+  });
   return out;
 }
-function getUnassignedSubjects(data) {
-  const out = [];
-  data.years.forEach((yr) => yr.classes.forEach((cls) => {
-    if (cls.archived) return;
-    cls.subjects.forEach((s) => { if (!s.teacherId && !s.archived) out.push({ cls, subject: s }); });
-  }));
-  return out;
+/* Regroupe les affectations d'un enseignant par NIVEAU plutôt que par classe : cours,
+   compétences et questionnaires sont partagés à ce niveau (toutes ses sections), alors que
+   lancer une évaluation et consulter des résultats reste propre à chaque classe réelle.
+   C'est cette distinction qui structure toute la navigation enseignant. */
+/* includeArchivedYears : false partout où on parle du présent (tableau de bord, démarrer une
+   évaluation...) — true seulement pour naviguer/consulter une année clôturée en lecture
+   seule, depuis "Mes années". Ne délègue pas à getTeacherAssignments (verrouillée sur l'année
+   active) pour pouvoir, justement, inclure les années archivées à la demande. */
+function getTeacherLevelGroups(data, teacherId, opts = {}) {
+  const { includeArchivedYears = false } = opts;
+  const groups = [];
+  data.years.forEach((yr) => {
+    if (yr.archived && !includeArchivedYears) return;
+    yr.classes.forEach((cls) => {
+      if (cls.archived) return;
+      const subjects = getLevelSubjects(yr, cls.level);
+      Object.entries(cls.teacherBySubject || {}).forEach(([subjectId, tId]) => {
+        if (tId !== teacherId) return;
+        const subject = subjects.find((s) => s.id === subjectId);
+        if (!subject || subject.archived) return;
+        let g = groups.find((x) => x.yearId === yr.id && x.level === cls.level);
+        if (!g) { g = { yearId: yr.id, yearLabel: yr.label, yearArchived: yr.archived, level: cls.level, subjects: [], classes: [] }; groups.push(g); }
+        if (!g.subjects.some((s) => s.id === subject.id)) g.subjects.push(subject);
+        if (!g.classes.some((c) => c.id === cls.id)) g.classes.push(cls);
+      });
+    });
+  });
+  return groups;
+}
+/* Même chose, regroupée un cran au-dessus par année scolaire — pour afficher
+   Année → Niveaux → (Préparer / Mes classes), comme côté gestionnaire. */
+function getTeacherYearGroups(data, teacherId, opts = {}) {
+  const years = [];
+  getTeacherLevelGroups(data, teacherId, opts).forEach((g) => {
+    let y = years.find((x) => x.yearId === g.yearId);
+    if (!y) { y = { yearId: g.yearId, yearLabel: g.yearLabel, yearArchived: g.yearArchived, levels: [] }; years.push(y); }
+    y.levels.push(g);
+  });
+  /* L'année active apparaît toujours, même sans aucune affectation pour le moment — sinon
+     un enseignant qui vient d'être promu dans une nouvelle année (matières pas encore
+     réaffectées par le gestionnaire) ne verrait plus aucune année du tout. */
+  const activeYear = data.years.find((yr) => !yr.archived);
+  if (activeYear && !years.some((y) => y.yearId === activeYear.id)) {
+    years.push({ yearId: activeYear.id, yearLabel: activeYear.label, yearArchived: false, levels: [] });
+  }
+  years.sort((a, b) => (a.yearArchived === b.yearArchived ? 0 : a.yearArchived ? 1 : -1));
+  return years;
+}
+/* Avancement d'une classe dans le PROGRAMME (cours), pas dans les évaluations : pour chaque
+   cours des matières enseignées dans cette classe, "fait" si toutes ses compétences ont déjà
+   été évaluées au moins une fois dans cette classe précise, sinon "pas encore". Un cours sans
+   compétence définie n'a rien à montrer, on l'ignore. Compare une classe à l'autre au même
+   niveau — utile puisque le programme est partagé mais chaque section avance à son rythme. */
+function getClassCourseProgress(data, cls, mySubjects) {
+  const items = [];
+  mySubjects.forEach((s) => {
+    const myOverrides = (cls.questionnaireOverrides || []).filter((o) => o.subjectId === s.id && !o.archived);
+    (s.courses || []).forEach((course) => {
+      if (course.competencies.length === 0) return;
+      const done = course.competencies.every((comp) => {
+        const qs = s.questionnaires.filter((q) => !q.archived && (q.competencyIds || []).includes(comp.id));
+        return qs.some((q) => {
+          const override = myOverrides.find((o) => o.sourceQuestionnaireId === q.id);
+          const targetId = override ? override.id : q.id;
+          return data.sessions.some((sess) => sess.classId === cls.id && sess.subjectId === s.id && sess.questionnaireId === targetId && sess.status === "completed");
+        });
+      });
+      items.push({ key: `${s.id}-${course.id}`, title: course.title, done, subjectId: s.id, courseId: course.id });
+    });
+  });
+  return items;
 }
 function questionnaireHasSessions(data, questionnaireId) {
   return data.sessions.some((s) => s.questionnaireId === questionnaireId);
@@ -211,6 +435,48 @@ function genderLabel(g) {
   if (g === "M") return "Homme";
   return null;
 }
+/* --------------------- FIN D'ANNÉE / PASSAGE DE NIVEAU --------------------- */
+/* Suggestion de niveau suivant, jamais imposée : on incrémente le chiffre de tête
+   s'il y en a un ("5e année" -> "6e année"), sinon on laisse tel quel — l'admin
+   corrige lui-même, car la nomenclature des niveaux change trop d'une école à l'autre
+   pour être devinée de façon fiable ("CM2", "Terminale", etc.). */
+function nextLevelGuess(level) {
+  const m = /^(\d+)(.*)$/.exec((level || "").trim());
+  return m ? `${parseInt(m[1], 10) + 1}${m[2]}` : level;
+}
+function nextYearLabelGuess(label) {
+  const m = /^(\d{4})(\D+)(\d{4})$/.exec((label || "").trim());
+  return m ? `${parseInt(m[1], 10) + 1}${m[2]}${parseInt(m[3], 10) + 1}` : "";
+}
+/* Regroupe tous les élèves actifs de l'année par niveau, toutes classes confondues —
+   la classe d'origine (A, B, ...) n'a aucune importance à ce stade. */
+function getPromotionLevels(data, yearId) {
+  const yr = data.years.find((y) => y.id === yearId);
+  if (!yr) return [];
+  const byLevel = new Map();
+  yr.classes.filter((c) => !c.archived && !c.pendingDistribution).forEach((c) => {
+    c.students.filter((s) => !s.archived).forEach((s) => {
+      const arr = byLevel.get(c.level) || [];
+      arr.push({ ...s, classId: c.id, className: c.name });
+      byLevel.set(c.level, arr);
+    });
+  });
+  return [...byLevel.entries()].map(([level, students]) => ({ level, students }));
+}
+/* Déplace des élèves d'une classe "à répartir" vers une classe réelle de la nouvelle année. */
+function moveStudents(data, yearId, fromClassId, toClassId, studentIds) {
+  const idSet = new Set(studentIds);
+  return updateYear(data, yearId, (y) => {
+    let moved = [];
+    const stripped = y.classes.map((c) => {
+      if (c.id !== fromClassId) return c;
+      moved = c.students.filter((s) => idSet.has(s.id));
+      return { ...c, students: c.students.filter((s) => !idSet.has(s.id)) };
+    });
+    return { ...y, classes: stripped.map((c) => (c.id === toClassId ? { ...c, students: [...c.students, ...moved] } : c)) };
+  });
+}
+
 function getSyncAlertLevel(data) {
   const pending = data.sessions.filter((s) => s.syncStatus !== "synced");
   const now = Date.now();
@@ -241,29 +507,128 @@ function TopBar({ title, subtitle, onBack, right }) {
 function SectionLabel({ children }) {
   return <div className="section-label flex items-center gap-2 px-0.5"><span /><p className="text-[10.5px] font-extrabold uppercase" style={{ color: COLORS.muted, letterSpacing: "0.09em" }}>{children}</p></div>;
 }
+/* Bouton d'ajout inline (cours, compétence, questionnaire…) — un vrai bouton avec bordure
+   pointillée et icône +, plutôt qu'un simple lien texte souligné par la couleur : plus visible
+   comme zone tactile, et la couleur (tone) permet de garder le code couleur cours/compétence/
+   questionnaire déjà utilisé dans le programme. */
+function AddRow({ label, onClick, tone = "primary", full = true }) {
+  const tones = {
+    primary: { fg: COLORS.primary, bg: COLORS.primarySoft },
+    success: { fg: COLORS.success, bg: COLORS.successSoft },
+    accent: { fg: COLORS.accent, bg: COLORS.accentSoft },
+  };
+  const t = tones[tone];
+  return (
+    <button onClick={onClick} className={`flex items-center justify-center gap-1.5 rounded-xl shrink-0 ${full ? "w-full py-2.5" : "py-1.5 px-3"}`} style={{ border: `1.5px dashed ${t.fg}66`, background: t.bg, color: t.fg }}>
+      <Plus size={13} />
+      <span className="text-[11.5px] font-bold">{label}</span>
+    </button>
+  );
+}
 function getQuestionnaireCompetencies(subject, questionnaire) {
   const ids = questionnaire?.competencyIds || [];
   return (subject?.courses || []).flatMap((course) => course.competencies || []).filter((competency) => ids.includes(competency.id));
 }
 
 function Btn({ children, onClick, variant = "primary", full, disabled, icon: Icon, size = "md", type = "button" }) {
+  /* Système inspiré de Material 3 (boutons Flutter) : Filled a une ombre colorée nette,
+     Tonal (secondary) un fond doux sans ombre, Outlined (ghost) juste un contour, Text
+     aucun décor — chaque variante a un seul niveau d'accent, pas de bordure + ombre + fond
+     empilés en même temps. Forme "stadium" (pilule) plutôt que des coins légèrement arrondis. */
   const styles = {
-    primary: { background: disabled ? "#A9B8CE" : COLORS.primary, color: "#fff" },
-    accent: { background: disabled ? "#C9BBE3" : COLORS.accent, color: "#fff" },
-    secondary: { background: COLORS.primarySoft, color: COLORS.primary },
-    ghost: { background: "transparent", color: COLORS.primary, border: `1px solid ${COLORS.border}` },
-    danger: { background: disabled ? "#E9B8B2" : COLORS.danger, color: "#fff" },
-    success: { background: disabled ? "#A9D3C6" : COLORS.success, color: "#fff" },
+    primary: { background: disabled ? "#B7C0D9" : COLORS.primary, color: "#fff", border: "none", boxShadow: disabled ? "none" : "0 8px 18px rgba(53,88,212,.26)" },
+    accent: { background: disabled ? "#D3C6E8" : COLORS.accent, color: "#fff", border: "none", boxShadow: disabled ? "none" : "0 8px 18px rgba(124,77,219,.26)" },
+    danger: { background: disabled ? "#EFC1BB" : COLORS.danger, color: "#fff", border: "none", boxShadow: disabled ? "none" : "0 8px 18px rgba(214,77,61,.24)" },
+    success: { background: disabled ? "#AFDBCC" : COLORS.success, color: "#fff", border: "none", boxShadow: disabled ? "none" : "0 8px 18px rgba(22,134,111,.24)" },
+    secondary: { background: disabled ? "#EEF1F4" : COLORS.primarySoft, color: disabled ? COLORS.muted : COLORS.primary, border: "none", boxShadow: "none" },
+    ghost: { background: "transparent", color: disabled ? COLORS.muted : COLORS.primary, border: `1.5px solid ${disabled ? COLORS.border : COLORS.primary}`, boxShadow: "none" },
+    text: { background: "transparent", color: disabled ? COLORS.muted : COLORS.primary, border: "none", boxShadow: "none" },
   };
-  const pad = size === "sm" ? "py-1.5 px-2.5 text-[11px]" : "py-2.5 px-3.5 text-[12.5px]";
+  const pad = size === "sm" ? "py-2 px-4 text-[11.5px]" : "py-3 px-5 text-[13px]";
   return (
     <button type={type} onClick={disabled ? undefined : onClick} disabled={disabled}
-      className={`app-button rounded-[13px] font-bold flex items-center justify-center gap-1.5 transition active:scale-[0.98] ${pad} ${full ? "w-full" : ""} ${disabled ? "cursor-not-allowed" : ""}`}
+      className={`app-button app-button--${variant} rounded-full font-semibold tracking-[0.01em] flex items-center justify-center gap-1.5 transition-all duration-150 active:scale-[0.97] ${pad} ${full ? "w-full" : ""} ${disabled ? "cursor-not-allowed" : ""}`}
       style={styles[variant]}>
       {Icon && <Icon size={size === "sm" ? 15 : 17} />}
       {children}
     </button>
   );
+}
+
+/* ---------------------------- CONNEXION SOCIALE --------------------------- */
+/* Logos officiels en SVG inline (lucide-react ne fournit pas de logos de marque) */
+function GoogleIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
+      <path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v2.98h3.86c2.26-2.08 3.56-5.14 3.56-8.8z" />
+      <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.92l-3.86-2.98c-1.08.72-2.45 1.15-4.07 1.15-3.13 0-5.78-2.11-6.73-4.96H1.29v3.09C3.26 21.3 7.31 24 12 24z" />
+      <path fill="#FBBC05" d="M5.27 14.29a7.2 7.2 0 010-4.58V6.62H1.29a12 12 0 000 10.76l3.98-3.09z" />
+      <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.98 3.09C6.22 6.86 8.87 4.75 12 4.75z" />
+    </svg>
+  );
+}
+function FacebookIcon({ size = 18, color = "#1877F2" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={color} aria-hidden="true">
+      <path d="M24 12.07C24 5.7 18.63.5 12 .5S0 5.7 0 12.07c0 5.76 4.39 10.53 10.13 11.43v-8.08H7.08v-3.35h3.05V9.41c0-3 1.83-4.65 4.6-4.65 1.33 0 2.72.24 2.72.24v2.94H16c-1.5 0-1.97.92-1.97 1.86v2.24h3.36l-.54 3.35h-2.82v8.08C19.61 22.6 24 17.83 24 12.07z" />
+    </svg>
+  );
+}
+/* Boutons alignés sur les chartes graphiques officielles Google (fond blanc, bordure, ombre légère
+   car un bouton blanc sur fond clair a besoin de relief pour rester lisible) et Facebook (fond bleu plein) */
+function SocialButton({ provider, onClick, disabled, size = "md" }) {
+  const isGoogle = provider === "google";
+  const tall = size === "lg";
+  return (
+    <button type="button" onClick={disabled ? undefined : onClick} disabled={disabled}
+      className="w-full flex items-center justify-center gap-3 rounded-[14px] font-bold transition active:scale-[0.98]"
+      style={{
+        height: tall ? 52 : 46,
+        fontSize: tall ? 14 : 13,
+        background: isGoogle ? "#FFFFFF" : "#1877F2",
+        border: isGoogle ? `1.5px solid ${COLORS.border}` : "none",
+        color: isGoogle ? COLORS.text : "#FFFFFF",
+        boxShadow: isGoogle ? "0 2px 8px rgba(23,32,51,0.06)" : "0 6px 16px rgba(24,119,242,0.28)",
+        opacity: disabled ? 0.5 : 1,
+        cursor: disabled ? "not-allowed" : "pointer",
+      }}>
+      {isGoogle ? <GoogleIcon size={tall ? 20 : 18} /> : <FacebookIcon size={tall ? 20 : 18} color="#FFFFFF" />}
+      <span>Continuer avec {isGoogle ? "Google" : "Facebook"}</span>
+    </button>
+  );
+}
+/* Séparateur "ou" — sobre, réutilisé partout où deux méthodes d'accès se juxtaposent */
+function OrDivider({ label = "ou" }) {
+  return (
+    <div className="flex items-center gap-3 my-5">
+      <div className="flex-1 h-px" style={{ background: COLORS.border }} />
+      <span className="text-[11px] font-bold uppercase" style={{ color: COLORS.muted, letterSpacing: "0.08em" }}>{label}</span>
+      <div className="flex-1 h-px" style={{ background: COLORS.border }} />
+    </div>
+  );
+}
+/* Groupe boutons sociaux + séparateur — un seul point d'entrée réutilisé sur Accueil, Connexion et Inscription */
+function SocialAuthGroup({ onGoogle, onFacebook, dividerLabel = "ou" }) {
+  return (
+    <div className="mb-1">
+      <div className="flex flex-col gap-3">
+        <SocialButton provider="google" onClick={onGoogle} />
+        <SocialButton provider="facebook" onClick={onFacebook} />
+      </div>
+      <OrDivider label={dividerLabel} />
+    </div>
+  );
+}
+/* Connexion sociale "instantanée" : Google/Facebook authentifient déjà l'utilisateur en amont,
+   donc il n'y a ni mot de passe local à saisir, ni code à vérifier — on entre directement. */
+function quickSocialAuth(ctx, provider) {
+  const demoData = makeInitialData();
+  ctx.setData(demoData);
+  const demoTeacher = demoData.teachers.find((t) => t.id === "t1");
+  ctx.setData((d) => ({ ...d, teachers: d.teachers.map((t) => (t.id === demoTeacher.id ? { ...t, lastLoginAt: Date.now() } : t)) }));
+  ctx.setCurrentUser({ type: "teacher", id: demoTeacher.id });
+  ctx.showToast(`Connecté avec ${provider === "google" ? "Google" : "Facebook"}.`);
+  ctx.enterApp("teacher");
 }
 
 function Card({ children, className = "", onClick, style }) {
@@ -324,6 +689,17 @@ function OfflineVerificationState({ onRetry, onEdit }) {
 const inputStyle = { width: "100%", padding: "12px 13px", minHeight: 46, borderRadius: 14, border: `1px solid ${COLORS.border}`, fontSize: 13.5, color: COLORS.text, background: "#FFFFFF", outline: "none" };
 function TextInput(props) { return <input {...props} style={{ ...inputStyle, ...(props.style || {}) }} />; }
 function TextArea(props) { return <textarea {...props} style={{ ...inputStyle, resize: "none", ...(props.style || {}) }} />; }
+/* Barre de recherche unique, réutilisée partout où on filtre une liste (élèves, enseignants…) —
+   avant, certains écrans utilisaient TextInput (fond blanc, bordure) et d'autres un champ avec
+   icône (fond gris, sans bordure) : deux styles différents pour la même action. */
+function SearchInput({ value, onChange, placeholder, autoFocus, className = "" }) {
+  return (
+    <div className={`flex items-center gap-2 px-3.5 rounded-2xl ${className}`} style={{ background: "#F2F4F7", minHeight: 44 }}>
+      <Search size={15} color={COLORS.muted} className="shrink-0" />
+      <input autoFocus={autoFocus} value={value} onChange={onChange} placeholder={placeholder} className="flex-1 bg-transparent outline-none text-[13px]" style={{ color: COLORS.text }} />
+    </div>
+  );
+}
 
 function EmptyState({ icon: Icon, title, text, action }) {
   return (
@@ -458,15 +834,15 @@ function WizardProgress({ step, totalSteps, crumbs = [], labels = [], helperText
 /* ------------------------------ BOTTOM TAB BAR ----------------------------- */
 const ADMIN_TABS = [
   { key: "accueil", label: "Accueil", icon: Home, root: "adminDashboard" },
+  { key: "enseignants", label: "Enseignants", icon: Users, root: "teachersList" },
   { key: "classes", label: "Classes", icon: School, root: "years" },
   { key: "resultats", label: "Résultats", icon: BarChart3, root: "adminResults" },
-  { key: "enseignants", label: "Enseignants", icon: Users, root: "teachersList" },
   { key: "profil", label: "Profil", icon: User, root: "myProfile" },
 ];
 const TEACHER_TABS = [
   { key: "accueil", label: "Accueil", icon: Home, root: "teacherDashboard" },
+  { key: "programme", label: "Programme", icon: School, root: "teacherYears" },
   { key: "evaluations", label: "Évaluations", icon: ClipboardList, root: "evaluationsList" },
-  { key: "resultats", label: "Résultats", icon: BarChart3, root: "resultsList" },
   { key: "profil", label: "Profil", icon: User, root: "myProfile" },
 ];
 /* Compte indépendant : un seul enseignant qui gère aussi ses classes/matières — tabs fusionnés */
@@ -474,7 +850,6 @@ const INDEPENDENT_TABS = [
   { key: "accueil", label: "Accueil", icon: Home, root: "teacherDashboard" },
   { key: "classes", label: "Classes", icon: School, root: "years" },
   { key: "evaluations", label: "Évaluations", icon: ClipboardList, root: "evaluationsList" },
-  { key: "resultats", label: "Résultats", icon: BarChart3, root: "resultsList" },
   { key: "profil", label: "Profil", icon: User, root: "myProfile" },
 ];
 function getTabsFor(ctx) {
@@ -527,6 +902,32 @@ function OnboardingTip({ ctx, text }) {
   );
 }
 
+/* Écran de lancement, pur branding — pas encore de choix à faire, juste "Démarrer".
+   Pattern standard des apps mobiles : logo + tagline + un seul CTA, séparé de l'écran
+   d'accueil qui, lui, propose déjà connexion/inscription. */
+function SplashScreen({ ctx }) {
+  return (
+    <Screen>
+      <div className="welcome-hero flex flex-col items-center px-6" style={{ justifyContent: "space-between", paddingTop: 72, paddingBottom: 40 }}>
+        <span />
+        <div className="flex flex-col items-center">
+          <div className="brand-mark w-28 h-28 rounded-[34px] flex items-center justify-center mb-6" style={{ background: `linear-gradient(145deg, ${COLORS.primary}, ${COLORS.accent})`, boxShadow: "0 18px 40px rgba(53,88,212,0.28)" }}>
+            <ScanLine size={46} color="#fff" />
+          </div>
+          <h1 className="text-[34px] font-black mb-2 tracking-[-0.045em]" style={{ color: COLORS.text }}>KAGAT</h1>
+          <p className="text-[14px] font-semibold text-center max-w-[260px] leading-5" style={{ color: COLORS.muted }}>
+            Chaque réponse devient une opportunité d’apprendre.
+          </p>
+        </div>
+        <div className="w-full flex flex-col items-center">
+          <Badge tone="success" icon={Wifi}>Conçu pour fonctionner hors ligne</Badge>
+          <div className="w-full mt-4"><Btn full icon={ArrowRight} onClick={() => ctx.nav.push("welcome")}>Démarrer</Btn></div>
+        </div>
+      </div>
+    </Screen>
+  );
+}
+
 function WelcomeScreen({ ctx }) {
   return (
     <Screen>
@@ -540,14 +941,31 @@ function WelcomeScreen({ ctx }) {
         <p className="text-[12.5px] leading-5 text-center mb-9 max-w-[300px]" style={{ color: COLORS.muted }}>
           Évaluation formative par cartes-réponses,<br />même sans connexion Internet.
         </p>
-        <Btn full icon={LogIn} onClick={() => ctx.nav.push("login")}>Se connecter</Btn>
-        <button onClick={() => ctx.nav.push("register")} className="mt-5 text-center">
-          <span className="text-[12.5px] font-semibold" style={{ color: COLORS.primary }}>Créer mon compte</span>
-          <p className="text-[11px] mt-0.5" style={{ color: COLORS.muted }}>Vous ajouterez votre établissement une fois inscrit</p>
-        </button>
-        <button onClick={() => ctx.nav.push("joinEstablishment")} className="mt-4 flex items-center gap-1.5 text-[12px] font-semibold" style={{ color: COLORS.accent }}>
-          <KeyRound size={14} /> J’ai un code d’invitation
-        </button>
+        {/* Groupe principal : "Se connecter" en tête, Google/Facebook juste en dessous
+            comme raccourcis rapides pour ceux qui préfèrent ne pas taper d'identifiants. */}
+        <div className="w-full">
+          <Btn full icon={LogIn} onClick={() => ctx.nav.push("login")}>Se connecter</Btn>
+          <OrDivider />
+          <div className="flex flex-col gap-3">
+            <SocialButton provider="google" onClick={() => quickSocialAuth(ctx, "google")} />
+            <SocialButton provider="facebook" onClick={() => quickSocialAuth(ctx, "facebook")} />
+          </div>
+        </div>
+
+        {/* Groupe secondaire, nettement séparé (bordure) : pour le petit nombre d'utilisateurs
+            qui arrivent ici sans compte — visible, mais sans concurrencer l'action principale. */}
+        <div className="w-full mt-6 pt-5 flex flex-col items-center gap-3.5" style={{ borderTop: `1px solid ${COLORS.border}` }}>
+          <button onClick={() => ctx.nav.push("register")} className="text-center">
+            <span className="text-[12.5px]" style={{ color: COLORS.muted }}>Vous n’avez pas de compte ? </span>
+            <span className="text-[12.5px] font-bold" style={{ color: COLORS.primary }}>Créer un compte</span>
+          </button>
+          <button onClick={() => ctx.nav.push("joinEstablishment")} className="flex items-center gap-1.5 text-[12px] font-semibold" style={{ color: COLORS.accent }}>
+            <KeyRound size={14} /> J’ai un code d’invitation
+          </button>
+          <button onClick={() => quickIndependentDemoAuth(ctx)} className="flex items-center gap-1.5 text-[12px] font-semibold" style={{ color: COLORS.muted }}>
+            <User size={14} /> Essayer comme enseignant indépendant (démo)
+          </button>
+        </div>
       </div>
     </Screen>
   );
@@ -557,7 +975,8 @@ function RegisterWizardScreen({ ctx }) {
   const [step, setStep] = useState(0);
   const [accountType, setAccountType] = useState(""); // "institution" | "independent"
   const [institutionRole, setInstitutionRole] = useState(""); // "admin" | "teacher"
-  const [channel, setChannel] = useState(""); // "email" | "phone"
+  const [channel, setChannel] = useState(""); // "email" | "phone" | "google" | "facebook"
+  const [socialProvider, setSocialProvider] = useState(""); // "google" | "facebook" quand l'identité est déjà vérifiée par le fournisseur
   const [contact, setContact] = useState("");
   const [contactError, setContactError] = useState("");
   const [waitingForConnection, setWaitingForConnection] = useState(false);
@@ -575,6 +994,7 @@ function RegisterWizardScreen({ ctx }) {
   const [confirm, setConfirm] = useState("");
   const [pwdError, setPwdError] = useState("");
   const [school, setSchool] = useState({ name: "", country: "", region: "", city: "", type: "Public", level: "Primaire" });
+  const [showMoreOptions, setShowMoreOptions] = useState(false); // Google mis en avant seul ; Facebook + email repliés pour ne pas surcharger le choix
 
   const chooseAccountType = (type) => { setAccountType(type); setStep(type === "institution" ? 0.5 : 1); };
   const chooseInstitutionRole = (role) => {
@@ -582,7 +1002,28 @@ function RegisterWizardScreen({ ctx }) {
     if (role === "teacher") { ctx.nav.push("joinEstablishment"); return; }
     setStep(1);
   };
-  const chooseChannel = (ch) => { setChannel(ch); setContact(""); setContactError(""); setStep(2); };
+  const chooseChannel = (ch) => { setChannel(ch); setSocialProvider(""); setContact(""); setContactError(""); setStep(2); };
+
+  /* Google/Facebook authentifient déjà l'utilisateur : on saute directement les étapes
+     "coordonnées" + "code de vérification" (étapes 2 et 3) puisqu'elles n'ont plus de raison d'être.
+     On récupère le nom/email simulés du profil fourni par le provider, et on va droit aux
+     informations complémentaires (étape 4). Le mot de passe local est lui aussi sauté :
+     ces comptes se reconnectent avec le même bouton, pas avec un mot de passe KAGAT. */
+  const chooseSocialChannel = (provider) => {
+    const demoName = accountType === "institution" ? "Karim Haddad" : "Nadia Amari";
+    const demoEmail = provider === "google" ? "karim.haddad@gmail.com" : "karim.haddad@facebook.com";
+    const autoPwd = uid("pwd");
+    setChannel(provider);
+    setSocialProvider(provider);
+    setContact(demoEmail);
+    setContactError("");
+    setName(demoName);
+    setNationality("Algérienne"); setPersonCountry("Algérie"); setPersonCity("Alger");
+    setBirthDate("1990-05-15"); setGender(accountType === "institution" ? "M" : "F");
+    setPassword(autoPwd); setConfirm(autoPwd);
+    ctx.showToast(`Identité vérifiée automatiquement via ${provider === "google" ? "Google" : "Facebook"}.`);
+    setStep(4);
+  };
 
   const startVerification = () => {
     setDemoCode(String(Math.floor(100000 + Math.random() * 900000)));
@@ -634,9 +1075,10 @@ function RegisterWizardScreen({ ctx }) {
       admin: {
         id: adminId, name: name.trim(), nationality: nationality.trim(), country: personCountry.trim(), city: personCity.trim(),
         birthDate, gender,
-        email: channel === "email" ? contact.trim() : "",
+        email: channel === "phone" ? "" : contact.trim(),
         phone: channel === "phone" ? contact.trim() : "",
         username: contact.trim(), password,
+        authProvider: socialProvider || "password",
         createdAt: Date.now(), lastLoginAt: Date.now(),
         selfTeacherId,
       },
@@ -644,20 +1086,22 @@ function RegisterWizardScreen({ ctx }) {
       years: [], sessions: [], subjectCatalog: [...SUBJECT_CATALOG_SEED],
       teachers: isIndependent ? [{
         id: selfTeacherId, name: name.trim(), nationality: nationality.trim(), country: personCountry.trim(), city: personCity.trim(), birthDate, gender,
-        email: channel === "email" ? contact.trim() : "", phone: channel === "phone" ? contact.trim() : "",
-        username: contact.trim(), password, mustChangePassword: false, active: true,
+        email: channel === "phone" ? "" : contact.trim(), phone: channel === "phone" ? contact.trim() : "",
+        username: contact.trim(), password, authProvider: socialProvider || "password", mustChangePassword: false, active: true,
         createdAt: Date.now(), lastLoginAt: Date.now(),
       }] : [],
     }));
-    ctx.showToast("Compte vérifié. Vous pouvez maintenant accéder à KAGAT.");
-    if (isIndependent) { ctx.setCurrentUser({ type: "teacher", id: selfTeacherId }); ctx.enterApp("teacher"); }
-    else { ctx.setCurrentUser({ type: "admin", id: adminId }); ctx.enterApp("admin"); }
+    ctx.showToast(socialProvider ? `Compte créé avec ${socialProvider === "google" ? "Google" : "Facebook"}. Vous pouvez maintenant accéder à KAGAT.` : "Compte vérifié. Vous pouvez maintenant accéder à KAGAT.");
+    if (isIndependent) { ctx.setCurrentUser({ type: "teacher", id: selfTeacherId }); ctx.enterApp("teacher", "independent"); }
+    else { ctx.setCurrentUser({ type: "admin", id: adminId }); ctx.enterApp("admin", "institution"); }
   };
 
   const goBack = () => {
     if (step === 0) { ctx.nav.pop(); return; }
     if (step === 0.5) { setStep(0); return; }
     if (step === 1 && accountType === "institution") { setStep(0.5); return; }
+    if (step === 4 && socialProvider) { setSocialProvider(""); setChannel(""); setContact(""); setStep(1); return; }
+    if (step === 6 && socialProvider) { setStep(4); return; }
     setStep((s) => s - 1);
   };
 
@@ -683,22 +1127,40 @@ function RegisterWizardScreen({ ctx }) {
       </div>
     );
   } else if (step === 1) {
-    title = accountType === "institution" ? "Inscription gestionnaire" : "Comment voulez-vous vous inscrire ?";
+    title = "Comment voulez-vous vous inscrire ?";
     body = (
       <div className="px-4">
-        {accountType === "institution" && <p className="text-[12.5px] font-semibold mb-4" style={{ color: COLORS.primaryDark }}>Gestionnaire : Utilisez votre email institutionnel</p>}
-        <OptionCard icon={Send} title={accountType === "institution" ? "Email institutionnel" : "Par email"} subtitle="Recevoir un code de vérification par email" onClick={() => chooseChannel("email")} />
-        <OptionCard icon={Phone} title="Par téléphone" subtitle={accountType === "institution" ? "Alternative si vous n’avez pas d’email institutionnel" : "Recevoir un code par SMS ou WhatsApp"} onClick={() => chooseChannel("phone")} />
+        <Card className="text-center" style={{ background: `linear-gradient(180deg, ${COLORS.primarySoft}, ${COLORS.surface} 70%)`, border: "none", paddingTop: 22, paddingBottom: 18 }}>
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: "#fff", boxShadow: "0 4px 14px rgba(38,48,82,0.1)" }}>
+            <GoogleIcon size={24} />
+          </div>
+          <p className="text-[13.5px] font-extrabold mb-1" style={{ color: COLORS.text }}>Le plus rapide</p>
+          <p className="text-[11.5px] leading-5 mb-4" style={{ color: COLORS.muted }}>Compte personnel ou institutionnel, les deux fonctionnent.<br />Aucun code à saisir, aucun mot de passe à créer.</p>
+          <SocialButton provider="google" size="lg" onClick={() => chooseSocialChannel("google")} />
+        </Card>
+
+        <button onClick={() => setShowMoreOptions((v) => !v)} className="w-full flex items-center justify-center gap-1.5 mt-5 mb-1 py-1">
+          <span className="text-[12px] font-bold" style={{ color: COLORS.primary }}>{showMoreOptions ? "Masquer les autres options" : "Je n’ai pas de compte Google"}</span>
+          <ChevronDown size={15} color={COLORS.primary} style={{ transform: showMoreOptions ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
+        </button>
+
+        {showMoreOptions && (
+          <div className="mt-3">
+            <OrDivider />
+            <div className="mb-3"><SocialButton provider="facebook" onClick={() => chooseSocialChannel("facebook")} /></div>
+            <OptionCard icon={Send} title="S’inscrire avec un email" subtitle="Yahoo, Outlook, email pro… un code de vérification vous sera envoyé" onClick={() => chooseChannel("email")} />
+            <OptionCard icon={Phone} title="S’inscrire par téléphone" subtitle="Recevoir un code par SMS ou WhatsApp" onClick={() => chooseChannel("phone")} />
+          </div>
+        )}
       </div>
     );
   } else if (step === 2) {
-    title = accountType === "institution" && channel === "email" ? "Votre email institutionnel" : channel === "email" ? "Votre email" : "Votre téléphone";
+    title = channel === "email" ? "Votre email" : "Votre téléphone";
     body = (
       <div className="px-4">
-        {accountType === "institution" && channel === "email" && <p className="text-[12.5px] font-semibold mb-4" style={{ color: COLORS.primaryDark }}>Gestionnaire : Utilisez votre email institutionnel</p>}
-        <DemoFillButton onClick={() => { setContact(channel === "email" ? (accountType === "institution" ? "gestionnaire@ecole-demo.dz" : "enseignant.demo@email.com") : "+213 555 123 456"); setContactError(""); }} />
-        <Field label={accountType === "institution" && channel === "email" ? "Adresse email institutionnelle" : channel === "email" ? "Adresse email" : "Numéro de téléphone"}>
-          <TextInput autoFocus value={contact} onChange={(e) => { setContact(e.target.value); setContactError(""); }} placeholder={channel === "email" ? "Ex. karim.haddad@ecole.dz" : "Ex. +213 555 000 000"} autoCapitalize="none" />
+        <DemoFillButton onClick={() => { setContact(channel === "email" ? "enseignant.demo@email.com" : "+213 555 123 456"); setContactError(""); }} />
+        <Field label={channel === "email" ? "Adresse email" : "Numéro de téléphone"}>
+          <TextInput autoFocus value={contact} onChange={(e) => { setContact(e.target.value); setContactError(""); }} placeholder={channel === "email" ? "Ex. karim.haddad@email.com" : "Ex. +213 555 000 000"} autoCapitalize="none" />
         </Field>
         {contactError && <p className="text-[12px] mb-3 font-semibold" style={{ color: COLORS.danger }}>{contactError}</p>}
         <Btn full icon={ArrowRight} disabled={!contact.trim()} onClick={sendCode}>Recevoir le code</Btn>
@@ -726,9 +1188,20 @@ function RegisterWizardScreen({ ctx }) {
     title = "Vos informations";
     body = (
       <div className="px-4">
-        <p className="text-[12.5px] mb-4" style={{ color: COLORS.muted }}>Compte vérifié. Parlez-nous un peu de vous.</p>
+        {socialProvider ? (
+          <Card className="mb-4 flex items-start gap-3" style={{ background: COLORS.successSoft, border: "none" }}>
+            {socialProvider === "google" ? <GoogleIcon size={20} /> : <FacebookIcon size={20} />}
+            <div>
+              <p className="text-[12.5px] font-bold" style={{ color: COLORS.success }}>Vérifié automatiquement via {socialProvider === "google" ? "Google" : "Facebook"}</p>
+              <p className="text-[11.5px] mt-1 leading-5" style={{ color: COLORS.muted }}>Nous avons récupéré votre nom et votre email depuis votre profil. Vérifiez-les puis complétez le reste.</p>
+            </div>
+          </Card>
+        ) : (
+          <p className="text-[12.5px] mb-4" style={{ color: COLORS.muted }}>Compte vérifié. Parlez-nous un peu de vous.</p>
+        )}
         <DemoFillButton onClick={() => { setName(accountType === "institution" ? "Karim Haddad" : "Nadia Amari"); setNationality("Algérienne"); setPersonCountry("Algérie"); setPersonCity("Alger"); setBirthDate("1990-05-15"); setGender(accountType === "institution" ? "M" : "F"); }} />
         <Field label="Nom complet"><TextInput autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex. Karim Haddad" /></Field>
+        {socialProvider && <Field label={channel === "google" ? "Email Google" : "Email Facebook"}><TextInput value={contact} readOnly style={{ background: "#F2F4F7", color: COLORS.muted }} /></Field>}
         <Field label="Nationalité (facultatif)"><TextInput value={nationality} onChange={(e) => setNationality(e.target.value)} placeholder="Ex. Algérienne" /></Field>
         <div className="grid grid-cols-2 gap-2">
           <Field label="Pays de résidence"><TextInput value={personCountry} onChange={(e) => setPersonCountry(e.target.value)} placeholder="Ex. Algérie" /></Field>
@@ -744,7 +1217,7 @@ function RegisterWizardScreen({ ctx }) {
             </select>
           </Field>
         </div>
-        <Btn full icon={ArrowRight} disabled={!name.trim()} onClick={() => setStep(5)}>Continuer</Btn>
+        <Btn full icon={ArrowRight} disabled={!name.trim()} onClick={() => setStep(socialProvider ? 6 : 5)}>Continuer</Btn>
       </div>
     );
   } else if (step === 5) {
@@ -844,7 +1317,15 @@ function JoinEstablishmentScreen({ ctx }) {
     if (password.length < 6 || password !== confirm) { setError("Choisissez un mot de passe d’au moins 6 caractères et confirmez-le."); return; }
     const teacherId = uid("t");
     const teacher = { id: teacherId, name: name.trim(), nationality: nationality.trim(), country: country.trim(), city: city.trim(), birthDate, gender, email: invitation.email, phone: "", username: invitation.email, password, mustChangePassword: false, active: true, createdAt: Date.now(), lastLoginAt: Date.now() };
-    ctx.setData((d) => ({ ...d, teachers: [...d.teachers, teacher], invitations: (d.invitations || []).map((i) => i.id === invitation.id ? { ...i, status: "accepted", acceptedAt: Date.now(), teacherId } : i) }));
+    ctx.setData((d) => {
+      let next = { ...d, teachers: [...d.teachers, teacher], invitations: (d.invitations || []).map((i) => (i.id === invitation.id ? { ...i, status: "accepted", acceptedAt: Date.now(), teacherId } : i)) };
+      // les matières/classes choisies par l'admin à l'invitation ne pouvaient pas encore
+      // référencer ce compte (il n'existait pas) — on les applique maintenant qu'il existe.
+      Object.entries(invitation.pendingAssignments || {}).forEach(([classId, subjectIds]) => {
+        next = updateClass(next, classId, (c) => ({ ...c, teacherBySubject: { ...(c.teacherBySubject || {}), ...Object.fromEntries(subjectIds.map((sid) => [sid, teacherId])) } }));
+      });
+      return next;
+    });
     ctx.setCurrentUser({ type: "teacher", id: teacherId });
     ctx.showToast(`Compte vérifié. Vous pouvez maintenant accéder à ${invitation.establishmentName}.`);
     ctx.enterApp("teacher");
@@ -954,6 +1435,7 @@ function LoginScreen({ ctx }) {
     <Screen>
       <TopBar title="Connexion" onBack={() => ctx.nav.pop()} />
       <div className="px-4 pt-6">
+        <SocialAuthGroup onGoogle={() => quickSocialAuth(ctx, "google")} onFacebook={() => quickSocialAuth(ctx, "facebook")} dividerLabel="ou avec vos identifiants" />
         <Field label="Email ou téléphone"><TextInput value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Ex. karim.haddad@ecole.dz" autoCapitalize="none" /></Field>
         <Field label="Mot de passe"><TextInput type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Votre mot de passe" /></Field>
         {error && <p className="text-[12px] mb-3 font-semibold" style={{ color: COLORS.danger }}>{error}</p>}
@@ -974,6 +1456,13 @@ function LoginScreen({ ctx }) {
           <span className="text-[12px] font-semibold" style={{ color: COLORS.primary }}>Mot de passe oublié ?</span>
         </button>
         <p className="text-[11px] mt-4 text-center" style={{ color: COLORS.muted }}>Touchez un profil pour charger ses données de démonstration, puis connectez-vous.</p>
+
+        <div className="w-full mt-6 pt-5 text-center" style={{ borderTop: `1px solid ${COLORS.border}` }}>
+          <button onClick={() => ctx.nav.push("register")}>
+            <span className="text-[12.5px]" style={{ color: COLORS.muted }}>Pas encore de compte ? </span>
+            <span className="text-[12.5px] font-bold" style={{ color: COLORS.primary }}>Créer un compte</span>
+          </button>
+        </div>
       </div>
     </Screen>
   );
@@ -1134,10 +1623,21 @@ function MyProfileScreen({ ctx }) {
 function AdminDashboardScreen({ ctx }) {
   const { data } = ctx;
   const firstName = data.admin.name.split(" ")[0];
-  const totalClasses = data.years.flatMap((y) => y.classes).filter((c) => !c.archived).length;
-  const totalStudents = data.years.flatMap((y) => y.classes).filter((c) => !c.archived).reduce((sum, c) => sum + c.students.filter((s) => !s.archived).length, 0);
+  // Années archivées exclues : sinon une classe close continuerait à gonfler ces totaux pour toujours.
+  const totalClasses = data.years.filter((y) => !y.archived).flatMap((y) => y.classes).filter((c) => !c.archived).length;
+  const totalStudents = data.years.filter((y) => !y.archived).flatMap((y) => y.classes).filter((c) => !c.archived).reduce((sum, c) => sum + c.students.filter((s) => !s.archived).length, 0);
   const totalTeachers = data.teachers.filter((t) => t.active).length;
   const pendingInvitations = (data.invitations || []).filter((i) => i.status === "pending").length;
+  const activeYear = data.years.find((y) => !y.archived) || null;
+  const canCloseYear = activeYear && getPromotionLevels(data, activeYear.id).length > 0;
+
+  /* Contrairement à "Accès rapide" (deux raccourcis vers des onglets déjà dans la barre du
+     bas, sans information propre), cette section ne montre que ce qui attend une action —
+     elle renvoie vers l'onglet où l'action existe déjà, sans dupliquer un bouton "Clôturer"
+     ou "Inviter" ici en plus. */
+  const attention = [];
+  if (pendingInvitations > 0) attention.push({ key: "invites", icon: Send, label: `${pendingInvitations} invitation${pendingInvitations > 1 ? "s" : ""} en attente`, sub: "Enseignant(s) pas encore connecté(s)", go: () => ctx.nav.switchTab("enseignants") });
+  if (canCloseYear) attention.push({ key: "close", icon: Calendar, label: `Clôturer ${activeYear.label}`, sub: "Faire passer les élèves à l'année supérieure", go: () => ctx.nav.switchTab("classes") });
 
   return (
     <Screen>
@@ -1147,7 +1647,7 @@ function AdminDashboardScreen({ ctx }) {
           <div className="dashboard-hero-icon"><School size={24} /></div>
           <div><Badge tone="accent">Espace gestionnaire</Badge><p>Votre établissement, organisé en un coup d'œil.</p></div>
         </div>
-        <OnboardingTip ctx={ctx} text="Pour commencer : créez une classe, importez vos élèves (cartes attribuées automatiquement), puis ajoutez un enseignant et assignez-lui ses matières." />
+        <OnboardingTip ctx={ctx} text="Pour commencer : créez une classe, importez vos élèves (cartes attribuées automatiquement), puis invitez un enseignant — vous lui assignerez ses classes et matières dans la foulée." />
         <SectionLabel>Vue d'ensemble</SectionLabel>
         <div className="grid grid-cols-2 gap-3">
           <StatCard icon={School} value={totalClasses} label="Classes actives" />
@@ -1156,43 +1656,91 @@ function AdminDashboardScreen({ ctx }) {
           <StatCard icon={Send} value={pendingInvitations} label="Invitations en attente" tone="warning" />
         </div>
 
-        <SectionLabel>Accès rapide</SectionLabel>
-        <div className="grid grid-cols-2 gap-3">
-          <Card onClick={() => ctx.nav.switchTab("classes")} className="flex flex-col gap-2">
-            <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: COLORS.primarySoft }}><School size={17} color={COLORS.primary} /></div>
-            <p className="font-bold text-[13px]" style={{ color: COLORS.text }}>Classes</p>
-          </Card>
-          <Card onClick={() => ctx.nav.switchTab("enseignants")} className="flex flex-col gap-2">
-            <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: COLORS.primarySoft }}><Users size={17} color={COLORS.primary} /></div>
-            <p className="font-bold text-[13px]" style={{ color: COLORS.text }}>Enseignants</p>
-          </Card>
-        </div>
+        {attention.length > 0 && (
+          <>
+            <SectionLabel>À faire</SectionLabel>
+            <div className="space-y-2">
+              {attention.map((it) => (
+                <Card key={it.key} onClick={it.go} className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: COLORS.warningSoft }}><it.icon size={18} color={COLORS.warning} /></div>
+                  <div className="flex-1 min-w-0"><p className="font-bold text-[13px]" style={{ color: COLORS.text }}>{it.label}</p><p className="text-[11px]" style={{ color: COLORS.muted }}>{it.sub}</p></div>
+                  <ChevronRight size={16} color={COLORS.muted} className="shrink-0" />
+                </Card>
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </Screen>
   );
 }
 
+/* Vue synthétique pour le gestionnaire : 3 indicateurs qui répondent chacun à une question
+   différente qu'un gestionnaire se pose — "comment va l'établissement dans l'ensemble ?"
+   (moyenne + répartition), "est-ce que tout le monde utilise vraiment KAGAT ?" (couverture),
+   et "quel niveau a besoin d'attention ?" (moyenne par niveau). Basé sur l'année active
+   uniquement — une année archivée est déjà consultable en détail via Classes. */
 function AdminResultsScreen({ ctx }) {
-  const classes = ctx.data.years.flatMap((year) => year.classes.map((cls) => ({ ...cls, yearLabel: year.label }))).filter((cls) => !cls.archived);
-  const rows = classes.map((cls) => {
-    const sessions = ctx.data.sessions.filter((s) => s.classId === cls.id && s.status === "completed");
-    const results = sessions.map((s) => computeResults(ctx, s.id));
-    const average = results.length ? Math.round(results.reduce((sum, r) => sum + r.classAverage, 0) / results.length) : null;
-    const participation = results.length ? Math.round(results.reduce((sum, r) => sum + (r.students.length ? (r.participants / r.students.length) * 100 : 0), 0) / results.length) : null;
-    return { cls, sessions, average, participation };
+  const activeYear = ctx.data.years.find((y) => !y.archived);
+  const allClasses = activeYear ? activeYear.classes.filter((c) => !c.archived) : [];
+  const completedSessions = ctx.data.sessions.filter((s) => s.status === "completed" && allClasses.some((c) => c.id === s.classId));
+
+  const sessionAverages = completedSessions.map((s) => computeResults(ctx, s.id).classAverage);
+  const overallAvg = sessionAverages.length ? Math.round(sessionAverages.reduce((a, b) => a + b, 0) / sessionAverages.length) : null;
+  const bandCounts = RESULT_BANDS.map((b) => ({ ...b, value: 0 }));
+  sessionAverages.forEach((avg) => { const idx = RESULT_BANDS.findIndex((b) => avg >= b.min); bandCounts[idx].value++; });
+
+  const classesWithEval = new Set(completedSessions.map((s) => s.classId));
+  const coverage = allClasses.length ? Math.round((classesWithEval.size / allClasses.length) * 100) : 0;
+
+  const levelNames = activeYear ? getYearLevelNames(activeYear) : [];
+  const perLevel = levelNames.map((level) => {
+    const classesOfLevel = allClasses.filter((c) => c.level === level);
+    const sessionsOfLevel = completedSessions.filter((s) => classesOfLevel.some((c) => c.id === s.classId));
+    const avgs = sessionsOfLevel.map((s) => computeResults(ctx, s.id).classAverage);
+    const avg = avgs.length ? Math.round(avgs.reduce((a, b) => a + b, 0) / avgs.length) : null;
+    return { level, classCount: classesOfLevel.length, sessionCount: sessionsOfLevel.length, avg };
   });
 
   return (
     <Screen>
-      <TopBar title="Résultats par classe" subtitle={ctx.data.establishment.name} right={<SyncIndicator ctx={ctx} />} />
+      <TopBar title="Résultats" subtitle={activeYear ? activeYear.label : ctx.data.establishment.name} right={<SyncIndicator ctx={ctx} />} />
       <div className="px-4 pt-4 space-y-3">
-        <Card style={{ background: COLORS.primarySoft, border: "none" }}><p className="text-[12.5px] font-bold" style={{ color: COLORS.primaryDark }}>Vue synthétique de l’établissement</p><p className="text-[11.5px] mt-1" style={{ color: COLORS.muted }}>Les résultats sont présentés uniquement par classe pour le moment.</p></Card>
-        {rows.length === 0 ? <EmptyState icon={School} title="Aucune classe" text="Les résultats apparaîtront ici lorsque des classes auront été créées." /> : rows.map(({ cls, sessions, average, participation }) => (
-          <Card key={cls.id}>
-            <div className="flex items-center gap-3 mb-3"><div className="w-11 h-11 rounded-2xl flex items-center justify-center" style={{ background: COLORS.primarySoft }}><School size={19} color={COLORS.primary} /></div><div className="flex-1"><p className="text-[13.5px] font-bold" style={{ color: COLORS.text }}>{cls.name}</p><p className="text-[11px]" style={{ color: COLORS.muted }}>{cls.yearLabel} · {cls.students.filter((s) => !s.archived).length} élève(s)</p></div>{average === null ? <Badge tone="neutral">Aucun résultat</Badge> : <Badge tone={average >= 50 ? "success" : "warning"}>{average}%</Badge>}</div>
-            <div className="grid grid-cols-2 gap-2"><div className="rounded-xl p-2.5" style={{ background: "#F5F7FA" }}><p className="text-[10.5px]" style={{ color: COLORS.muted }}>Évaluations</p><p className="text-[15px] font-bold" style={{ color: COLORS.text }}>{sessions.length}</p></div><div className="rounded-xl p-2.5" style={{ background: "#F5F7FA" }}><p className="text-[10.5px]" style={{ color: COLORS.muted }}>Participation</p><p className="text-[15px] font-bold" style={{ color: COLORS.text }}>{participation === null ? "—" : `${participation}%`}</p></div></div>
-          </Card>
-        ))}
+        {!activeYear || completedSessions.length === 0 ? (
+          <EmptyState icon={BarChart3} title="Aucun résultat pour l'instant" text="Les résultats apparaîtront ici dès qu'une évaluation aura été terminée dans une classe." />
+        ) : (
+          <>
+            <Card className="flex items-center gap-4">
+              <DonutChart segments={bandCounts.map((b) => ({ value: b.value, color: b.color }))} />
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] font-semibold" style={{ color: COLORS.muted }}>Moyenne de l'établissement</p>
+                <p className="text-[26px] font-extrabold mb-2" style={{ color: overallAvg >= WEAK_RESULT_THRESHOLD ? COLORS.success : COLORS.danger }}>{overallAvg}%</p>
+                <div className="space-y-1">
+                  {bandCounts.filter((b) => b.value > 0).map((b) => (
+                    <div key={b.key} className="flex items-center gap-1.5 text-[11px]" style={{ color: COLORS.text }}>
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: b.color }} />
+                      <span className="truncate">{b.label} ({b.range}) — {b.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Card>
+
+            <Card style={{ background: coverage < 50 ? COLORS.warningSoft : COLORS.successSoft, border: "none" }}>
+              <p className="text-[11.5px] font-semibold" style={{ color: coverage < 50 ? COLORS.warning : COLORS.success }}>Couverture des évaluations</p>
+              <p className="text-[22px] font-extrabold" style={{ color: coverage < 50 ? COLORS.warning : COLORS.success }}>{classesWithEval.size} / {allClasses.length} classe{allClasses.length > 1 ? "s" : ""} <span className="text-[13px] font-semibold">({coverage}%)</span></p>
+              <p className="text-[11px] mt-1" style={{ color: coverage < 50 ? COLORS.warning : COLORS.success }}>ont déjà lancé au moins une évaluation cette année.</p>
+            </Card>
+
+            <SectionLabel>Par niveau</SectionLabel>
+            {perLevel.map((l) => (
+              <Card key={l.level} className="flex items-center justify-between">
+                <div className="flex-1 min-w-0"><p className="font-bold text-[13.5px]" style={{ color: COLORS.text }}>{l.level}</p><p className="text-[11px]" style={{ color: COLORS.muted }}>{l.classCount} classe(s) · {l.sessionCount} évaluation(s) terminée(s)</p></div>
+                {l.avg === null ? <Badge tone="neutral">Aucun résultat</Badge> : <Badge tone={l.avg >= WEAK_RESULT_THRESHOLD ? "success" : "warning"}>{l.avg}%</Badge>}
+              </Card>
+            ))}
+          </>
+        )}
       </div>
     </Screen>
   );
@@ -1227,15 +1775,20 @@ function MyEstablishmentScreen({ ctx }) {
   );
 }
 
-/* Années scolaires — racine de l'onglet "Classes" */
+/* Années scolaires — racine de l'onglet "Classes".
+   Une seule voie pour construire l'arborescence : année → niveaux → classes,
+   chaque étape se fait "à l'intérieur" de la précédente (pas de raccourci qui
+   duplique la même action ailleurs). Clôturer est une action de l'année elle-même,
+   donc elle vit directement sur sa carte plutôt que séparée en haut de l'écran. */
 function YearsScreen({ ctx }) {
   const [adding, setAdding] = useState(false);
   const [label, setLabel] = useState("");
   const addYear = () => {
     if (!label.trim()) return;
-    ctx.setData((d) => ({ ...d, years: [...d.years, { id: uid("y"), label: label.trim(), classes: [] }] }));
+    ctx.setData((d) => ({ ...d, years: [...d.years, { id: uid("y"), label: label.trim(), classes: [], levels: {}, archived: false }] }));
     setLabel(""); setAdding(false);
   };
+
   return (
     <Screen>
       <TopBar title="Années scolaires" subtitle={ctx.data.establishment.name} />
@@ -1245,16 +1798,331 @@ function YearsScreen({ ctx }) {
             <Field label="Année scolaire"><TextInput autoFocus value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Ex. 2026–2027" /></Field>
             <div className="flex gap-2"><Btn variant="ghost" full onClick={() => setAdding(false)}>Annuler</Btn><Btn full onClick={addYear}>Créer</Btn></div>
           </Card>
-        ) : <PageAction icon={Plus} title="Ajouter une année" subtitle="Préparer une nouvelle période scolaire" onClick={() => setAdding(true)} />}
+        ) : <PageAction icon={Plus} title="Ajouter une année" subtitle="Puis, à l'intérieur, ses niveaux et ses classes" onClick={() => setAdding(true)} />}
         <SectionLabel>Années disponibles</SectionLabel>
-        {ctx.data.years.map((y) => (
-          <Card key={y.id} onClick={() => ctx.nav.push("classes", { yearId: y.id })} className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: COLORS.primarySoft }}><Calendar size={18} color={COLORS.primary} /></div>
-            <div className="flex-1"><p className="font-bold text-[13.5px]" style={{ color: COLORS.text }}>{y.label}</p><p className="text-[11.5px]" style={{ color: COLORS.muted }}>{y.classes.filter((c) => !c.archived).length} classe(s)</p></div>
-            <ChevronRight size={17} color={COLORS.muted} />
-          </Card>
-        ))}
+        {ctx.data.years.map((y) => {
+          const classCount = y.classes.filter((c) => !c.archived).length;
+          const closable = !y.archived && getPromotionLevels(ctx.data, y.id).length > 0;
+          return (
+            <Card key={y.id} onClick={() => ctx.nav.push("levels", { yearId: y.id })} className="flex flex-col gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: y.archived ? "#EEF1F4" : COLORS.primarySoft }}><Calendar size={18} color={y.archived ? COLORS.muted : COLORS.primary} /></div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap"><p className="font-bold text-[13.5px]" style={{ color: COLORS.text }}>{y.label}</p>{y.archived && <Badge tone="neutral">Archivée</Badge>}</div>
+                  <p className="text-[11.5px]" style={{ color: COLORS.muted }}>{classCount} classe(s){y.archived ? " · lecture seule" : ""}</p>
+                </div>
+                <ChevronRight size={17} color={COLORS.muted} className="shrink-0" />
+              </div>
+              {closable && (
+                <Btn full size="sm" variant="secondary" icon={Calendar} onClick={(e) => { e.stopPropagation(); ctx.nav.push("closeYear", { yearId: y.id }); }}>
+                  Clôturer l'année
+                </Btn>
+              )}
+            </Card>
+          );
+        })}
         {ctx.data.years.length === 0 && <EmptyState icon={Calendar} title="Aucune année scolaire" text="Créez votre première année scolaire pour commencer à ajouter des classes." />}
+      </div>
+    </Screen>
+  );
+}
+
+/* Fin d'année : par défaut tout le monde passe au niveau supérieur, l'admin ne touche
+   qu'aux exceptions (redoublement, départ) — jamais un choix élève par élève sur la masse.
+   La classe d'origine (A, B, ...) n'intervient pas ici : on raisonne par niveau, la
+   répartition dans les classes de la nouvelle année se fait ensuite, séparément. */
+function CloseYearScreen({ ctx }) {
+  const { yearId } = ctx.nav.current.params;
+  const year = ctx.data.years.find((y) => y.id === yearId);
+  const levels = useMemo(() => getPromotionLevels(ctx.data, yearId), [ctx.data, yearId]);
+  const [newYearLabel, setNewYearLabel] = useState(() => nextYearLabelGuess(year?.label));
+  const [targets, setTargets] = useState(() => Object.fromEntries(levels.map((l) => [l.level, nextLevelGuess(l.level)])));
+  const [decisions, setDecisions] = useState({}); // studentId -> "repeat" | "leave" (absent = passe)
+  const [expanded, setExpanded] = useState("");
+  const [search, setSearch] = useState("");
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [classNameOverrides, setClassNameOverrides] = useState({}); // classId -> nom édité manuellement
+
+  if (!year) return null;
+
+  /* Nom par défaut de la classe d'arrivée : on garde la même section (A, B…) qu'avant
+     clôture, juste accolée au nouveau niveau — "5e année A" + niveau cible "6e année"
+     → "6e année A". Modifiable au cas par cas juste en dessous. */
+  const defaultClassName = (level, targetLevel, className) => {
+    const suffix = className.startsWith(level) ? className.slice(level.length).trim() : className;
+    return suffix ? `${targetLevel} ${suffix}` : targetLevel;
+  };
+  const classesOf = (l) => {
+    const out = [];
+    l.students.forEach((s) => {
+      let entry = out.find((c) => c.classId === s.classId);
+      if (!entry) { entry = { classId: s.classId, className: s.className, count: 0 }; out.push(entry); }
+      entry.count++;
+    });
+    return out;
+  };
+
+  const setDecision = (studentId, value) => {
+    setDecisions((d) => {
+      const next = { ...d };
+      if (!value || next[studentId] === value) delete next[studentId]; else next[studentId] = value;
+      return next;
+    });
+  };
+
+  const totals = levels.reduce((acc, l) => {
+    l.students.forEach((s) => {
+      const dec = decisions[s.id];
+      if (dec === "leave") acc.leave++; else if (dec === "repeat") acc.repeat++; else acc.promote++;
+    });
+    return acc;
+  }, { promote: 0, repeat: 0, leave: 0 });
+
+  const loadDemoExceptions = () => {
+    const next = {};
+    levels.forEach((l) => {
+      if (l.students[0]) next[l.students[0].id] = "leave";
+      if (l.students[1]) next[l.students[1].id] = "repeat";
+    });
+    setDecisions(next);
+    ctx.showToast("Exceptions de démonstration appliquées");
+  };
+
+  const commit = () => {
+    /* Pour l'instant, chaque élève reste dans sa section d'origine (A, B…) plutôt que de
+       mélanger tout le niveau puis demander une répartition manuelle après coup — "5e année A"
+       devient directement "6e année A". Le vrai problème de répartition (rééquilibrer les
+       sections, fusionner des petits effectifs...) est volontairement laissé de côté pour
+       l'instant ; DistributeStudentsScreen reste disponible pour plus tard si besoin. */
+    const pools = new Map(); // clé "niveau cible||nom de classe" -> élèves
+    levels.forEach((l) => {
+      l.students.forEach((s) => {
+        const dec = decisions[s.id];
+        if (dec === "leave") return;
+        let targetLevel, newClassName;
+        if (dec === "repeat") {
+          // Un redoublant reste dans une classe à son niveau actuel, même section.
+          targetLevel = l.level;
+          newClassName = defaultClassName(l.level, l.level, s.className);
+        } else {
+          targetLevel = (targets[l.level] || l.level).trim() || l.level;
+          const suggestion = defaultClassName(l.level, targetLevel, s.className);
+          newClassName = (classNameOverrides[s.classId] ?? suggestion).trim() || suggestion;
+        }
+        const key = `${targetLevel}||${newClassName}`;
+        const pool = pools.get(key) || { level: targetLevel, name: newClassName, students: [] };
+        pool.students.push({ id: s.id, name: s.name, studentCode: s.studentCode, cardNumber: s.cardNumber, cardAssigned: s.cardAssigned, archived: false });
+        pools.set(key, pool);
+      });
+    });
+    const newClasses = [...pools.values()].map((p) => ({
+      id: uid("c"), name: p.name, level: p.level, cardCount: p.students.length,
+      students: p.students, teacherBySubject: {}, questionnaireOverrides: [], archived: false,
+    }));
+    const newYearId = uid("y");
+    const finalLabel = newYearLabel.trim() || "Nouvelle année";
+    ctx.setData((d) => ({
+      ...d,
+      years: [
+        ...d.years.map((y) => (y.id === yearId ? { ...y, archived: true } : y)),
+        { id: newYearId, label: finalLabel, classes: newClasses, levels: {}, archived: false },
+      ],
+    }));
+    ctx.showToast(`${year.label} archivée. « ${finalLabel} » créée avec ${newClasses.length} classe(s).`);
+    ctx.nav.resetTo("years");
+  };
+
+  return (
+    <Screen>
+      <TopBar title="Clôturer l'année" subtitle={year.label} onBack={() => ctx.nav.pop()} />
+      <div className="px-4 pt-4">
+        <Card className="mb-4 flex items-start gap-3" style={{ background: COLORS.primarySoft, border: "none" }}>
+          <Info size={18} color={COLORS.primary} className="shrink-0 mt-0.5" />
+          <p className="text-[11.5px] leading-5" style={{ color: COLORS.primaryDark }}>Par défaut, tous les élèves passent à l'année supérieure, dans la même section qu'aujourd'hui (« 5e année A » devient « 6e année A »). Marquez uniquement les exceptions (redoublement, départ) — inutile de traiter chaque élève un par un.</p>
+        </Card>
+
+        <Field label="Nouvelle année scolaire"><TextInput value={newYearLabel} onChange={(e) => setNewYearLabel(e.target.value)} placeholder="Ex. 2027–2028" /></Field>
+
+        {levels.length > 0 && <DemoFillButton onClick={loadDemoExceptions} label="Simuler quelques exceptions (démo)" />}
+
+        <SectionLabel>Niveaux concernés</SectionLabel>
+        {levels.map((l) => {
+          const repeatCount = l.students.filter((s) => decisions[s.id] === "repeat").length;
+          const leaveCount = l.students.filter((s) => decisions[s.id] === "leave").length;
+          const promoteCount = l.students.length - repeatCount - leaveCount;
+          const isOpen = expanded === l.level;
+          const filtered = l.students.filter((s) => s.name.toLowerCase().includes(search.toLowerCase()));
+          return (
+            <Card key={l.level} className="mb-2">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: COLORS.primarySoft }}><Users size={17} color={COLORS.primary} /></div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-[13px]" style={{ color: COLORS.text }}>{l.level}</p>
+                  <p className="text-[11px]" style={{ color: COLORS.muted }}>{l.students.length} élève(s)</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 mt-3">
+                <ArrowRight size={14} color={COLORS.muted} className="shrink-0" />
+                <TextInput value={targets[l.level] ?? ""} onChange={(e) => setTargets((t) => ({ ...t, [l.level]: e.target.value }))} placeholder="Niveau suivant" style={{ minHeight: 38, padding: "8px 11px", fontSize: 12.5 }} />
+              </div>
+              {/* Chaque section garde son propre nom de classe d'arrivée — modifiable ici si
+                  la suggestion (niveau + section) ne convient pas pour un cas précis. */}
+              <div className="mt-2.5 space-y-1.5">
+                {classesOf(l).map((c) => {
+                  const targetLevel = (targets[l.level] || l.level).trim() || l.level;
+                  const suggestion = defaultClassName(l.level, targetLevel, c.className);
+                  const value = classNameOverrides[c.classId] ?? suggestion;
+                  return (
+                    <div key={c.classId} className="flex items-center gap-2">
+                      <span className="text-[11px] shrink-0 truncate" style={{ color: COLORS.muted, maxWidth: 84 }}>{c.className} →</span>
+                      <TextInput value={value} onChange={(e) => setClassNameOverrides((o) => ({ ...o, [c.classId]: e.target.value }))} placeholder={suggestion} style={{ minHeight: 34, padding: "6px 10px", fontSize: 11.5 }} />
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex gap-2 mt-2.5 flex-wrap">
+                <Badge tone="success" icon={CheckCircle2}>{promoteCount} passent</Badge>
+                {repeatCount > 0 && <Badge tone="warning" icon={RefreshCw}>{repeatCount} redoublent</Badge>}
+                {leaveCount > 0 && <Badge tone="danger" icon={UserX}>{leaveCount} quittent</Badge>}
+              </div>
+              <button onClick={() => { setExpanded(isOpen ? "" : l.level); setSearch(""); }} className="w-full flex items-center justify-center gap-1.5 mt-3 py-1">
+                <span className="text-[11.5px] font-bold" style={{ color: COLORS.primary }}>{isOpen ? "Fermer" : "Gérer les exceptions"}</span>
+                <ChevronDown size={13} color={COLORS.primary} style={{ transform: isOpen ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
+              </button>
+              {isOpen && (
+                <div className="mt-2 pt-3" style={{ borderTop: `1px solid ${COLORS.border}` }}>
+                  <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher un élève…" className="mb-2.5" />
+                  <div className="max-h-[260px] overflow-y-auto -mx-1 px-1">
+                    {filtered.map((s) => {
+                      const dec = decisions[s.id];
+                      return (
+                        <div key={s.id} className="flex items-center justify-between gap-2 py-1.5">
+                          <span className="text-[12px] flex-1 truncate" style={{ color: COLORS.text }}>{s.name}</span>
+                          <button onClick={() => setDecision(s.id, dec === "repeat" ? "" : "repeat")} className="px-2 py-1 rounded-full text-[10px] font-bold shrink-0" style={{ background: dec === "repeat" ? COLORS.warning : COLORS.warningSoft, color: dec === "repeat" ? "#fff" : COLORS.warning }}>Redouble</button>
+                          <button onClick={() => setDecision(s.id, dec === "leave" ? "" : "leave")} className="px-2 py-1 rounded-full text-[10px] font-bold shrink-0" style={{ background: dec === "leave" ? COLORS.danger : COLORS.dangerSoft, color: dec === "leave" ? "#fff" : COLORS.danger }}>Quitte</button>
+                        </div>
+                      );
+                    })}
+                    {filtered.length === 0 && <p className="text-[11.5px] text-center py-3" style={{ color: COLORS.muted }}>Aucun élève trouvé.</p>}
+                  </div>
+                </div>
+              )}
+            </Card>
+          );
+        })}
+        {levels.length === 0 && <EmptyState icon={Users} title="Aucun élève à faire passer" text="Ajoutez des classes et des élèves avant de clôturer l'année." />}
+      </div>
+
+      {levels.length > 0 && (
+        <div className="px-4 pt-2 pb-1">
+          <Card className="mb-3" style={{ background: COLORS.successSoft, border: "none" }}>
+            <p className="text-[12px] font-bold" style={{ color: COLORS.success }}>{totals.promote} passent · {totals.repeat} redoublent · {totals.leave} quittent</p>
+          </Card>
+          <Btn full icon={ArrowRight} disabled={!newYearLabel.trim()} onClick={() => setConfirmOpen(true)}>Clôturer et créer la nouvelle année</Btn>
+        </div>
+      )}
+
+      <TypedConfirmModal open={confirmOpen} title="Clôturer l'année ?" text={`${year.label} passera en lecture seule. ${totals.promote} élève(s) passeront en année supérieure, ${totals.repeat} redoubleront, ${totals.leave} quitteront l'établissement.`} confirmWord="CLOTURER" confirmLabel="Clôturer" onCancel={() => setConfirmOpen(false)} onConfirm={commit} />
+    </Screen>
+  );
+}
+
+/* Répartition des élèves promus dans les classes réelles de la nouvelle année — sélection
+   multiple + assignation en masse. Le critère de tri reste entièrement à l'admin (proximité,
+   niveau, mixité...) : l'app ne devine jamais qui va où, elle rend juste le geste rapide. */
+function DistributeStudentsScreen({ ctx }) {
+  const { classId } = ctx.nav.current.params;
+  const loc = locateClass(ctx.data, classId);
+  const [selected, setSelected] = useState(new Set());
+  const [search, setSearch] = useState("");
+  const [targetClassId, setTargetClassId] = useState("");
+
+  if (!loc) return null;
+  const { yr, cls } = loc;
+  const targetClasses = yr.classes.filter((c) => !c.archived && !c.pendingDistribution && c.id !== classId && c.level === cls.level);
+  const otherPending = yr.classes.filter((c) => !c.archived && c.pendingDistribution && c.id !== classId);
+  const filtered = cls.students.filter((s) => s.name.toLowerCase().includes(search.toLowerCase()));
+
+  const toggle = (id) => setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const selectAllFiltered = () => setSelected(new Set(filtered.map((s) => s.id)));
+  const clearSelection = () => setSelected(new Set());
+
+  const assign = (studentIds) => {
+    if (!targetClassId || studentIds.length === 0) return;
+    const targetName = targetClasses.find((c) => c.id === targetClassId)?.name;
+    ctx.setData((d) => moveStudents(d, yr.id, classId, targetClassId, studentIds));
+    clearSelection();
+    const remaining = cls.students.length - studentIds.length;
+    if (remaining <= 0) {
+      ctx.setData((d) => updateClass(d, classId, (c) => ({ ...c, archived: true })));
+      ctx.showToast(`« ${cls.level} » entièrement réparti(e).`);
+      /* On enchaîne automatiquement sur le prochain niveau à répartir — au lieu de
+         renvoyer l'admin vers l'écran Classes et compter sur lui pour y repenser. */
+      if (otherPending.length > 0) ctx.nav.push("distributeStudents", { classId: otherPending[0].id });
+      else ctx.nav.resetTo("levels", { yearId: yr.id });
+    } else {
+      ctx.showToast(`${studentIds.length} élève(s) assigné(s) à « ${targetName} » · ${remaining} restant(s)`);
+    }
+  };
+  const assignSelection = () => assign([...selected]);
+  const assignRest = () => assign(cls.students.map((s) => s.id));
+  const loadDemoSelection = () => setSelected(new Set(cls.students.slice(0, Math.ceil(cls.students.length / 2)).map((s) => s.id)));
+  const finishLater = () => { ctx.showToast(`« ${cls.level} » laissé(e) à répartir — reprenez depuis les niveaux.`); ctx.nav.resetTo("levels", { yearId: yr.id }); };
+
+  return (
+    <Screen>
+      <TopBar title="Répartir les élèves" subtitle={`${cls.level} · ${cls.students.length} à placer`} onBack={finishLater} />
+      <div className="px-4 pt-4">
+        {otherPending.length > 0 && (
+          <div className="mb-3"><Badge tone="accent" icon={ListChecks}>{otherPending.length} niveau(x) suivront après celui-ci</Badge></div>
+        )}
+        {targetClasses.length === 0 ? (
+          <>
+            <Card className="mb-4 flex items-start gap-3" style={{ background: COLORS.warningSoft, border: "none" }}>
+              <AlertTriangle size={18} color={COLORS.warning} className="shrink-0 mt-0.5" />
+              <p className="text-[11.5px] leading-5" style={{ color: COLORS.warning }}>Aucune classe de « {cls.level} » n'existe encore cette année. Créez-en au moins une pour pouvoir y répartir ces élèves.</p>
+            </Card>
+            <Btn full icon={Plus} onClick={() => ctx.nav.push("classes", { yearId: yr.id, level: cls.level, fromDistribute: true })}>Créer une classe</Btn>
+          </>
+        ) : (
+          <>
+            <Field label="Classe de destination">
+              <select style={inputStyle} value={targetClassId} onChange={(e) => setTargetClassId(e.target.value)}>
+                <option value="">Choisir une classe…</option>
+                {targetClasses.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.students.filter((s) => !s.archived).length} élèves)</option>)}
+              </select>
+            </Field>
+
+            {cls.students.length > 3 && <DemoFillButton onClick={loadDemoSelection} label="Sélectionner la moitié (démo)" />}
+
+            <div className="flex items-center justify-between mb-2">
+              <button onClick={selectAllFiltered} className="text-[11.5px] font-bold" style={{ color: COLORS.primary }}>Tout sélectionner</button>
+              {selected.size > 0 && <button onClick={clearSelection} className="text-[11.5px] font-bold" style={{ color: COLORS.muted }}>Effacer ({selected.size})</button>}
+            </div>
+            <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher un élève…" className="mb-2.5" />
+            <div className="rounded-2xl overflow-hidden mb-4" style={{ border: `1px solid ${COLORS.border}` }}>
+              {filtered.map((s, i) => {
+                const isSelected = selected.has(s.id);
+                return (
+                  <button key={s.id} onClick={() => toggle(s.id)} className="w-full flex items-center justify-between px-3.5 py-3"
+                    style={{ borderTop: i ? `1px solid ${COLORS.border}` : "none", background: isSelected ? COLORS.accentSoft : "#fff" }}>
+                    <span className="text-[13px]" style={{ color: COLORS.text }}>{s.name}</span>
+                    <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: isSelected ? COLORS.accent : "transparent", border: isSelected ? "none" : `1.5px solid ${COLORS.border}` }}>
+                      {isSelected && <Check size={13} color="#fff" />}
+                    </div>
+                  </button>
+                );
+              })}
+              {filtered.length === 0 && <div className="px-3.5 py-4 text-center text-[12px]" style={{ color: COLORS.muted }}>Aucun élève trouvé.</div>}
+            </div>
+
+            <Btn full icon={ArrowRight} disabled={!targetClassId || selected.size === 0} onClick={assignSelection}>Assigner la sélection ({selected.size})</Btn>
+            <div className="mt-2"><Btn full variant="secondary" icon={UserCheck} disabled={!targetClassId} onClick={assignRest}>Assigner tout le reste ({cls.students.length})</Btn></div>
+          </>
+        )}
+        <button onClick={finishLater} className="w-full text-center mt-4 py-1">
+          <span className="text-[11.5px] font-semibold" style={{ color: COLORS.muted }}>Terminer plus tard</span>
+        </button>
       </div>
     </Screen>
   );
@@ -1294,96 +2162,189 @@ function SubjectPicker({ catalog, preselected = [], excluded = [], onAddCustom, 
   );
 }
 
-/* Classes d'une année scolaire — création en 2 étapes : infos puis matières */
-function ClassesScreen({ ctx }) {
+/* Niveaux d'une année scolaire — sert à PARCOURIR/GÉRER (programme partagé, sections
+   existantes), mais n'impose plus de créer un niveau "à vide" avant de pouvoir travailler :
+   l'action principale "Ajouter une classe" crée le niveau et la classe en un seul geste,
+   pour ne pas pénaliser le cas le plus courant (une école sans sections multiples). */
+function LevelsScreen({ ctx }) {
   const { yearId } = ctx.nav.current.params;
   const year = ctx.data.years.find((y) => y.id === yearId);
-  const [addStep, setAddStep] = useState(0); // 0 = fermé, 1 = infos, 2 = matières
-  const [form, setForm] = useState({ name: "", level: "Primaire", cardCount: "40" });
-  const [selectedSubjects, setSelectedSubjects] = useState(new Set());
+  const [adding, setAdding] = useState(false);
+  const [levelName, setLevelName] = useState("");
+  if (!year) return null;
+  const levelNames = getYearLevelNames(year);
+
+  const addLevel = () => {
+    const trimmed = levelName.trim();
+    if (!trimmed) return;
+    ctx.setData((d) => updateLevel(d, yearId, trimmed, (lv) => lv)); // crée le niveau s'il n'existe pas encore
+    setLevelName(""); setAdding(false);
+    ctx.nav.push("levelDetails", { yearId, level: trimmed });
+  };
+
+  return (
+    <Screen>
+      <TopBar title="Niveaux" subtitle={year.label} onBack={() => ctx.nav.pop()} />
+      <div className="px-4 pt-4 space-y-2">
+        {!year.archived && (adding ? (
+          <Card className="important-form-modal mb-3">
+            <Field label="Nom du niveau"><TextInput autoFocus value={levelName} onChange={(e) => setLevelName(e.target.value)} placeholder="Ex. 6e année" /></Field>
+            <p className="text-[11px] -mt-2 mb-3" style={{ color: COLORS.muted }}>Vous ajouterez ses matières puis ses classes juste après.</p>
+            <div className="flex gap-2"><Btn variant="ghost" full onClick={() => setAdding(false)}>Annuler</Btn><Btn full disabled={!levelName.trim()} onClick={addLevel}>Créer</Btn></div>
+          </Card>
+        ) : <PageAction icon={Plus} title="Ajouter un niveau" subtitle="Puis, à l'intérieur, ses matières et ses classes" onClick={() => setAdding(true)} />)}
+        <SectionLabel>Niveaux de {year.label}</SectionLabel>
+        {levelNames.map((level) => {
+          const subjects = getLevelSubjects(year, level).filter((s) => !s.archived);
+          const classes = year.classes.filter((c) => !c.archived && c.level === level);
+          return (
+            <Card key={level} onClick={() => ctx.nav.push("levelDetails", { yearId, level })} className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: COLORS.primarySoft }}><School size={18} color={COLORS.primary} /></div>
+              <div className="flex-1"><p className="font-bold text-[13.5px]" style={{ color: COLORS.text }}>{level}</p><p className="text-[11.5px]" style={{ color: COLORS.muted }}>{classes.length} classe(s) · {subjects.length} matière(s)</p></div>
+              <ChevronRight size={17} color={COLORS.muted} />
+            </Card>
+          );
+        })}
+        {levelNames.length === 0 && <EmptyState icon={School} title="Aucun niveau" text="Créez votre première classe — le niveau se crée automatiquement avec elle." />}
+      </div>
+    </Screen>
+  );
+}
+
+/* Détail d'un niveau : deux portes d'entrée bien séparées — le programme (partagé)
+   et les sections (chacune avec ses élèves et son enseignant assigné). */
+function LevelDetailsScreen({ ctx }) {
+  const { yearId, level } = ctx.nav.current.params;
+  const year = ctx.data.years.find((y) => y.id === yearId);
+  if (!year) return null;
+  const subjects = getLevelSubjects(year, level).filter((s) => !s.archived);
+  const classes = year.classes.filter((c) => !c.archived && c.level === level);
+  const isIndependent = ctx.data.establishment?.accountType === "independent";
+  /* Compte indépendant : pas d'onglet "Niveaux" séparé (déjà 5 onglets) — "Matières" et
+     "Préparer mon programme" vivent sur le même écran (plus besoin de les séparer, lui seul
+     enseigne tout), et l'avancement de ses classes est accessible directement, sans passer
+     par l'écran intermédiaire à 2 boutons que voit un enseignant d'établissement. */
+  const items = isIndependent ? [
+    { key: "subjects", label: "Matières et programme", icon: BookOpen, sub: `${subjects.length} matière(s) — cours, compétences, questionnaires`, go: () => ctx.nav.push("teacherLevelSubjects", { yearId, level }) },
+    { key: "classes", label: "Classes", icon: School, sub: `${classes.length} section(s) — élèves, cartes`, go: () => ctx.nav.push("classes", { yearId, level }) },
+    { key: "progress", label: "Avancement de mes classes", icon: GraduationCap, sub: "Lancer une évaluation, voir les résultats", go: () => ctx.nav.push("teacherLevelClasses", { yearId, level }) },
+  ] : [
+    { key: "subjects", label: "Matières", icon: BookOpen, sub: `${subjects.length} matière(s) — programme commun à toutes les sections`, go: () => ctx.nav.push("subjects", { yearId, level }) },
+    { key: "classes", label: "Classes", icon: School, sub: `${classes.length} section(s) (A, B…)`, go: () => ctx.nav.push("classes", { yearId, level }) },
+  ];
+  return (
+    <Screen>
+      <TopBar title={level} subtitle={`${year.label}${year.archived ? " · lecture seule" : ""}`} onBack={() => ctx.nav.pop()} right={year.archived ? <Badge tone="neutral">Archivée</Badge> : undefined} />
+      <div className="px-4 pt-4 space-y-2">
+        {items.map((it) => (
+          <Card key={it.key} onClick={it.go} className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-[15px] flex items-center justify-center" style={{ background: COLORS.primarySoft }}><it.icon size={19} color={COLORS.primary} /></div>
+            <div className="flex-1"><p className="font-bold text-[13.5px]" style={{ color: COLORS.text }}>{it.label}</p><p className="text-[11.5px]" style={{ color: COLORS.muted }}>{it.sub}</p></div>
+            <ChevronRight size={17} color={COLORS.muted} />
+          </Card>
+        ))}
+        {!year.archived && subjects.length === 0 && (
+          <Card className="flex items-start gap-3 mt-2" style={{ background: COLORS.warningSoft, border: "none" }}>
+            <AlertTriangle size={16} color={COLORS.warning} className="shrink-0 mt-0.5" />
+            <p className="text-[11.5px] leading-5" style={{ color: COLORS.warning }}>Définissez d'abord les matières de ce niveau avant de créer des classes — elles seront proposées automatiquement à chaque nouvelle section.</p>
+          </Card>
+        )}
+      </div>
+    </Screen>
+  );
+}
+
+/* Écran des classes (sections) d'UN niveau précis — plus de choix de cycle/matières ici :
+   une section hérite automatiquement des matières déjà définies pour son niveau
+   (écran "Niveaux → Matières"). Créer une classe ne demande donc que son nom. */
+function ClassesScreen({ ctx }) {
+  const { yearId, level, fromDistribute } = ctx.nav.current.params;
+  const year = ctx.data.years.find((y) => y.id === yearId);
+  const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState({ name: "", cardCount: "40" });
 
   if (!year) return null;
+  const levelSubjects = getLevelSubjects(year, level).filter((s) => !s.archived);
+  const classesOfLevel = year.classes.filter((c) => !c.archived && c.level === level);
 
-  const openAdd = () => { setForm({ name: "", level: "Primaire", cardCount: "40" }); setAddStep(1); };
-  const goToSubjects = () => {
-    if (!form.name.trim()) return;
-    setSelectedSubjects(new Set(DEFAULT_SUBJECTS_BY_LEVEL[form.level] || []));
-    setAddStep(2);
-  };
-  const toggleSubject = (name) => setSelectedSubjects((prev) => { const n = new Set(prev); n.has(name) ? n.delete(name) : n.add(name); return n; });
-  const addCustomSubject = (name) => {
-    ctx.setData((d) => (d.subjectCatalog.includes(name) ? d : { ...d, subjectCatalog: [...d.subjectCatalog, name] }));
-    setSelectedSubjects((prev) => new Set(prev).add(name));
-  };
+  const openAdd = () => { setForm({ name: "", cardCount: "40" }); setAdding(true); };
   const createClass = () => {
+    if (!form.name.trim()) return;
     const selfId = ctx.data.establishment?.accountType === "independent" ? ctx.data.admin.selfTeacherId : null;
-    const subjects = [...selectedSubjects].map((name) => ({ id: uid("s"), name, teacherId: selfId, archived: false, courses: [], questionnaires: [] }));
     const cardCount = Math.max(1, parseInt(form.cardCount, 10) || 40);
     const newClassId = uid("c");
-    ctx.setData((d) => updateYear(d, year.id, (y) => ({ ...y, classes: [...y.classes, { id: newClassId, name: form.name.trim(), level: form.level, cardCount, students: [], subjects, archived: false }] })));
-    setAddStep(0);
+    const teacherBySubject = {};
+    if (selfId) levelSubjects.forEach((s) => { teacherBySubject[s.id] = selfId; });
+    ctx.setData((d) => updateYear(d, yearId, (y) => ({ ...y, classes: [...y.classes, { id: newClassId, name: form.name.trim(), level, cardCount, students: [], teacherBySubject, questionnaireOverrides: [], archived: false }] })));
+    setAdding(false);
     ctx.showToast(`Classe « ${form.name.trim()} » créée`);
+    if (fromDistribute) {
+      /* Créée depuis la répartition de fin d'année : les élèves existent déjà et attendent
+         dans la classe "à répartir" — inutile de proposer un import, on revient direct
+         à l'écran de répartition, où la classe fraîchement créée apparaît comme destination. */
+      ctx.nav.pop();
+      return;
+    }
     ctx.nav.push("importStudents", { classId: newClassId, justCreated: true });
   };
 
   return (
     <Screen>
-      <TopBar title="Classes" subtitle={year.label} onBack={() => ctx.nav.pop()} />
+      <TopBar title="Classes" subtitle={`${level} · ${year.label}${year.archived ? " · lecture seule" : ""}`} onBack={() => ctx.nav.pop()} />
       <div className="px-4 pt-4 space-y-2">
-        <PageAction icon={Plus} title="Créer une classe" subtitle="Ajouter le groupe, les matières et les élèves" onClick={openAdd} />
-        <SectionLabel>Classes de {year.label}</SectionLabel>
-        {year.classes.filter((c) => !c.archived).map((c) => (
-          <Card key={c.id} onClick={() => ctx.nav.push("classDetails", { classId: c.id })}>
+        <p className="text-[11px] -mt-1 mb-1" style={{ color: COLORS.muted }}>Sections, élèves et cartes-réponses. Le programme (cours, compétences, questionnaires) se prépare depuis Programme.</p>
+        {!year.archived && (adding ? (
+          <Card className="important-form-modal mb-3">
+            <Field label="Nom de la classe"><TextInput autoFocus value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder={`Ex. ${level} A`} /></Field>
+            <Field label="Nombre de cartes à réserver">
+              <TextInput type="number" min="1" value={form.cardCount} onChange={(e) => setForm((f) => ({ ...f, cardCount: e.target.value }))} placeholder="Ex. 40" />
+            </Field>
+            <p className="text-[11px] -mt-2 mb-3" style={{ color: COLORS.muted }}>
+              {levelSubjects.length > 0
+                ? <>Cette section héritera automatiquement des {levelSubjects.length} matière(s) déjà définies pour « {level} ».</>
+                : <>Aucune matière n'est encore définie pour « {level} » — ajoutez-les depuis l'écran du niveau.</>}
+            </p>
+            <div className="flex gap-2"><Btn variant="ghost" full onClick={() => setAdding(false)}>Annuler</Btn><Btn full disabled={!form.name.trim()} onClick={createClass}>Créer</Btn></div>
+          </Card>
+        ) : <PageAction icon={Plus} title="Ajouter une classe" subtitle={`Nouvelle section de « ${level} »`} onClick={openAdd} />)}
+        <SectionLabel>Classes de {level}</SectionLabel>
+        {classesOfLevel.map((c) => (
+          <Card key={c.id} onClick={() => ctx.nav.push(c.pendingDistribution ? "distributeStudents" : "importStudents", { classId: c.id })}
+            style={c.pendingDistribution ? { borderColor: COLORS.warning, borderStyle: "dashed" } : undefined}>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: COLORS.primarySoft }}><GraduationCap size={18} color={COLORS.primary} /></div>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: c.pendingDistribution ? COLORS.warningSoft : COLORS.primarySoft }}>
+                {c.pendingDistribution ? <ListChecks size={18} color={COLORS.warning} /> : <GraduationCap size={18} color={COLORS.primary} />}
+              </div>
               <div className="flex-1"><p className="font-bold text-[13.5px]" style={{ color: COLORS.text }}>{c.name}</p><p className="text-[11.5px]" style={{ color: COLORS.muted }}>{c.level}</p></div>
               <ChevronRight size={17} color={COLORS.muted} />
             </div>
             <div className="flex gap-2 mt-3 flex-wrap">
-              <Badge tone="primary" icon={Users}>{c.students.filter((s) => !s.archived).length} élèves</Badge>
-              <Badge tone="neutral" icon={BookOpen}>{c.subjects.filter((s) => !s.archived).length} matières</Badge>
-              <Badge tone="accent" icon={CreditCard}>{c.cardCount || 40} cartes réservées</Badge>
+              {c.pendingDistribution ? (
+                <Badge tone="warning" icon={ListChecks}>{c.students.filter((s) => !s.archived).length} élèves à répartir</Badge>
+              ) : (
+                <>
+                  <Badge tone="primary" icon={Users}>{c.students.filter((s) => !s.archived).length} élèves</Badge>
+                  <Badge tone="accent" icon={CreditCard}>{c.cardCount || 40} cartes réservées</Badge>
+                </>
+              )}
             </div>
           </Card>
         ))}
-        {year.classes.filter((c) => !c.archived).length === 0 && <EmptyState icon={GraduationCap} title="Aucune classe" text="Créez votre première classe pour commencer." />}
+        {classesOfLevel.length === 0 && <EmptyState icon={GraduationCap} title="Aucune classe" text="Créez la première section de ce niveau." />}
       </div>
-
-      {addStep > 0 && (
-        <div className="important-form-modal flex flex-col">
-          <TopBar title={addStep === 1 ? "Nouvelle classe" : "Choisir les matières"} subtitle={addStep === 2 ? form.name : undefined} onBack={() => setAddStep((s) => (s === 1 ? 0 : 1))} />
-          <WizardProgress step={addStep - 1} totalSteps={2} labels={["Informations", "Matières"]} helperText={addStep === 1 ? "Définissez votre groupe d'élèves" : "Personnalisez le programme de la classe"} />
-          <div className="px-4 pt-3 flex-1 overflow-y-auto">
-            {addStep === 1 ? (
-              <>
-                <Field label="Nom de la classe"><TextInput autoFocus value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Ex. 5e année A" /></Field>
-                <Field label="Cycle"><select style={inputStyle} value={form.level} onChange={(e) => setForm((f) => ({ ...f, level: e.target.value }))}><option>Primaire</option><option>Collège</option><option>Lycée</option></select></Field>
-                <p className="text-[11px] -mt-2 mb-3" style={{ color: COLORS.muted }}>Sert uniquement à suggérer les matières courantes à l'étape suivante.</p>
-                <Field label="Nombre de cartes à réserver">
-                  <TextInput type="number" min="1" value={form.cardCount} onChange={(e) => setForm((f) => ({ ...f, cardCount: e.target.value }))} placeholder="Ex. 40" />
-                </Field>
-                <p className="text-[11px] -mt-2 mb-3" style={{ color: COLORS.muted }}>Les cartes-réponses existent déjà (jeu imprimé de l'établissement) — vous réservez ici combien seront utilisées pour cette classe. Chaque élève importé recevra automatiquement le prochain numéro disponible ; l'impression reste en dehors de l'application.</p>
-                <Btn full icon={ArrowRight} disabled={!form.name.trim()} onClick={goToSubjects}>Continuer</Btn>
-              </>
-            ) : (
-              <>
-                <p className="text-[11.5px] mb-3" style={{ color: COLORS.muted }}>Suggestions pour le cycle « {form.level} », déjà cochées — ajustez librement.</p>
-                <SubjectPicker catalog={ctx.data.subjectCatalog} selected={selectedSubjects} onToggle={toggleSubject} onAddCustom={addCustomSubject} excluded={[]} />
-                <div className="h-4" />
-                <Btn full variant="accent" icon={CheckCircle2} onClick={createClass}>Créer la classe ({selectedSubjects.size} matière{selectedSubjects.size > 1 ? "s" : ""})</Btn>
-              </>
-            )}
-          </div>
-        </div>
-      )}
     </Screen>
   );
 }
 
+/* Paramètres d'une classe : renommer et archiver. La liste des élèves n'est plus un choix
+   parmi d'autres ici — c'est la destination directe quand on tape une classe depuis la liste
+   ("Classes"), donc cet écran de réglages ne vit plus que derrière l'icône dédiée de
+   ImportStudentsScreen. "Matières" a disparu : c'est un contenu de niveau (partagé entre
+   toutes les sections), déjà accessible depuis Niveau → Matières — pas besoin de le répéter
+   ici pour chaque classe. */
 function ClassDetailsScreen({ ctx }) {
   const { classId } = ctx.nav.current.params;
   const loc = locateClass(ctx.data, classId);
-  const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(loc ? { name: loc.cls.name, level: loc.cls.level } : { name: "", level: "" });
   const [confirmArchive, setConfirmArchive] = useState(false);
   if (!loc) return null;
@@ -1391,34 +2352,18 @@ function ClassDetailsScreen({ ctx }) {
   const activeStudents = cls.students.filter((s) => !s.archived).length;
   const canArchive = activeStudents === 0;
 
-  const save = () => { ctx.setData((d) => updateClass(d, classId, (c) => ({ ...c, name: form.name, level: form.level }))); setEditing(false); };
+  const save = () => { ctx.setData((d) => updateClass(d, classId, (c) => ({ ...c, name: form.name, level: form.level }))); ctx.showToast("Classe mise à jour"); };
   const archive = () => { ctx.setData((d) => updateClass(d, classId, (c) => ({ ...c, archived: true }))); ctx.showToast(`« ${cls.name} » archivée`); ctx.nav.pop(); };
-
-  const items = [
-    { key: "students", label: "Élèves", icon: Users, sub: `${activeStudents} inscrits, avec cartes`, go: () => ctx.nav.push("importStudents", { classId }) },
-    { key: "subjects", label: "Matières", icon: BookOpen, sub: `${cls.subjects.filter((s) => !s.archived).length} matières`, go: () => ctx.nav.push("subjects", { classId }) },
-  ];
 
   return (
     <Screen>
-      <TopBar title={cls.name} subtitle={cls.level} onBack={() => ctx.nav.pop()} right={<button onClick={() => setEditing((v) => !v)} className="p-1"><Pencil size={16} color={COLORS.muted} /></button>} />
+      <TopBar title="Paramètres de la classe" subtitle={cls.name} onBack={() => ctx.nav.pop()} />
       <div className="px-4 pt-4">
-        {editing && (
-          <Card className="important-form-modal mb-3">
-            <Field label="Nom"><TextInput value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} /></Field>
-            <Field label="Niveau"><TextInput value={form.level} onChange={(e) => setForm((f) => ({ ...f, level: e.target.value }))} /></Field>
-            <div className="flex gap-2"><Btn variant="ghost" full onClick={() => setEditing(false)}>Annuler</Btn><Btn full onClick={save}>Enregistrer</Btn></div>
-          </Card>
-        )}
-        <div className="grid grid-cols-2 gap-3 mb-3">
-          {items.map((it) => (
-            <Card key={it.key} onClick={it.go} className="flex flex-col gap-2">
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: COLORS.primarySoft }}><it.icon size={17} color={COLORS.primary} /></div>
-              <p className="font-bold text-[13.5px]" style={{ color: COLORS.text }}>{it.label}</p>
-              <p className="text-[11px]" style={{ color: COLORS.muted }}>{it.sub}</p>
-            </Card>
-          ))}
-        </div>
+        <Card className="mb-3">
+          <Field label="Nom"><TextInput value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} /></Field>
+          <Field label="Niveau"><TextInput value={form.level} onChange={(e) => setForm((f) => ({ ...f, level: e.target.value }))} /></Field>
+          <Btn full disabled={!form.name.trim() || !form.level.trim()} onClick={save}>Enregistrer</Btn>
+        </Card>
         <Btn variant="ghost" full icon={Archive} disabled={!canArchive} onClick={() => setConfirmArchive(true)}>
           {canArchive ? "Archiver cette classe" : "Archiver impossible (élèves inscrits)"}
         </Btn>
@@ -1448,9 +2393,12 @@ function ImportStudentsScreen({ ctx }) {
   const [editingCardId, setEditingCardId] = useState(null);
   const [editCardValue, setEditCardValue] = useState("");
   const [dupWarning, setDupWarning] = useState(false);
+  const [search, setSearch] = useState("");
   const loc = locateClass(ctx.data, classId);
   if (!loc) return null;
+  const readOnly = !!loc.yr.archived;
   const active = loc.cls.students.filter((s) => !s.archived);
+  const visibleStudents = active.filter((s) => s.name.toLowerCase().includes(search.toLowerCase()));
 
   const runSimulatedImport = () => setStaged(SAMPLE_IMPORT_ROWS.map((r, i) => ({ ...r, id: uid("imp"), rowNumber: i + 1 })));
   const addManual = () => {
@@ -1486,7 +2434,7 @@ function ImportStudentsScreen({ ctx }) {
 
   return (
     <Screen>
-      <TopBar title="Élèves" subtitle={loc.cls.name} onBack={() => ctx.nav.pop()} />
+      <TopBar title="Élèves" subtitle={`${loc.cls.name}${readOnly ? " · lecture seule" : ""}`} onBack={() => ctx.nav.pop()} right={readOnly ? undefined : <button onClick={() => ctx.nav.push("classDetails", { classId })} className="p-1" aria-label="Paramètres de la classe"><Settings size={17} color={COLORS.muted} /></button>} />
       <div className="px-4 pt-4 space-y-3">
         {ctx.nav.current.params.justCreated && (
           <Card className="flex items-center gap-2" style={{ background: COLORS.successSoft, border: "none" }}>
@@ -1501,36 +2449,51 @@ function ImportStudentsScreen({ ctx }) {
             <p className="text-[11.5px]" style={{ color: COLORS.muted }}>{active.filter((s) => s.cardAssigned).length} déjà attribuées à un élève. Les cartes existent déjà (jeu imprimé et réutilisable de l'établissement) — vous attribuez simplement un numéro à chaque élève ici. L'impression se fait séparément, en dehors de l'application.</p>
           </div>
         </Card>
-        <Card className="flex items-start gap-3">
-          <FileSpreadsheet size={20} color={COLORS.primary} className="mt-0.5" />
-          <div className="flex-1">
-            <p className="font-semibold text-[13px]" style={{ color: COLORS.text }}>Fichier CSV ou Excel</p>
-            <p className="text-[11.5px] mb-3" style={{ color: COLORS.muted }}>Importer une nouvelle liste d'élèves — les cartes sont attribuées automatiquement.</p>
-            <Btn variant="secondary" size="sm" icon={Upload} onClick={runSimulatedImport}>Choisir un fichier</Btn>
-          </div>
-        </Card>
-        {manualOpen ? (
-          <Card className="important-form-modal">
-            <Field label="Nom complet de l'élève"><TextInput autoFocus value={manualName} onChange={(e) => setManualName(e.target.value)} placeholder="Ex. Karim Belkacem" /></Field>
-            <div className="flex gap-2"><Btn variant="ghost" full onClick={() => setManualOpen(false)}>Annuler</Btn><Btn full onClick={addManual}>Ajouter</Btn></div>
-          </Card>
-        ) : <Btn variant="ghost" full icon={Plus} onClick={() => setManualOpen(true)}>Ajouter un élève manuellement</Btn>}
-        {staged.length > 0 && (
-          <Btn full icon={ArrowRight} onClick={() => ctx.nav.push("importPreview", { classId, staged })}>Vérifier la liste importée ({staged.length})</Btn>
+        {!readOnly && (
+          <>
+            <Card className="flex items-start gap-3">
+              <FileSpreadsheet size={20} color={COLORS.primary} className="mt-0.5" />
+              <div className="flex-1">
+                <p className="font-semibold text-[13px]" style={{ color: COLORS.text }}>Fichier CSV ou Excel</p>
+                <p className="text-[11.5px] mb-3" style={{ color: COLORS.muted }}>Importer une nouvelle liste d'élèves — les cartes sont attribuées automatiquement.</p>
+                <Btn variant="secondary" size="sm" icon={Upload} onClick={runSimulatedImport}>Choisir un fichier</Btn>
+              </div>
+            </Card>
+            {manualOpen ? (
+              <Card className="important-form-modal">
+                <Field label="Nom complet de l'élève"><TextInput autoFocus value={manualName} onChange={(e) => setManualName(e.target.value)} placeholder="Ex. Karim Belkacem" /></Field>
+                <div className="flex gap-2"><Btn variant="ghost" full onClick={() => setManualOpen(false)}>Annuler</Btn><Btn full onClick={addManual}>Ajouter</Btn></div>
+              </Card>
+            ) : <Btn variant="ghost" full icon={Plus} onClick={() => setManualOpen(true)}>Ajouter un élève manuellement</Btn>}
+            {staged.length > 0 && (
+              <Btn full icon={ArrowRight} onClick={() => ctx.nav.push("importPreview", { classId, staged })}>Vérifier la liste importée ({staged.length})</Btn>
+            )}
+          </>
         )}
 
         <p className="font-bold text-[13px] pt-2" style={{ color: COLORS.text }}>Liste actuelle ({active.length})</p>
+        {active.length > 8 && (
+          <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher un élève" />
+        )}
         <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${COLORS.border}` }}>
           <div className="max-h-[420px] overflow-y-auto">
-            {active.map((s, i) => (
+            {visibleStudents.length === 0 && <div className="py-8 text-center text-[12.5px]" style={{ color: COLORS.muted }}>Aucun élève ne correspond.</div>}
+            {visibleStudents.map((s, i) => (
               <div key={s.id} className="px-3 py-2.5" style={{ borderTop: i ? `1px solid ${COLORS.border}` : "none", background: i % 2 ? "#FBFCFD" : "#fff" }}>
-                <button onClick={() => setActionsFor(s.id)} className="w-full flex items-center justify-between">
-                  <span className="text-[12.5px] font-medium truncate" style={{ color: COLORS.text }}>{s.name}</span>
-                  <div className="flex items-center gap-1.5 shrink-0">
+                {readOnly ? (
+                  <div className="w-full flex items-center justify-between">
+                    <span className="text-[12.5px] font-medium truncate" style={{ color: COLORS.text }}>{s.name}</span>
                     {s.cardAssigned ? <Badge tone="primary">#{s.cardNumber}</Badge> : <Badge tone="warning">Sans carte</Badge>}
-                    <Pencil size={13} color={COLORS.muted} />
                   </div>
-                </button>
+                ) : (
+                  <button onClick={() => setActionsFor(s.id)} className="w-full flex items-center justify-between">
+                    <span className="text-[12.5px] font-medium truncate" style={{ color: COLORS.text }}>{s.name}</span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {s.cardAssigned ? <Badge tone="primary">#{s.cardNumber}</Badge> : <Badge tone="warning">Sans carte</Badge>}
+                      <Pencil size={13} color={COLORS.muted} />
+                    </div>
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -1630,15 +2593,19 @@ function ImportPreviewScreen({ ctx }) {
   );
 }
 
+/* Écran réservé aux comptes établissement (gestionnaire) — un compte indépendant gère ses
+   matières et son programme sur un seul écran fusionné (TeacherLevelSubjectsScreen), plus
+   jamais via celui-ci. Les matières (et leur contenu) sont partagées par toutes les sections
+   d'un même niveau ; l'enseignant assigné, lui, reste propre à CETTE classe. */
 function SubjectsScreen({ ctx }) {
-  const { classId } = ctx.nav.current.params;
-  const loc = locateClass(ctx.data, classId);
+  const { yearId, level } = ctx.nav.current.params;
+  const yr = ctx.data.years.find((y) => y.id === yearId);
   const [adding, setAdding] = useState(false);
   const [selectedSubjects, setSelectedSubjects] = useState(new Set());
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
-  if (!loc) return null;
-  const { cls } = loc;
-  const existingNames = cls.subjects.filter((s) => !s.archived).map((s) => s.name);
+  if (!yr || !level) return null;
+  const levelSubjects = getLevelSubjects(yr, level);
+  const existingNames = levelSubjects.filter((s) => !s.archived).map((s) => s.name);
 
   const toggleSubject = (name) => setSelectedSubjects((prev) => { const n = new Set(prev); n.has(name) ? n.delete(name) : n.add(name); return n; });
   const addCustomToCatalog = (name) => {
@@ -1646,70 +2613,69 @@ function SubjectsScreen({ ctx }) {
     setSelectedSubjects((prev) => new Set(prev).add(name));
   };
   const confirmAdd = () => {
-    const selfId = ctx.data.establishment?.accountType === "independent" ? ctx.data.admin.selfTeacherId : null;
-    const newSubjects = [...selectedSubjects].map((name) => ({ id: uid("s"), name, teacherId: selfId, archived: false, courses: [], questionnaires: [] }));
-    ctx.setData((d) => updateClass(d, classId, (c) => ({ ...c, subjects: [...c.subjects, ...newSubjects] })));
-    ctx.showToast(newSubjects.length > 1 ? `${newSubjects.length} matières ajoutées` : "Matière ajoutée");
+    const newSubjects = [...selectedSubjects].map((name) => ({ id: uid("s"), name, archived: false, courses: [], questionnaires: [] }));
+    ctx.setData((d) => updateLevel(d, yr.id, level, (lv) => ({ ...lv, subjects: [...lv.subjects, ...newSubjects] })));
+    ctx.showToast(newSubjects.length > 1 ? `${newSubjects.length} matières ajoutées au niveau « ${level} »` : `Matière ajoutée au niveau « ${level} »`);
     setSelectedSubjects(new Set()); setAdding(false);
   };
-  const deleteSubject = (id) => { ctx.setData((d) => updateClass(d, classId, (c) => ({ ...c, subjects: c.subjects.filter((s) => s.id !== id) }))); setConfirmDeleteId(null); ctx.showToast("Matière supprimée"); };
+  const deleteSubject = (id) => {
+    ctx.setData((d) => {
+      const withLevel = updateLevel(d, yr.id, level, (lv) => ({ ...lv, subjects: lv.subjects.filter((s) => s.id !== id) }));
+      return { ...withLevel, years: withLevel.years.map((y) => (y.id !== yr.id ? y : { ...y, classes: y.classes.map((c) => (c.level !== level ? c : { ...c, teacherBySubject: Object.fromEntries(Object.entries(c.teacherBySubject || {}).filter(([sid]) => sid !== id)) })) })) };
+    });
+    setConfirmDeleteId(null);
+    ctx.showToast("Matière supprimée du niveau");
+  };
 
   return (
     <Screen>
-      <TopBar title="Matières" subtitle={cls.name} onBack={() => ctx.nav.pop()} />
+      <TopBar title="Matières" subtitle={`${level} · programme du niveau${yr.archived ? " · lecture seule" : ""}`} onBack={() => ctx.nav.pop()} />
       <div className="px-4 pt-4 space-y-2">
-        {adding ? (
+        {!yr.archived && (adding ? (
           <Card className="important-form-modal mb-3">
-            <p className="text-[11.5px] mb-2" style={{ color: COLORS.muted }}>Cochez les matières à ajouter à cette classe.</p>
+            <p className="text-[11.5px] mb-2" style={{ color: COLORS.muted }}>Cochez les matières à ajouter au niveau « {level} ».</p>
             <SubjectPicker catalog={ctx.data.subjectCatalog} selected={selectedSubjects} onToggle={toggleSubject} onAddCustom={addCustomToCatalog} excluded={existingNames} />
             <div className="flex gap-2 mt-3">
               <Btn variant="ghost" full onClick={() => { setAdding(false); setSelectedSubjects(new Set()); }}>Annuler</Btn>
               <Btn full disabled={selectedSubjects.size === 0} onClick={confirmAdd}>Ajouter ({selectedSubjects.size})</Btn>
             </div>
           </Card>
-        ) : <PageAction icon={Plus} title="Ajouter une matière" subtitle="Compléter le programme de cette classe" onClick={() => setAdding(true)} />}
-        <SectionLabel>Matières de la classe</SectionLabel>
-        {cls.subjects.filter((s) => !s.archived).map((s) => {
-          const teacher = s.teacherId ? findTeacher(ctx.data, s.teacherId) : null;
+        ) : <PageAction icon={Plus} title="Ajouter une matière" subtitle={`Compléter le programme de « ${level} »`} onClick={() => setAdding(true)} />)}
+        <SectionLabel>Matières de {level}</SectionLabel>
+        {levelSubjects.filter((s) => !s.archived).map((s) => {
           const canDelete = s.questionnaires.length === 0;
           return (
             <Card key={s.id}>
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: COLORS.primarySoft }}><BookOpen size={18} color={COLORS.primary} /></div>
                 <div className="flex-1"><p className="font-bold text-[13.5px]" style={{ color: COLORS.text }}>{s.name}</p><p className="text-[11.5px]" style={{ color: COLORS.muted }}>{s.questionnaires.length} questionnaire(s)</p></div>
-                <button onClick={() => setConfirmDeleteId(s.id)} disabled={!canDelete} className="p-1.5" style={{ opacity: canDelete ? 1 : 0.3 }}><Trash2 size={15} color={COLORS.danger} /></button>
-              </div>
-              <div className="flex items-center justify-between mt-2">
-                {teacher ? <Badge tone="accent" icon={User}>{teacher.name}</Badge> : <Badge tone="warning" icon={AlertTriangle}>Non assigné</Badge>}
-                <button onClick={() => ctx.nav.push("assignTeacher", { classId, subjectId: s.id })} className="text-[11.5px] font-semibold" style={{ color: COLORS.primary }}>{teacher ? "Réassigner" : "Assigner"}</button>
+                {!yr.archived && <button onClick={() => setConfirmDeleteId(s.id)} disabled={!canDelete} className="p-1.5" style={{ opacity: canDelete ? 1 : 0.3 }}><Trash2 size={15} color={COLORS.danger} /></button>}
               </div>
             </Card>
           );
         })}
       </div>
-      <ConfirmModal open={!!confirmDeleteId} title="Supprimer cette matière ?" text="Cette action est définitive. Possible uniquement si aucun questionnaire n'y est rattaché." onCancel={() => setConfirmDeleteId(null)} onConfirm={() => deleteSubject(confirmDeleteId)} confirmLabel="Supprimer" danger />
+      <ConfirmModal open={!!confirmDeleteId} title="Supprimer cette matière ?" text="Cette action retire la matière pour toutes les sections de ce niveau. Possible uniquement si aucun questionnaire n'y est rattaché." onCancel={() => setConfirmDeleteId(null)} onConfirm={() => deleteSubject(confirmDeleteId)} confirmLabel="Supprimer" danger />
     </Screen>
   );
 }
 
-/* Enseignants (Admin) */
+/* Regroupe les affectations d'un enseignant par classe — utilisé par la liste (compte) et le détail (détail). */
+function groupAssignmentsByClass(ctx, teacherId) {
+  const byClass = [];
+  getTeacherAssignments(ctx.data, teacherId).forEach(({ cls, subject }) => {
+    let entry = byClass.find((e) => e.classId === cls.id);
+    if (!entry) { entry = { classId: cls.id, className: cls.name, subjectNames: [] }; byClass.push(entry); }
+    entry.subjectNames.push(subject.name);
+  });
+  return byClass;
+}
+
+/* Enseignants (Admin) — simple liste, chaque carte ne montre que l'essentiel (statut,
+   nombre de classes) ; les actions (assigner, inviter, désactiver) vivent une seule fois,
+   sur l'écran de détail, pour ne pas les répéter sur chaque ligne de la liste. */
 function TeachersListScreen({ ctx }) {
   const [search, setSearch] = useState("");
-  const resend = (teacherId) => {
-    const teacher = findTeacher(ctx.data, teacherId);
-    if (!teacher?.email) { ctx.showToast("Ajoutez un email pour envoyer une invitation", { tone: "warning" }); return; }
-    const inviteId = uid("inv");
-    const invitation = { id: inviteId, code: `KAGAT-${Math.random().toString(36).slice(2, 8).toUpperCase()}`, name: teacher.name, email: teacher.email, establishmentId: ctx.data.establishment.id, establishmentName: ctx.data.establishment.name, status: "pending", createdAt: Date.now() };
-    ctx.setData((d) => ({ ...d, invitations: [...(d.invitations || []), invitation] }));
-    ctx.nav.push("shareCredentials", { inviteId, mode: "resend" });
-  };
-  const toggleActive = (teacherId) => {
-    const teacher = findTeacher(ctx.data, teacherId);
-    const willBeActive = !teacher.active;
-    ctx.setData((d) => ({ ...d, teachers: d.teachers.map((t) => (t.id === teacherId ? { ...t, active: willBeActive } : t)) }));
-    if (willBeActive) ctx.showToast(`${teacher.name} réactivé`);
-    else ctx.showToast(`${teacher.name} désactivé`, { actionLabel: "Annuler", onAction: () => ctx.setData((d) => ({ ...d, teachers: d.teachers.map((t) => (t.id === teacherId ? { ...t, active: true } : t)) })) });
-  };
   const filteredTeachers = ctx.data.teachers.filter((t) => t.name.toLowerCase().includes(search.toLowerCase()));
 
   return (
@@ -1719,53 +2685,115 @@ function TeachersListScreen({ ctx }) {
         <PageAction icon={UserPlus} title="Inviter un enseignant" subtitle="Il créera lui-même son compte et son mot de passe" onClick={() => ctx.nav.push("createTeacher")} />
         {(ctx.data.invitations || []).filter((i) => i.status === "pending").length > 0 && <Card className="mb-2" style={{ background: COLORS.warningSoft, border: "none" }}>
           <p className="text-[12px] font-bold mb-2" style={{ color: COLORS.warning }}>Invitations en attente</p>
-          {(ctx.data.invitations || []).filter((i) => i.status === "pending").map((i) => <button key={i.id} onClick={() => ctx.nav.push("shareCredentials", { inviteId: i.id })} className="w-full flex items-center justify-between py-1.5 text-left"><span><b className="text-[12px]" style={{ color: COLORS.text }}>{i.name}</b><span className="block text-[11px]" style={{ color: COLORS.muted }}>{i.email}</span></span><Badge tone="warning">À rejoindre</Badge></button>)}
+          {(ctx.data.invitations || []).filter((i) => i.status === "pending").map((i) => {
+            const classCount = Object.keys(i.pendingAssignments || {}).length;
+            return (
+              <button key={i.id} onClick={() => ctx.nav.push("shareCredentials", { inviteId: i.id })} className="w-full flex items-center justify-between py-1.5 text-left">
+                <span><b className="text-[12px]" style={{ color: COLORS.text }}>{i.name}</b><span className="block text-[11px]" style={{ color: COLORS.muted }}>{i.email} · {classCount > 0 ? `${classCount} classe(s) assignée(s)` : "aucune classe assignée"}</span></span>
+                <Badge tone="warning">À rejoindre</Badge>
+              </button>
+            );
+          })}
         </Card>}
-        <div className="flex items-center gap-2 px-3 py-2 rounded-xl mb-1" style={{ background: "#F2F4F7" }}>
-          <Search size={15} color={COLORS.muted} />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher un enseignant" className="flex-1 bg-transparent outline-none text-[13px]" />
-        </div>
+        <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher un enseignant" className="mb-1" />
+        <SectionLabel>Tous les enseignants</SectionLabel>
         {filteredTeachers.length === 0 && <div className="py-8 text-center text-[12.5px]" style={{ color: COLORS.muted }}>Aucun enseignant ne correspond.</div>}
         {filteredTeachers.map((t) => {
-          const assignments = getTeacherAssignments(ctx.data, t.id);
-          const byClass = [];
-          assignments.forEach(({ cls, subject }) => {
-            let entry = byClass.find((e) => e.classId === cls.id);
-            if (!entry) { entry = { classId: cls.id, className: cls.name, subjectNames: [] }; byClass.push(entry); }
-            entry.subjectNames.push(subject.name);
-          });
+          const classCount = groupAssignmentsByClass(ctx, t.id).length;
           return (
-            <Card key={t.id} style={{ opacity: t.active ? 1 : 0.55 }}>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: COLORS.primarySoft }}><User size={18} color={COLORS.primary} /></div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-[13.5px] truncate" style={{ color: COLORS.text }}>{t.name}</p>
-                  <p className="text-[11.5px] truncate" style={{ color: COLORS.muted }}>{t.email || t.phone || t.username}{t.city || t.country ? ` · ${[t.city, t.country].filter(Boolean).join(", ")}` : ""}</p>
-                </div>
-                <Badge tone={t.active ? "success" : "neutral"}>{t.active ? "Actif" : "Désactivé"}</Badge>
+            <Card key={t.id} onClick={() => ctx.nav.push("teacherDetails", { teacherId: t.id })} className="flex items-center gap-3" style={{ opacity: t.active ? 1 : 0.55 }}>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: COLORS.primarySoft }}><User size={18} color={COLORS.primary} /></div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2"><p className="font-bold text-[13.5px] truncate" style={{ color: COLORS.text }}>{t.name}</p>{!t.active && <Badge tone="neutral">Désactivé</Badge>}</div>
+                <p className="text-[11.5px] truncate" style={{ color: classCount ? COLORS.muted : COLORS.warning }}>{classCount > 0 ? `${classCount} classe(s) assignée(s)` : "Aucune classe assignée"}</p>
               </div>
-              {byClass.length > 0 ? (
-                <div className="mb-2 space-y-1">
-                  {byClass.map((e) => (
-                    <div key={e.classId} className="flex items-start gap-1.5 text-[11.5px]" style={{ color: COLORS.text }}>
-                      <GraduationCap size={13} color={COLORS.primary} className="mt-0.5 shrink-0" />
-                      <span><b>{e.className}</b> — {e.subjectNames.join(", ")}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-[11.5px] mb-2" style={{ color: COLORS.warning }}>Aucune classe assignée pour l'instant.</p>
-              )}
-              <div className="flex gap-2">
-                <Btn variant="secondary" size="sm" icon={Share2} onClick={() => resend(t.id)}>Envoyer une invitation</Btn>
-                <Btn variant="accent" size="sm" icon={BookOpen} onClick={() => ctx.nav.push("assignClassesToTeacher", { teacherId: t.id })}>Assigner des matières</Btn>
-              </div>
-              <div className="mt-2">
-                <Btn variant="ghost" size="sm" full onClick={() => toggleActive(t.id)}>{t.active ? "Désactiver" : "Réactiver"}</Btn>
-              </div>
+              <ChevronRight size={17} color={COLORS.muted} className="shrink-0" />
             </Card>
           );
         })}
+      </div>
+    </Screen>
+  );
+}
+
+/* Détail d'un enseignant — un seul endroit pour toutes ses actions (assigner, inviter,
+   désactiver), au lieu de les répéter sur chaque carte de la liste. */
+function TeacherDetailsScreen({ ctx }) {
+  const { teacherId } = ctx.nav.current.params;
+  const teacher = findTeacher(ctx.data, teacherId);
+  if (!teacher) return null;
+  const byClass = groupAssignmentsByClass(ctx, teacherId);
+  /* Historique toutes années confondues (active + archivées) — pour que le gestionnaire
+     puisse voir en un coup d'œil ce que cet enseignant a fait les années précédentes. */
+  const yearGroups = getTeacherYearGroups(ctx.data, teacherId, { includeArchivedYears: true });
+
+  const resend = () => {
+    if (!teacher.email) { ctx.showToast("Ajoutez un email pour envoyer une invitation", { tone: "warning" }); return; }
+    const inviteId = uid("inv");
+    const invitation = { id: inviteId, code: `KAGAT-${Math.random().toString(36).slice(2, 8).toUpperCase()}`, name: teacher.name, email: teacher.email, establishmentId: ctx.data.establishment.id, establishmentName: ctx.data.establishment.name, status: "pending", createdAt: Date.now() };
+    ctx.setData((d) => ({ ...d, invitations: [...(d.invitations || []), invitation] }));
+    ctx.nav.push("shareCredentials", { inviteId, mode: "resend" });
+  };
+  const toggleActive = () => {
+    const willBeActive = !teacher.active;
+    ctx.setData((d) => ({ ...d, teachers: d.teachers.map((t) => (t.id === teacherId ? { ...t, active: willBeActive } : t)) }));
+    if (willBeActive) ctx.showToast(`${teacher.name} réactivé`);
+    else ctx.showToast(`${teacher.name} désactivé`, { actionLabel: "Annuler", onAction: () => ctx.setData((d) => ({ ...d, teachers: d.teachers.map((t) => (t.id === teacherId ? { ...t, active: true } : t)) })) });
+  };
+
+  return (
+    <Screen>
+      <TopBar title={teacher.name} subtitle={ctx.data.establishment.name} onBack={() => ctx.nav.pop()} />
+      <div className="px-4 pt-4 space-y-3">
+        <Card className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-full flex items-center justify-center shrink-0" style={{ background: COLORS.primarySoft }}><User size={20} color={COLORS.primary} /></div>
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-[14.5px] truncate" style={{ color: COLORS.text }}>{teacher.name}</p>
+            <p className="text-[11.5px] truncate" style={{ color: COLORS.muted }}>{teacher.email || teacher.phone || teacher.username}{teacher.city || teacher.country ? ` · ${[teacher.city, teacher.country].filter(Boolean).join(", ")}` : ""}</p>
+          </div>
+          <Badge tone={teacher.active ? "success" : "neutral"}>{teacher.active ? "Actif" : "Désactivé"}</Badge>
+        </Card>
+
+        <SectionLabel>Classes et matières</SectionLabel>
+        {byClass.length > 0 ? byClass.map((e) => (
+          <Card key={e.classId} className="flex items-start gap-3">
+            <GraduationCap size={17} color={COLORS.primary} className="shrink-0 mt-0.5" />
+            <p className="text-[12.5px] leading-5" style={{ color: COLORS.text }}><b>{e.className}</b> — {e.subjectNames.join(", ")}</p>
+          </Card>
+        )) : <EmptyState icon={GraduationCap} title="Aucune classe assignée" text="Assignez cet enseignant à une ou plusieurs classes." />}
+
+        {yearGroups.length > 1 && (
+          <>
+            <SectionLabel>Historique par année</SectionLabel>
+            {yearGroups.filter((y) => y.yearArchived).map((y) => {
+              const classCount = y.levels.reduce((sum, g) => sum + g.classes.length, 0);
+              return (
+                <Card key={y.yearId} className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: "#EEF1F4" }}><Calendar size={16} color={COLORS.muted} /></div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap"><p className="font-bold text-[12.5px]" style={{ color: COLORS.text }}>{y.yearLabel}</p><Badge tone="neutral">Archivée</Badge></div>
+                    <p className="text-[11px]" style={{ color: COLORS.muted }}>{y.levels.length} niveau(x) · {classCount} classe(s) · {y.levels.flatMap((g) => g.subjects).length} matière(s)</p>
+                  </div>
+                </Card>
+              );
+            })}
+          </>
+        )}
+
+        <SectionLabel>Actions</SectionLabel>
+        <div className="grid grid-cols-2 gap-3">
+          <Card onClick={() => ctx.nav.push("assignClassesToTeacher", { teacherId })} className="flex flex-col gap-2">
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: COLORS.accentSoft }}><BookOpen size={17} color={COLORS.accent} /></div>
+            <p className="font-bold text-[13px]" style={{ color: COLORS.text }}>Assigner des matières</p>
+            <p className="text-[11px]" style={{ color: COLORS.muted }}>Classes et sections</p>
+          </Card>
+          <Card onClick={resend} className="flex flex-col gap-2">
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: COLORS.primarySoft }}><Share2 size={17} color={COLORS.primary} /></div>
+            <p className="font-bold text-[13px]" style={{ color: COLORS.text }}>Envoyer une invitation</p>
+            <p className="text-[11px]" style={{ color: COLORS.muted }}>Code + accès à l'école</p>
+          </Card>
+        </div>
+        <button onClick={toggleActive} className="w-full text-center text-[12px] font-semibold py-2" style={{ color: teacher.active ? COLORS.danger : COLORS.primary }}>{teacher.active ? "Désactiver ce compte" : "Réactiver ce compte"}</button>
       </div>
     </Screen>
   );
@@ -1786,7 +2814,7 @@ function CreateTeacherScreen({ ctx }) {
     const invitation = { id: inviteId, code, name: name.trim(), email: email.trim().toLowerCase(), establishmentId: ctx.data.establishment.id, establishmentName: ctx.data.establishment.name, status: "pending", createdAt: Date.now() };
     ctx.setData((d) => ({ ...d, invitations: [...(d.invitations || []), invitation] }));
     ctx.showToast("Invitation créée");
-    ctx.nav.push("shareCredentials", { inviteId, mode: "create" });
+    ctx.nav.push("assignClassesToTeacher", { inviteId });
   };
 
   return (
@@ -1813,8 +2841,12 @@ function ShareCredentialsScreen({ ctx }) {
   const [copied, setCopied] = useState(false);
   if (!invitation) return null;
 
+  const assignments = resolvePendingAssignments(ctx, invitation);
   const invitationLink = `${window.location.origin}${window.location.pathname}?invite=${encodeURIComponent(invitation.code)}`;
-  const message = `Bonjour ${invitation.name},\n${invitation.establishmentName} vous invite à rejoindre KAGAT.\nCode d’invitation : ${invitation.code}\nAccédez directement à votre école : ${invitationLink}\nVous pourrez vérifier votre email et créer votre propre mot de passe.`;
+  const assignmentsBlock = assignments.length
+    ? `\nClasses et matières assignées :\n${assignments.map((a) => `- ${a.className} — ${a.subjectNames.join(", ")}`).join("\n")}\n`
+    : "";
+  const message = `Bonjour ${invitation.name},\n${invitation.establishmentName} vous invite à rejoindre KAGAT.\nCode d’invitation : ${invitation.code}\nAccédez directement à votre école : ${invitationLink}\nVous pourrez vérifier votre email et créer votre propre mot de passe.\n${assignmentsBlock}`;
 
   const copy = async () => {
     try { await navigator.clipboard.writeText(message); setCopied(true); setTimeout(() => setCopied(false), 2000); }
@@ -1833,71 +2865,136 @@ function ShareCredentialsScreen({ ctx }) {
           <p className="text-[12.5px] font-semibold" style={{ color: COLORS.success }}>L’invitation de {invitation.name} est prête. Aucun mot de passe n’est envoyé.</p>
         </Card>
         <Card className="mb-3 text-center"><p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: COLORS.muted }}>Code d’invitation</p><p className="text-[22px] font-black mt-1 tracking-wide" style={{ color: COLORS.primary }}>{invitation.code}</p></Card>
+
+        <SectionLabel>Classes et matières assignées</SectionLabel>
+        {assignments.length > 0 ? (
+          <Card className="mb-3 space-y-1.5">
+            {assignments.map((a) => (
+              <div key={a.classId} className="flex items-start gap-1.5 text-[11.5px]" style={{ color: COLORS.text }}>
+                <GraduationCap size={13} color={COLORS.primary} className="mt-0.5 shrink-0" />
+                <span><b>{a.className}</b> — {a.subjectNames.join(", ")}</span>
+              </div>
+            ))}
+          </Card>
+        ) : (
+          <Card className="mb-3 flex items-start gap-3" style={{ background: COLORS.warningSoft, border: "none" }}>
+            <AlertTriangle size={16} color={COLORS.warning} className="shrink-0 mt-0.5" />
+            <p className="text-[11.5px] leading-5" style={{ color: COLORS.warning }}>Aucune classe assignée pour l'instant.</p>
+          </Card>
+        )}
+        <button onClick={() => ctx.nav.push("assignClassesToTeacher", { inviteId })} className="w-full text-center text-[12px] font-semibold py-2 mb-1" style={{ color: COLORS.primary }}>{assignments.length > 0 ? "Modifier l'affectation" : "Assigner des classes"}</button>
+
         <Card className="mb-3">
-          <TextArea readOnly rows={5} value={message} style={{ background: "#F7F8FA" }} />
+          <TextArea readOnly rows={7} value={message} style={{ background: "#F7F8FA" }} />
         </Card>
-        <div className="space-y-2 mb-2">
-          <Btn full icon={Send} onClick={sendByEmail}>Envoyer l’invitation par email</Btn>
-          <Btn variant="ghost" full icon={Copy} onClick={copy}>{copied ? "Copié !" : "Copier le message"}</Btn>
+        <div className="flex gap-2 mb-2">
+          <Btn full icon={Send} onClick={sendByEmail}>Envoyer par email</Btn>
+          <Btn full variant="ghost" icon={Copy} onClick={copy}>{copied ? "Copié !" : "Copier"}</Btn>
         </div>
-        <div className="mt-2"><Btn full onClick={() => ctx.nav.resetTo("teachersList")}>Voir la liste des enseignants</Btn></div>
+        <button onClick={() => ctx.nav.resetTo("teachersList")} className="w-full text-center text-[12px] font-semibold py-2" style={{ color: COLORS.muted }}>Voir la liste des enseignants</button>
       </div>
     </Screen>
   );
 }
 
-/* Affectation d'un enseignant à une ou plusieurs classes, chacune avec plusieurs matières, en boucle */
-function AssignClassesToTeacherScreen({ ctx }) {
-  const { teacherId } = ctx.nav.current.params;
-  const teacher = findTeacher(ctx.data, teacherId);
-  const allClasses = ctx.data.years.flatMap((y) => y.classes).filter((c) => !c.archived);
+/* Résout les affectations en attente d'une invitation (classId -> subjectIds) en noms lisibles —
+   même forme que groupAssignmentsByClass, pour un enseignant qui n'existe pas encore. */
+function resolvePendingAssignments(ctx, invitation) {
+  const allClasses = ctx.data.years.flatMap((y) => y.classes);
+  return Object.entries(invitation?.pendingAssignments || {}).map(([classId, subjectIds]) => {
+    const cls = allClasses.find((c) => c.id === classId);
+    if (!cls || !subjectIds.length) return null;
+    const yr = ctx.data.years.find((y) => y.classes.some((c) => c.id === classId));
+    const subjectNames = getLevelSubjects(yr, cls.level).filter((s) => subjectIds.includes(s.id)).map((s) => s.name);
+    return { classId, className: cls.name, subjectNames };
+  }).filter(Boolean);
+}
 
-  const [phase, setPhase] = useState("pickClass"); // pickClass | pickSubjects | askMore
+/* Affectation d'un enseignant à une ou plusieurs classes, chacune avec plusieurs matières, en boucle.
+   Fonctionne pour deux cibles : un enseignant déjà créé (teacherId, écrit directement sur les classes)
+   ou une invitation pas encore acceptée (inviteId, écrit dans invitation.pendingAssignments — appliqué
+   aux classes seulement quand l'enseignant crée son compte). On choisit d'abord le NIVEAU, puis la
+   classe/section à l'intérieur — plus de liste plate mélangeant tous les niveaux. */
+function AssignClassesToTeacherScreen({ ctx }) {
+  const { teacherId, inviteId } = ctx.nav.current.params;
+  const teacher = teacherId ? findTeacher(ctx.data, teacherId) : null;
+  const invitation = inviteId ? (ctx.data.invitations || []).find((i) => i.id === inviteId) : null;
+  const personName = teacher?.name || invitation?.name || "";
+  // Années archivées exclues : impossible d'assigner un enseignant à une classe en lecture seule.
+  const allClasses = ctx.data.years.filter((y) => !y.archived).flatMap((y) => y.classes).filter((c) => !c.archived);
+  const allLevels = [...new Set(allClasses.map((c) => c.level))].sort();
+
+  const [phase, setPhase] = useState("pickLevel"); // pickLevel | pickClass | pickSubjects | askMore
+  const [currentLevel, setCurrentLevel] = useState("");
   const [currentClassId, setCurrentClassId] = useState("");
   const [selectedSubjectIds, setSelectedSubjectIds] = useState(new Set());
   const [doneRounds, setDoneRounds] = useState([]); // [{className, subjectNames:[]}]
 
+  const classesOfLevel = allClasses.filter((c) => c.level === currentLevel);
   const currentClass = allClasses.find((c) => c.id === currentClassId);
+  const currentYr = currentClass ? ctx.data.years.find((y) => y.classes.some((c) => c.id === currentClassId)) : null;
+  const currentSubjects = currentYr ? getLevelSubjects(currentYr, currentClass.level) : [];
 
+  const pickLevel = (level) => { setCurrentLevel(level); setCurrentClassId(""); setPhase("pickClass"); };
   const pickClass = (classId) => {
     setCurrentClassId(classId);
     const cls = allClasses.find((c) => c.id === classId);
-    const already = new Set(cls.subjects.filter((s) => s.teacherId === teacherId).map((s) => s.id));
+    const already = teacherId
+      ? new Set(Object.entries(cls.teacherBySubject || {}).filter(([, tId]) => tId === teacherId).map(([sid]) => sid))
+      : new Set((invitation?.pendingAssignments || {})[classId] || []);
     setSelectedSubjectIds(already);
     setPhase("pickSubjects");
   };
   const toggleSubject = (id) => setSelectedSubjectIds((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   const confirmSubjects = () => {
-    ctx.setData((d) => updateClass(d, currentClassId, (c) => ({
-      ...c,
-      subjects: c.subjects.map((s) => {
-        if (selectedSubjectIds.has(s.id)) return { ...s, teacherId };
-        if (s.teacherId === teacherId) return { ...s, teacherId: null };
-        return s;
-      }),
-    })));
-    setDoneRounds((r) => [...r, { className: currentClass.name, subjectNames: currentClass.subjects.filter((s) => selectedSubjectIds.has(s.id)).map((s) => s.name) }]);
+    if (teacherId) {
+      ctx.setData((d) => updateClass(d, currentClassId, (c) => {
+        const next = { ...(c.teacherBySubject || {}) };
+        currentSubjects.forEach((s) => {
+          if (selectedSubjectIds.has(s.id)) next[s.id] = teacherId;
+          else if (next[s.id] === teacherId) delete next[s.id];
+        });
+        return { ...c, teacherBySubject: next };
+      }));
+    } else {
+      ctx.setData((d) => ({
+        ...d,
+        invitations: (d.invitations || []).map((i) => (i.id === inviteId ? { ...i, pendingAssignments: { ...(i.pendingAssignments || {}), [currentClassId]: [...selectedSubjectIds] } } : i)),
+      }));
+    }
+    setDoneRounds((r) => [...r, { className: currentClass.name, subjectNames: currentSubjects.filter((s) => selectedSubjectIds.has(s.id)).map((s) => s.name) }]);
     setPhase("askMore");
-    ctx.showToast(`${teacher.name.split(" ")[0]} assigné à ${currentClass.name}`);
+    ctx.showToast(`${personName.split(" ")[0]} assigné à ${currentClass.name}`);
   };
 
-  const anotherClass = () => { setCurrentClassId(""); setSelectedSubjectIds(new Set()); setPhase("pickClass"); };
-  const finish = () => ctx.nav.pop();
+  const anotherClass = () => { setCurrentClassId(""); setSelectedSubjectIds(new Set()); setPhase("pickLevel"); };
+  const finish = () => (inviteId ? ctx.nav.push("shareCredentials", { inviteId }) : ctx.nav.pop());
 
-  let title = "Choisir la classe", body = null;
-  if (phase === "pickClass") {
+  let title = "Choisir le niveau", body = null;
+  if (phase === "pickLevel") {
     body = <div className="px-4">
-      {allClasses.map((c) => <OptionCard key={c.id} icon={GraduationCap} title={c.name} subtitle={c.level} selected={currentClassId === c.id} onClick={() => pickClass(c.id)} />)}
+      {allLevels.map((level) => {
+        const count = allClasses.filter((c) => c.level === level).length;
+        return <OptionCard key={level} icon={School} title={level} subtitle={`${count} classe${count > 1 ? "s" : ""}`} selected={currentLevel === level} onClick={() => pickLevel(level)} />;
+      })}
+      {allLevels.length === 0 && <EmptyState icon={School} title="Aucun niveau" text="Créez un niveau et ses classes avant d'assigner un enseignant." />}
+      {inviteId && <Btn variant="ghost" full onClick={finish}>Assigner plus tard</Btn>}
+    </div>;
+  } else if (phase === "pickClass") {
+    title = "Choisir la classe";
+    body = <div className="px-4">
+      {classesOfLevel.map((c) => <OptionCard key={c.id} icon={GraduationCap} title={c.name} subtitle={c.level} selected={currentClassId === c.id} onClick={() => pickClass(c.id)} />)}
     </div>;
   } else if (phase === "pickSubjects") {
     title = "Choisir les matières";
     body = <div className="px-4">
-      <p className="text-[11.5px] mb-3" style={{ color: COLORS.muted }}>Cochez toutes les matières que {teacher.name.split(" ")[0]} enseigne dans « {currentClass.name} ».</p>
+      <p className="text-[11.5px] mb-3" style={{ color: COLORS.muted }}>Cochez toutes les matières que {personName.split(" ")[0]} enseigne dans « {currentClass.name} ».</p>
       <div className="rounded-2xl overflow-hidden mb-4" style={{ border: `1px solid ${COLORS.border}` }}>
-        {currentClass.subjects.filter((s) => !s.archived).map((s, i) => {
+        {currentSubjects.filter((s) => !s.archived).map((s, i) => {
           const isSelected = selectedSubjectIds.has(s.id);
-          const otherTeacher = s.teacherId && s.teacherId !== teacherId ? findTeacher(ctx.data, s.teacherId) : null;
+          const currentTeacherId = (currentClass.teacherBySubject || {})[s.id];
+          const otherTeacher = currentTeacherId && currentTeacherId !== teacherId ? findTeacher(ctx.data, currentTeacherId) : null;
           return (
             <button key={s.id} onClick={() => toggleSubject(s.id)} className="w-full flex items-center justify-between px-3.5 py-3"
               style={{ borderTop: i ? `1px solid ${COLORS.border}` : "none", background: isSelected ? COLORS.accentSoft : "#fff" }}>
@@ -1911,7 +3008,7 @@ function AssignClassesToTeacherScreen({ ctx }) {
             </button>
           );
         })}
-        {currentClass.subjects.filter((s) => !s.archived).length === 0 && <div className="px-3.5 py-4 text-center text-[12px]" style={{ color: COLORS.muted }}>Cette classe n'a aucune matière pour l'instant.</div>}
+        {currentSubjects.filter((s) => !s.archived).length === 0 && <div className="px-3.5 py-4 text-center text-[12px]" style={{ color: COLORS.muted }}>Ce niveau n'a aucune matière pour l'instant.</div>}
       </div>
       <Btn full variant="accent" icon={CheckCircle2} disabled={selectedSubjectIds.size === 0} onClick={confirmSubjects}>Confirmer ({selectedSubjectIds.size} matière{selectedSubjectIds.size > 1 ? "s" : ""})</Btn>
     </div>;
@@ -1919,10 +3016,10 @@ function AssignClassesToTeacherScreen({ ctx }) {
     title = "Classe ajoutée";
     body = <div className="px-4">
       <Card className="mb-4" style={{ background: COLORS.successSoft, border: "none" }}>
-        <p className="text-[12.5px] font-semibold" style={{ color: COLORS.success }}>{teacher.name} enseigne maintenant dans {doneRounds.length} classe{doneRounds.length > 1 ? "s" : ""} :</p>
+        <p className="text-[12.5px] font-semibold" style={{ color: COLORS.success }}>{personName} enseigne maintenant dans {doneRounds.length} classe{doneRounds.length > 1 ? "s" : ""} :</p>
         {doneRounds.map((r, i) => <p key={i} className="text-[11.5px] mt-1" style={{ color: COLORS.success }}>· {r.className} — {r.subjectNames.join(", ")}</p>)}
       </Card>
-      <p className="text-[13px] font-semibold mb-3" style={{ color: COLORS.text }}>Assigner {teacher.name.split(" ")[0]} à une autre classe ?</p>
+      <p className="text-[13px] font-semibold mb-3" style={{ color: COLORS.text }}>Assigner {personName.split(" ")[0]} à une autre classe ?</p>
       <div className="flex gap-2">
         <Btn variant="ghost" full onClick={finish}>Terminer</Btn>
         <Btn full icon={Plus} onClick={anotherClass}>Oui, une autre classe</Btn>
@@ -1930,68 +3027,16 @@ function AssignClassesToTeacherScreen({ ctx }) {
     </div>;
   }
 
-  const goBack = () => { if (phase === "pickClass") { ctx.nav.pop(); return; } if (phase === "pickSubjects") { setPhase("pickClass"); return; } finish(); };
+  const goBack = () => {
+    if (phase === "pickLevel") { ctx.nav.pop(); return; }
+    if (phase === "pickClass") { setPhase("pickLevel"); return; }
+    if (phase === "pickSubjects") { setPhase("pickClass"); return; }
+    finish();
+  };
 
   return (
     <Screen>
-      <TopBar title={title} subtitle={`${teacher.name} · ${teacher.username}`} onBack={goBack} />
-      <div className="pt-2">{body}</div>
-    </Screen>
-  );
-}
-
-function AssignTeacherScreen({ ctx }) {
-  const preset = ctx.nav.current.params || {};
-  const [classId, setClassId] = useState(preset.classId || "");
-  const [subjectId, setSubjectId] = useState(preset.subjectId || "");
-  const needed = [];
-  if (!preset.classId) needed.push("class");
-  if (!preset.subjectId) needed.push("subject");
-  if (!preset.teacherId) needed.push("teacher");
-  const [stepIndex, setStepIndex] = useState(0);
-  const currentType = needed[stepIndex];
-
-  const allClasses = ctx.data.years.flatMap((y) => y.classes).filter((c) => !c.archived);
-  const cls = allClasses.find((c) => c.id === classId);
-  const subject = cls?.subjects.find((s) => s.id === subjectId);
-  const activeTeachers = ctx.data.teachers.filter((t) => t.active);
-  const presetTeacher = preset.teacherId ? findTeacher(ctx.data, preset.teacherId) : null;
-
-  const finalize = (finalClassId, finalSubjectId, finalTeacherId) => {
-    ctx.setData((d) => updateClass(d, finalClassId, (c) => ({ ...c, subjects: c.subjects.map((s) => (s.id === finalSubjectId ? { ...s, teacherId: finalTeacherId } : s)) })));
-    ctx.nav.pop();
-  };
-  const choose = (type, value) => {
-    let nc = classId, ns = subjectId, nt = preset.teacherId || "";
-    if (type === "class") { nc = value; setClassId(value); setSubjectId(""); }
-    if (type === "subject") { ns = value; setSubjectId(value); }
-    if (type === "teacher") nt = value;
-    if (stepIndex + 1 < needed.length) setStepIndex((s) => s + 1);
-    else finalize(nc, ns, nt);
-  };
-
-  let title = "Assigner un enseignant", body = null;
-  if (currentType === "class") {
-    title = "Choisir la classe";
-    body = <div className="px-4">{allClasses.map((c) => <OptionCard key={c.id} icon={GraduationCap} title={c.name} subtitle={c.level} selected={classId === c.id} onClick={() => choose("class", c.id)} />)}</div>;
-  } else if (currentType === "subject") {
-    title = "Choisir la matière";
-    body = <div className="px-4">{cls?.subjects.filter((s) => !s.archived).map((s) => <OptionCard key={s.id} icon={BookOpen} title={s.name} subtitle={s.teacherId ? `Actuellement : ${findTeacher(ctx.data, s.teacherId)?.name}` : "Non assigné"} selected={subjectId === s.id} onClick={() => choose("subject", s.id)} />)}</div>;
-  } else if (currentType === "teacher") {
-    title = presetTeacher ? `Affecter ${presetTeacher.name.split(" ")[0]}` : "Choisir l'enseignant";
-    body = <div className="px-4">{activeTeachers.map((t) => <OptionCard key={t.id} icon={User} title={t.name} subtitle={t.username} onClick={() => choose("teacher", t.id)} />)}</div>;
-  } else {
-    // tout était déjà pré-rempli (cas limite) : on finalise directement
-    finalize(classId, subjectId, preset.teacherId);
-    body = null;
-  }
-
-  const goBack = () => { if (stepIndex === 0) { ctx.nav.pop(); return; } setStepIndex((s) => s - 1); };
-
-  return (
-    <Screen>
-      <TopBar title={title} subtitle={[cls?.name, subject?.name, presetTeacher?.name].filter(Boolean).join(" · ") || undefined} onBack={goBack} />
-      <WizardProgress step={stepIndex} totalSteps={Math.max(needed.length, 1)} labels={needed.map((x) => ({ class: "Choisir la classe", subject: "Choisir la matière", teacher: "Choisir l'enseignant" }[x]))} helperText="Une sélection guidée, sans saisie inutile" />
+      <TopBar title={title} subtitle={teacher ? `${teacher.name} · ${teacher.username}` : `${personName} · ${invitation?.email || ""}`} onBack={goBack} />
       <div className="pt-2">{body}</div>
     </Screen>
   );
@@ -2001,14 +3046,12 @@ function AssignTeacherScreen({ ctx }) {
 
 function TeacherDashboardScreen({ ctx }) {
   const teacher = findTeacher(ctx.data, ctx.currentUser.id);
-  const assignments = getTeacherAssignments(ctx.data, teacher.id);
+  const levelGroups = getTeacherLevelGroups(ctx.data, teacher.id);
   const alert = getSyncAlertLevel(ctx.data);
-  const byClass = [];
-  assignments.forEach(({ cls, subject }) => {
-    let entry = byClass.find((e) => e.classId === cls.id);
-    if (!entry) { entry = { classId: cls.id, className: cls.name, level: cls.level, subjects: [] }; byClass.push(entry); }
-    entry.subjects.push(subject);
-  });
+  const totalClasses = levelGroups.reduce((sum, g) => sum + g.classes.length, 0);
+  const totalStudents = levelGroups.reduce((sum, g) => sum + g.classes.reduce((n, c) => n + c.students.filter((s) => !s.archived).length, 0), 0);
+  const inProgress = ctx.data.sessions.filter((s) => s.teacherId === teacher.id && s.status !== "completed").length;
+  const isIndependent = ctx.data.establishment?.accountType === "independent";
 
   return (
     <Screen>
@@ -2019,7 +3062,7 @@ function TeacherDashboardScreen({ ctx }) {
           <div className="flex-1"><Badge tone="success">Prêt pour la classe</Badge><p>Lancez une évaluation en quelques secondes.</p></div>
           <button onClick={() => ctx.nav.push("evalPrep", {})} className="hero-play" aria-label="Nouvelle évaluation"><PlayCircle size={21}/></button>
         </div>
-        <OnboardingTip ctx={ctx} text="Touchez une matière pour créer un questionnaire, puis lancez une évaluation et scannez les cartes de vos élèves." />
+        <OnboardingTip ctx={ctx} text={isIndependent ? "Dans l'onglet Classes → un niveau : préparez vos cours et questionnaires une seule fois (partagés entre vos sections), puis lancez l'évaluation dans la classe de votre choix." : "Dans l'onglet Programme : préparez vos cours et questionnaires une seule fois (partagés entre vos sections), puis lancez l'évaluation dans la classe de votre choix."} />
 
         {alert.level !== "ok" && (
           <Card onClick={() => ctx.nav.push("sync")} className="flex items-center gap-2" style={{ background: alert.level === "critical" ? COLORS.dangerSoft : COLORS.warningSoft, border: "none" }}>
@@ -2030,23 +3073,75 @@ function TeacherDashboardScreen({ ctx }) {
           </Card>
         )}
 
-        <SectionLabel>Mes classes et matières</SectionLabel>
-        {byClass.length === 0 ? (
-          <Card className="text-center py-6"><p className="text-[12.5px]" style={{ color: COLORS.muted }}>Aucune classe/matière assignée pour l'instant. Contactez votre gestionnaire d'école.</p></Card>
-        ) : byClass.map((e) => (
-          <Card key={e.classId} className="class-card">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-11 h-11 rounded-[15px] flex items-center justify-center" style={{ background: COLORS.primarySoft }}><GraduationCap size={19} color={COLORS.primary} /></div>
-              <div className="flex-1"><p className="font-bold text-[13.5px]" style={{ color: COLORS.text }}>{e.className}</p><p className="text-[11px]" style={{ color: COLORS.muted }}>{e.level} · {e.subjects.length} matière(s)</p></div>
+        {/* Des chiffres, pas une deuxième liste des niveaux — celle-ci vit déjà dans l'onglet Programme. */}
+        <SectionLabel>Vue d'ensemble</SectionLabel>
+        <div className="grid grid-cols-2 gap-3">
+          <StatCard icon={School} value={levelGroups.length} label="Niveaux enseignés" />
+          <StatCard icon={GraduationCap} value={totalClasses} label="Classes" tone="accent" />
+          <StatCard icon={Users} value={totalStudents} label="Élèves" tone="success" />
+          <StatCard icon={ClipboardList} value={inProgress} label="Évaluations en cours" tone="warning" />
+        </div>
+      </div>
+    </Screen>
+  );
+}
+
+/* Années scolaires enseignées — racine de l'onglet "Niveaux", même hiérarchie que côté
+   gestionnaire (Année → Niveaux → ...) pour rester cohérent dans toute l'app. */
+function TeacherYearsScreen({ ctx }) {
+  const teacher = findTeacher(ctx.data, ctx.currentUser.id);
+  /* Inclut les années clôturées : l'enseignant peut toujours consulter (lecture seule) ce
+     qu'il enseignait avant une promotion, et basculer librement entre les deux. */
+  const yearGroups = getTeacherYearGroups(ctx.data, teacher.id, { includeArchivedYears: true });
+  return (
+    <Screen>
+      <TopBar title="Mes années" subtitle={ctx.data.establishment.name} />
+      <div className="px-4 pt-4 space-y-2">
+        {yearGroups.length === 0 ? (
+          <EmptyState icon={Calendar} title="Aucune classe assignée" text="Contactez votre gestionnaire d'école pour être affecté à une classe." />
+        ) : yearGroups.map((y) => {
+          const classCount = y.levels.reduce((sum, g) => sum + g.classes.length, 0);
+          const noAssignment = y.levels.length === 0;
+          return (
+            <Card key={y.yearId} onClick={() => ctx.nav.push("teacherLevels", { yearId: y.yearId })} className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-[15px] flex items-center justify-center" style={{ background: y.yearArchived ? "#EEF1F4" : COLORS.primarySoft }}><Calendar size={19} color={y.yearArchived ? COLORS.muted : COLORS.primary} /></div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="font-bold text-[13.5px]" style={{ color: COLORS.text }}>{y.yearLabel}</p>
+                  {y.yearArchived ? <Badge tone="neutral">Archivée</Badge> : <Badge tone="primary">En cours</Badge>}
+                </div>
+                <p className="text-[11px]" style={{ color: COLORS.muted }}>
+                  {noAssignment ? "Pas encore de matière assignée par le gestionnaire" : `${y.levels.length} niveau(x) · ${classCount} classe(s)`}
+                  {y.yearArchived ? " · lecture seule" : ""}
+                </p>
+              </div>
               <ChevronRight size={17} color={COLORS.muted}/>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {e.subjects.map((s) => (
-                <button key={s.id} onClick={() => ctx.nav.push("affectationDetails", { classId: e.classId, subjectId: s.id })} className="subject-chip px-3 py-1.5 rounded-full text-[11px] font-bold" style={{ background: COLORS.primarySoft, color: COLORS.primary }}>
-                  {s.name}
-                </button>
-              ))}
-            </div>
+            </Card>
+          );
+        })}
+      </div>
+    </Screen>
+  );
+}
+
+/* Niveaux enseignés dans une année précise (active ou archivée). */
+function TeacherLevelsScreen({ ctx }) {
+  const { yearId } = ctx.nav.current.params;
+  const teacher = findTeacher(ctx.data, ctx.currentUser.id);
+  const yr = ctx.data.years.find((y) => y.id === yearId);
+  if (!yr) return null;
+  const levelGroups = getTeacherLevelGroups(ctx.data, teacher.id, { includeArchivedYears: true }).filter((g) => g.yearId === yearId);
+  return (
+    <Screen>
+      <TopBar title="Mes niveaux" subtitle={`${yr.label}${yr.archived ? " · lecture seule" : ""}`} onBack={() => ctx.nav.pop()} />
+      <div className="px-4 pt-4 space-y-2">
+        {levelGroups.length === 0 ? (
+          <EmptyState icon={School} title="Pas encore assigné" text={yr.archived ? "Aucune classe ne vous était assignée dans cette année." : "Le gestionnaire n'a pas encore configuré vos matières et classes pour cette année."} />
+        ) : levelGroups.map((g) => (
+          <Card key={g.level} onClick={() => ctx.nav.push("teacherLevelDetails", { yearId: g.yearId, level: g.level })} className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-[15px] flex items-center justify-center" style={{ background: yr.archived ? "#EEF1F4" : COLORS.primarySoft }}><School size={19} color={yr.archived ? COLORS.muted : COLORS.primary} /></div>
+            <div className="flex-1"><p className="font-bold text-[13.5px]" style={{ color: COLORS.text }}>{g.level}</p><p className="text-[11px]" style={{ color: COLORS.muted }}>{g.classes.length} classe(s) · {g.subjects.length} matière(s)</p></div>
+            <ChevronRight size={17} color={COLORS.muted}/>
           </Card>
         ))}
       </div>
@@ -2054,10 +3149,326 @@ function TeacherDashboardScreen({ ctx }) {
   );
 }
 
+/* Détail d'un niveau côté enseignant : deux axes bien séparés, chacun sa propre porte
+   d'entrée — "Préparer mon programme" (cours, compétences, questionnaires ; partagés entre
+   toutes les sections du niveau, à faire une seule fois) et "Voir mes classes" (lancer une
+   évaluation / résultats, propre à chaque section avec ses élèves réels). */
+function TeacherLevelDetailsScreen({ ctx }) {
+  const { yearId, level } = ctx.nav.current.params;
+  const teacher = findTeacher(ctx.data, ctx.currentUser.id);
+  const yr = ctx.data.years.find((y) => y.id === yearId);
+  if (!yr) return null;
+  const group = getTeacherLevelGroups(ctx.data, teacher.id, { includeArchivedYears: true }).find((g) => g.yearId === yearId && g.level === level);
+  if (!group) return null;
+
+  const items = [
+    { key: "prepare", label: yr.archived ? "Voir le programme" : "Préparer mon programme", icon: ClipboardList, sub: `Cours, compétences, questionnaires · ${group.subjects.length} matière(s)`, go: () => ctx.nav.push("teacherLevelSubjects", { yearId, level }) },
+    { key: "classes", label: "Voir mes classes", icon: GraduationCap, sub: yr.archived ? `Résultats · ${group.classes.length} classe(s)` : `Lancer une évaluation, résultats · ${group.classes.length} classe(s)`, go: () => ctx.nav.push("teacherLevelClasses", { yearId, level }) },
+  ];
+
+  return (
+    <Screen>
+      <TopBar title={level} subtitle={`${group.yearLabel}${yr.archived ? " · lecture seule" : ""}`} onBack={() => ctx.nav.pop()} />
+      <div className="px-4 pt-4 space-y-2">
+        {items.map((it) => (
+          <Card key={it.key} onClick={it.go} className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-[15px] flex items-center justify-center" style={{ background: COLORS.primarySoft }}><it.icon size={19} color={COLORS.primary} /></div>
+            <div className="flex-1"><p className="font-bold text-[13.5px]" style={{ color: COLORS.text }}>{it.label}</p><p className="text-[11.5px]" style={{ color: COLORS.muted }}>{it.sub}</p></div>
+            <ChevronRight size={17} color={COLORS.muted} />
+          </Card>
+        ))}
+      </div>
+    </Screen>
+  );
+}
+
+/* "Préparer mon programme" — tout sur un seul écran, comme le programme d'un cours dans une
+   app d'enseignement en ligne : Matière → Cours → Compétence, chaque niveau se déplie sur
+   place (flèche qui tourne), jamais de nouvel écran pour simplement consulter. Seuls ajouter
+   un cours/une compétence/un questionnaire, ou ouvrir un questionnaire pour le modifier,
+   déclenchent une vraie action. Une matière n'a besoin que d'UNE classe "témoin" pour écrire
+   dans ses questionnaires, puisque ce contenu est partagé par toutes les sections du niveau. */
+function TeacherLevelSubjectsScreen({ ctx }) {
+  const { yearId, level, subjectId: presetSubjectId } = ctx.nav.current.params;
+  const teacher = findTeacher(ctx.data, ctx.currentUser.id);
+  const yr = ctx.data.years.find((y) => y.id === yearId);
+  const isIndependent = ctx.data.establishment?.accountType === "independent";
+  const group = getTeacherLevelGroups(ctx.data, teacher.id, { includeArchivedYears: true }).find((g) => g.yearId === yearId && g.level === level);
+  /* Compte indépendant : "Matières" et "Préparer mon programme" vivent sur le même écran —
+     ajouter une matière ici doit marcher même avant qu'aucune classe n'existe, donc on lit
+     directement les matières du niveau plutôt que les affectations (qui ne peuvent exister
+     qu'une fois une classe créée). Pour un enseignant d'établissement, rien ne change : les
+     matières sont gérées par le gestionnaire, on ne montre ici que celles déjà affectées. */
+  if (!yr || (!isIndependent && !group)) return null;
+  const readOnly = !!yr.archived;
+  const subjects = isIndependent ? getLevelSubjects(yr, level) : group.subjects;
+  const classes = isIndependent ? yr.classes.filter((c) => !c.archived && c.level === level) : group.classes;
+  const yearLabel = isIndependent ? yr.label : group.yearLabel;
+  const representativeClassFor = (subjectId) => classes.find((c) => (c.teacherBySubject || {})[subjectId] === teacher.id)?.id;
+
+  const [openSubjectId, setOpenSubjectId] = useState(presetSubjectId || null);
+  const [openCourseId, setOpenCourseId] = useState(null);
+  const [openCompetencyId, setOpenCompetencyId] = useState(null);
+  const [addingCourseFor, setAddingCourseFor] = useState(null); // subjectId
+  const [courseTitle, setCourseTitle] = useState("");
+  const [addingCompetencyFor, setAddingCompetencyFor] = useState(null); // courseId
+  const [compTitle, setCompTitle] = useState("");
+  const [addingSubject, setAddingSubject] = useState(false);
+  const [selectedSubjects, setSelectedSubjects] = useState(new Set());
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+
+  const addSubjects = () => {
+    const selfId = ctx.data.admin.selfTeacherId;
+    const newSubjects = [...selectedSubjects].map((name) => ({ id: uid("s"), name, archived: false, courses: [], questionnaires: [] }));
+    ctx.setData((d) => {
+      let next = updateLevel(d, yearId, level, (lv) => ({ ...lv, subjects: [...lv.subjects, ...newSubjects] }));
+      const targetClassIds = next.years.find((y) => y.id === yearId).classes.filter((c) => !c.archived && c.level === level).map((c) => c.id);
+      targetClassIds.forEach((cid) => {
+        next = updateClass(next, cid, (c) => ({ ...c, teacherBySubject: { ...c.teacherBySubject, ...Object.fromEntries(newSubjects.map((s) => [s.id, selfId])) } }));
+      });
+      return next;
+    });
+    ctx.showToast(newSubjects.length > 1 ? `${newSubjects.length} matières ajoutées` : "Matière ajoutée");
+    setSelectedSubjects(new Set()); setAddingSubject(false);
+  };
+  const deleteSubject = (id) => {
+    ctx.setData((d) => {
+      const withLevel = updateLevel(d, yearId, level, (lv) => ({ ...lv, subjects: lv.subjects.filter((s) => s.id !== id) }));
+      return { ...withLevel, years: withLevel.years.map((y) => (y.id !== yearId ? y : { ...y, classes: y.classes.map((c) => (c.level !== level ? c : { ...c, teacherBySubject: Object.fromEntries(Object.entries(c.teacherBySubject || {}).filter(([sid]) => sid !== id)) })) })) };
+    });
+    setConfirmDeleteId(null);
+    ctx.showToast("Matière supprimée");
+  };
+
+  const addCourse = (subjectId) => {
+    if (!courseTitle.trim()) return;
+    const course = { id: uid("co"), title: courseTitle.trim(), description: "", competencies: [] };
+    ctx.setData((d) => updateLevel(d, yearId, level, (lv) => ({ ...lv, subjects: lv.subjects.map((s) => (s.id === subjectId ? { ...s, courses: [...(s.courses || []), course] } : s)) })));
+    setCourseTitle(""); setAddingCourseFor(null); setOpenCourseId(course.id); ctx.showToast("Cours ajouté");
+  };
+  const addCompetency = (subjectId, courseId) => {
+    if (!compTitle.trim()) return;
+    const competency = { id: uid("cp"), title: compTitle.trim(), description: "" };
+    ctx.setData((d) => updateLevel(d, yearId, level, (lv) => ({ ...lv, subjects: lv.subjects.map((s) => (s.id === subjectId ? { ...s, courses: (s.courses || []).map((co) => (co.id === courseId ? { ...co, competencies: [...co.competencies, competency] } : co)) } : s)) })));
+    setCompTitle(""); setAddingCompetencyFor(null); setOpenCompetencyId(competency.id); ctx.showToast("Compétence ajoutée");
+  };
+
+  return (
+    <Screen>
+      <TopBar title={isIndependent ? "Matières et programme" : "Préparer mon programme"} subtitle={`${level} · ${yearLabel}`} onBack={() => ctx.nav.pop()} />
+      <div className="px-4 pt-4 space-y-2">
+        {isIndependent && !readOnly && (
+          addingSubject ? (
+            <Card className="important-form-modal mb-3">
+              <p className="text-[11.5px] mb-2" style={{ color: COLORS.muted }}>Cochez les matières à ajouter au niveau « {level} ».</p>
+              <SubjectPicker catalog={ctx.data.subjectCatalog} selected={selectedSubjects} onToggle={(name) => setSelectedSubjects((prev) => { const n = new Set(prev); n.has(name) ? n.delete(name) : n.add(name); return n; })} onAddCustom={(name) => { ctx.setData((d) => (d.subjectCatalog.includes(name) ? d : { ...d, subjectCatalog: [...d.subjectCatalog, name] })); setSelectedSubjects((prev) => new Set(prev).add(name)); }} excluded={subjects.filter((s) => !s.archived).map((s) => s.name)} />
+              <div className="flex gap-2 mt-3">
+                <Btn variant="ghost" full onClick={() => { setAddingSubject(false); setSelectedSubjects(new Set()); }}>Annuler</Btn>
+                <Btn full disabled={selectedSubjects.size === 0} onClick={addSubjects}>Ajouter ({selectedSubjects.size})</Btn>
+              </div>
+            </Card>
+          ) : <PageAction icon={Plus} title="Ajouter une matière" subtitle={`Compléter le programme de « ${level} »`} onClick={() => setAddingSubject(true)} />
+        )}
+        <p className="text-[11px] -mt-1 mb-1" style={{ color: COLORS.muted }}>Partagé entre les {classes.length} section{classes.length > 1 ? "s" : ""} de ce niveau.</p>
+        {subjects.filter((s) => !s.archived).map((s) => {
+          const subjOpen = openSubjectId === s.id;
+          const classId = representativeClassFor(s.id);
+          const courses = s.courses || [];
+          const canDeleteSubject = s.questionnaires.length === 0;
+          return (
+            <Card key={s.id} className="!p-0 overflow-hidden">
+              <div className="w-full flex items-center gap-3 p-4">
+                <button onClick={() => setOpenSubjectId(subjOpen ? null : s.id)} className="flex-1 min-w-0 flex items-center gap-3 text-left">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: COLORS.primarySoft }}><BookOpen size={18} color={COLORS.primary} /></div>
+                  <div className="flex-1 min-w-0"><p className="font-bold text-[13.5px]" style={{ color: COLORS.text }}>{s.name}</p><p className="text-[11.5px]" style={{ color: COLORS.muted }}>{courses.length} cours</p></div>
+                </button>
+                {isIndependent && !readOnly && <button onClick={() => setConfirmDeleteId(s.id)} disabled={!canDeleteSubject} className="p-1.5 shrink-0" style={{ opacity: canDeleteSubject ? 1 : 0.3 }}><Trash2 size={15} color={COLORS.danger} /></button>}
+                <button onClick={() => setOpenSubjectId(subjOpen ? null : s.id)} className="shrink-0">{subjOpen ? <ChevronDown size={17} color={COLORS.primary} /> : <ChevronRight size={17} color={COLORS.muted} />}</button>
+              </div>
+              {subjOpen && (
+                <div className="px-3 pb-3 space-y-2" style={{ borderTop: `1px solid ${COLORS.border}`, background: "#FBFBFD" }}>
+                  {courses.map((course, i) => {
+                    const courseOpen = openCourseId === course.id;
+                    const qCount = course.competencies.reduce((n, c) => n + s.questionnaires.filter((q) => !q.archived && (q.competencyIds || []).includes(c.id)).length, 0);
+                    return (
+                      <div key={course.id} className="relative mt-2">
+                        {i < courses.length - 1 && <div className="absolute" style={{ left: 19, top: 44, bottom: -8, width: 2, background: "#e4e7f1", zIndex: 0 }} />}
+                        <div className="relative rounded-xl overflow-hidden" style={{ background: "#fff", border: `1px solid ${COLORS.border}`, borderLeft: `3px solid ${COLORS.primary}` }}>
+                          <button onClick={() => setOpenCourseId(courseOpen ? null : course.id)} className="w-full flex items-center gap-2.5 p-3 text-left">
+                            <div className="course-number shrink-0">{String(i + 1).padStart(2, "0")}</div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-extrabold text-[13px]" style={{ color: COLORS.text }}>{course.title}</p>
+                              <p className="text-[10.5px] flex items-center gap-2.5 mt-0.5" style={{ color: COLORS.muted }}>
+                                <span className="flex items-center gap-1"><Target size={10} />{course.competencies.length} compétence(s)</span>
+                                <span className="flex items-center gap-1"><ListChecks size={10} />{qCount} questionnaire(s)</span>
+                              </p>
+                            </div>
+                            {courseOpen ? <ChevronDown size={15} color={COLORS.primary} className="shrink-0" /> : <ChevronRight size={15} color={COLORS.muted} className="shrink-0" />}
+                          </button>
+                          {courseOpen && (
+                            <div className="px-2.5 pb-2.5 space-y-1.5">
+                              {course.competencies.map((competency) => {
+                                const qs = s.questionnaires.filter((q) => !q.archived && (q.competencyIds || []).includes(competency.id));
+                                const compOpen = openCompetencyId === competency.id;
+                                return (
+                                  <div key={competency.id} className="rounded-lg overflow-hidden" style={{ background: "#fff", border: `1px solid ${COLORS.border}`, borderLeft: `3px solid ${COLORS.success}` }}>
+                                    <button onClick={() => setOpenCompetencyId(compOpen ? null : competency.id)} className="w-full flex items-center gap-2 p-2.5 text-left">
+                                      <div className="competency-check shrink-0" style={{ width: 28, height: 28 }}><Check size={13} /></div>
+                                      <div className="flex-1 min-w-0"><p className="font-bold text-[11.5px]" style={{ color: COLORS.text }}>{competency.title}</p><p className="text-[10px]" style={{ color: COLORS.muted }}>{qs.length} questionnaire(s)</p></div>
+                                      {compOpen ? <ChevronDown size={14} color={COLORS.primary} className="shrink-0" /> : <ChevronRight size={14} color={COLORS.muted} className="shrink-0" />}
+                                    </button>
+                                    {compOpen && (
+                                      <div className="px-2.5 pb-2.5 space-y-1">
+                                        {qs.map((q) => (
+                                          <button key={q.id} onClick={() => classId && ctx.nav.push("createQuestionnaire", { classId, subjectId: s.id, questionnaireId: q.id, courseId: course.id, competencyId: competency.id })} className="w-full flex items-center gap-2 py-2 px-2.5 rounded-lg" style={{ background: "#F7F8FA" }}>
+                                            <div className="shrink-0 rounded-full flex items-center justify-center" style={{ width: 22, height: 22, background: COLORS.accentSoft }}><ListChecks size={11} color={COLORS.accent} /></div>
+                                            <span className="text-[11px] truncate flex-1 text-left" style={{ color: COLORS.text }}>{q.title} · {q.questions.length} question(s)</span>
+                                            <Pencil size={13} color={COLORS.muted} className="shrink-0" />
+                                          </button>
+                                        ))}
+                                        {qs.length === 0 && <p className="text-[10.5px] px-1" style={{ color: COLORS.muted }}>Aucun questionnaire pour l'instant.</p>}
+                                        {!readOnly && <div className="pt-1"><AddRow tone="accent" label="Ajouter un questionnaire" onClick={() => classId && ctx.nav.push("createQuestionnaire", { classId, subjectId: s.id, courseId: course.id, competencyId: competency.id })} /></div>}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            {course.competencies.length === 0 && <p className="text-[11px] px-1" style={{ color: COLORS.muted }}>Aucune compétence pour l'instant.</p>}
+                            {!readOnly && (addingCompetencyFor === course.id ? (
+                              <div className="flex items-center gap-1.5 pt-1">
+                                <TextInput autoFocus value={compTitle} onChange={(e) => setCompTitle(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addCompetency(s.id, course.id)} placeholder="Nom de la compétence" style={{ minHeight: 36, fontSize: 12, padding: "8px 11px" }} />
+                                <button onClick={() => addCompetency(s.id, course.id)} disabled={!compTitle.trim()} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: compTitle.trim() ? COLORS.primary : "#E4E7F0" }}><Check size={16} color="#fff" /></button>
+                                <button onClick={() => { setAddingCompetencyFor(null); setCompTitle(""); }} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: "#F2F4F7" }}><X size={16} color={COLORS.muted} /></button>
+                              </div>
+                            ) : (
+                              <AddRow tone="success" label="Ajouter une compétence" onClick={() => setAddingCompetencyFor(course.id)} />
+                            ))}
+                          </div>
+                        )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {!readOnly && (addingCourseFor === s.id ? (
+                    <div className="flex items-center gap-1.5 pt-1">
+                      <TextInput autoFocus value={courseTitle} onChange={(e) => setCourseTitle(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addCourse(s.id)} placeholder="Nom du cours ou chapitre" style={{ minHeight: 38, fontSize: 12.5, padding: "9px 12px" }} />
+                      <button onClick={() => addCourse(s.id)} disabled={!courseTitle.trim()} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: courseTitle.trim() ? COLORS.primary : "#E4E7F0" }}><Check size={16} color="#fff" /></button>
+                      <button onClick={() => { setAddingCourseFor(null); setCourseTitle(""); }} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: "#F2F4F7" }}><X size={16} color={COLORS.muted} /></button>
+                    </div>
+                  ) : (
+                    <AddRow tone="primary" label="Ajouter un cours" onClick={() => setAddingCourseFor(s.id)} />
+                  ))}
+                </div>
+              )}
+            </Card>
+          );
+        })}
+        {subjects.length === 0 && <EmptyState icon={BookOpen} title="Aucune matière" text={isIndependent ? "Ajoutez votre première matière pour commencer le programme." : "Aucune matière ne vous est assignée à ce niveau."} />}
+      </div>
+      {isIndependent && <ConfirmModal open={!!confirmDeleteId} title="Supprimer cette matière ?" text="Cette action retire la matière du niveau. Possible uniquement si aucun questionnaire n'y est rattaché." onCancel={() => setConfirmDeleteId(null)} onConfirm={() => deleteSubject(confirmDeleteId)} confirmLabel="Supprimer" danger />}
+    </Screen>
+  );
+}
+
+/* "Voir mes classes" — sections de ce niveau, pour lancer une évaluation ou consulter des
+   résultats propres à chaque classe réelle. */
+function TeacherLevelClassesScreen({ ctx }) {
+  const { yearId, level } = ctx.nav.current.params;
+  const teacher = findTeacher(ctx.data, ctx.currentUser.id);
+  const yr = ctx.data.years.find((y) => y.id === yearId);
+  const isIndependent = ctx.data.establishment?.accountType === "independent";
+  const group = getTeacherLevelGroups(ctx.data, teacher.id, { includeArchivedYears: true }).find((g) => g.yearId === yearId && g.level === level);
+  /* Compte indépendant : peut atteindre cet écran avant même d'avoir créé une classe (aucune
+     affectation n'existe encore) — on retombe alors sur les classes du niveau directement,
+     pour afficher un état vide clair plutôt qu'un écran blanc. */
+  if (!yr || (!isIndependent && !group)) return null;
+  const readOnly = !!yr.archived;
+  const classes = group ? group.classes : yr.classes.filter((c) => !c.archived && c.level === level);
+  const subjects = group ? group.subjects : getLevelSubjects(yr, level);
+  const yearLabel = group ? group.yearLabel : yr.label;
+
+  return (
+    <Screen>
+      <TopBar title="Mes classes" subtitle={`${level} · ${yearLabel}${readOnly ? " · lecture seule" : ""}`} onBack={() => ctx.nav.pop()} />
+      <div className="px-4 pt-4 space-y-2">
+        {classes.length === 0 && <EmptyState icon={GraduationCap} title="Aucune classe" text="Créez une classe pour ce niveau pour commencer à évaluer." />}
+        {classes.map((c) => {
+          /* Une seule matière dans cette classe (cas fréquent) → droit au tableau de bord de
+             la matière, sans faire choisir une matière qui n'a qu'une seule réponse possible.
+             Le bouton "évaluation" à droite est un raccourci direct, pour le moment où on est
+             déjà devant sa classe et qu'on sait exactement quoi lancer. */
+          const mySubjects = subjects.filter((s) => (c.teacherBySubject || {})[s.id] === teacher.id);
+          const singleSubject = mySubjects.length === 1 ? mySubjects[0] : null;
+          const evalParams = singleSubject ? { classId: c.id, subjectId: singleSubject.id } : { classId: c.id };
+          const courseProgress = getClassCourseProgress(ctx.data, c, mySubjects);
+          return (
+            <Card key={c.id} onClick={() => (singleSubject ? ctx.nav.push("affectationDetails", { classId: c.id, subjectId: singleSubject.id }) : ctx.nav.push("teacherClassSubjects", { classId: c.id }))} className="flex flex-col gap-2.5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: COLORS.accentSoft }}><GraduationCap size={18} color={COLORS.accent} /></div>
+                <div className="flex-1 min-w-0"><p className="font-bold text-[13.5px]" style={{ color: COLORS.text }}>{c.name}</p><p className="text-[11.5px]" style={{ color: COLORS.muted }}>{mySubjects.length} matière(s) · {c.students.filter((st) => !st.archived).length} élève(s)</p></div>
+                {!readOnly && <button onClick={(e) => { e.stopPropagation(); ctx.nav.push("evalPrep", evalParams); }} className="p-2 rounded-full shrink-0" style={{ background: COLORS.accentSoft }} aria-label={`Nouvelle évaluation pour ${c.name}`}><PlayCircle size={18} color={COLORS.accent} /></button>}
+                <ChevronRight size={17} color={COLORS.muted} className="shrink-0" />
+              </div>
+              {courseProgress.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {courseProgress.map((it) => (
+                    <button
+                      key={it.key}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (it.done) ctx.nav.push("evaluationsList", { classId: c.id, subjectId: it.subjectId, completedOnly: true });
+                        else if (!readOnly) ctx.nav.push("evalPrep", { classId: c.id, subjectId: it.subjectId });
+                      }}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold"
+                      style={{ background: it.done ? COLORS.successSoft : "#F2F4F7", color: it.done ? COLORS.success : COLORS.muted }}
+                    >
+                      {it.done ? <Check size={10} /> : <Clock size={10} />}
+                      {it.title}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </Card>
+          );
+        })}
+      </div>
+    </Screen>
+  );
+}
+
+/* Matières enseignées par ce prof dans CETTE classe — le point d'entrée vers
+   "Lancer une évaluation" / "Résultats" pour une section précise. */
+function TeacherClassSubjectsScreen({ ctx }) {
+  const { classId } = ctx.nav.current.params;
+  const teacher = findTeacher(ctx.data, ctx.currentUser.id);
+  const loc = locateClass(ctx.data, classId);
+  if (!loc) return null;
+  const { cls } = loc;
+  const mySubjects = getLevelSubjects(loc.yr, cls.level).filter((s) => (cls.teacherBySubject || {})[s.id] === teacher.id);
+
+  return (
+    <Screen>
+      <TopBar title={cls.name} subtitle={cls.level} onBack={() => ctx.nav.pop()} />
+      <div className="px-4 pt-4 space-y-2">
+        {mySubjects.map((s) => (
+          <Card key={s.id} onClick={() => ctx.nav.push("affectationDetails", { classId, subjectId: s.id })} className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: COLORS.primarySoft }}><BookOpen size={18} color={COLORS.primary} /></div>
+            <div className="flex-1"><p className="font-bold text-[13.5px]" style={{ color: COLORS.text }}>{s.name}</p></div>
+            <ChevronRight size={17} color={COLORS.muted} />
+          </Card>
+        ))}
+        {mySubjects.length === 0 && <EmptyState icon={BookOpen} title="Aucune matière" text="Vous n'enseignez aucune matière dans cette classe pour l'instant." />}
+      </div>
+    </Screen>
+  );
+}
+
+/* Un seul écran pour "mes évaluations" ET "mes résultats" — l'historique complet (en cours,
+   terminées) et le tableau de bord de résultats vivent au même endroit, plutôt que dans deux
+   onglets séparés qui montraient en fait la même liste de séances sous deux filtres différents. */
 function EvaluationsListScreen({ ctx }) {
   const teacher = findTeacher(ctx.data, ctx.currentUser.id);
   const scope = ctx.nav.current.params || {};
-  const isResultsTab = ctx.nav.current.screen === "resultsList" && !scope.classId;
   const scoped = scope.classId && scope.subjectId;
   const teacherSessions = ctx.data.sessions.filter((s) => s.teacherId === teacher.id);
   let allSessions = scoped ? teacherSessions.filter((s) => s.classId === scope.classId && s.subjectId === scope.subjectId) : teacherSessions;
@@ -2079,32 +3490,26 @@ function EvaluationsListScreen({ ctx }) {
       if (!mySubjects.includes(subject.name)) mySubjects.push(subject.name);
     });
   }
-  const [filter, setFilter] = useState((scope.completedOnly || isResultsTab) ? "completed" : "all"); // all | inprogress | completed
+  const [filter, setFilter] = useState(scope.completedOnly ? "completed" : "all"); // all | inprogress | completed
 
   const classFiltered = classFilter === "all" ? allSessions : allSessions.filter((s) => s.classId === classFilter);
   const subjectFiltered = subjectFilter === "all" ? classFiltered : classFiltered.filter((s) => {
-    const { cls } = locateClass(ctx.data, s.classId) || {};
-    const { subject } = cls ? findQuestionnaire(cls, s.subjectId, s.questionnaireId) : {};
+    const loc = locateClass(ctx.data, s.classId);
+    const { subject } = loc ? findQuestionnaire(loc.yr, loc.cls, s.subjectId, s.questionnaireId) : {};
     return subject?.name === subjectFilter;
   });
   const sessions = subjectFiltered.filter((s) => filter === "all" ? true : filter === "inprogress" ? s.status !== "completed" : s.status === "completed");
   const counts = { all: subjectFiltered.length, inprogress: subjectFiltered.filter((s) => s.status !== "completed").length, completed: subjectFiltered.filter((s) => s.status === "completed").length };
   const scopedLoc = scoped ? locateClass(ctx.data, scope.classId) : null;
-  const scopedSubject = scopedLoc ? scopedLoc.cls.subjects.find((s) => s.id === scope.subjectId) : null;
+  const scopedSubject = scopedLoc ? getLevelSubjects(scopedLoc.yr, scopedLoc.cls.level).find((s) => s.id === scope.subjectId) : null;
   const scopedQuestionnaire = scope.questionnaireId && scopedSubject ? scopedSubject.questionnaires.find((q) => q.id === scope.questionnaireId) : null;
 
-  const BANDS = [
-    { key: "excellent", label: "Excellent", range: "≥ 80%", color: COLORS.success, min: 80 },
-    { key: "bien", label: "Bien", range: "60-79%", color: COLORS.primary, min: 60 },
-    { key: "moyen", label: "Moyen", range: "40-59%", color: COLORS.warning, min: 40 },
-    { key: "faible", label: "À revoir", range: "< 40%", color: COLORS.danger, min: 0 },
-  ];
   let dashboard = null;
-  if (isResultsTab && sessions.length > 0) {
+  if (filter === "completed" && sessions.length > 0) {
     const averages = sessions.map((s) => computeResults(ctx, s.id).classAverage);
     const overallAvg = Math.round(averages.reduce((a, b) => a + b, 0) / averages.length);
-    const bandCounts = BANDS.map((b) => ({ ...b, value: 0 }));
-    averages.forEach((avg) => { const idx = BANDS.findIndex((b) => avg >= b.min); bandCounts[idx].value++; });
+    const bandCounts = RESULT_BANDS.map((b) => ({ ...b, value: 0 }));
+    averages.forEach((avg) => { const idx = RESULT_BANDS.findIndex((b) => avg >= b.min); bandCounts[idx].value++; });
     dashboard = (
       <Card className="flex items-center gap-4">
         <DonutChart segments={bandCounts.map((b) => ({ value: b.value, color: b.color }))} />
@@ -2126,13 +3531,9 @@ function EvaluationsListScreen({ ctx }) {
 
   return (
     <Screen>
-      <TopBar title={scopedQuestionnaire ? `Résultats — ${scopedQuestionnaire.title}` : scoped ? "Résultats" : isResultsTab ? "Résultats" : "Mes évaluations"} subtitle={scoped ? `${scopedLoc?.cls.name} · ${scopedSubject?.name}` : isResultsTab ? "Toutes vos classes" : undefined} onBack={scoped ? () => ctx.nav.pop() : undefined} right={<SyncIndicator ctx={ctx} />} />
+      <TopBar title={scopedQuestionnaire ? `Résultats — ${scopedQuestionnaire.title}` : scoped ? "Évaluations" : "Mes évaluations"} subtitle={scoped ? `${scopedLoc?.cls.name} · ${scopedSubject?.name}` : undefined} onBack={scoped ? () => ctx.nav.pop() : undefined} right={<SyncIndicator ctx={ctx} />} />
       <div className="px-4 pt-4 space-y-2">
-        {isResultsTab ? (
-          <p className="text-[12px]" style={{ color: COLORS.muted }}>Consultez les résultats de toutes vos évaluations terminées, filtrables par classe et par matière.</p>
-        ) : (
-          <Btn full variant="accent" icon={PlayCircle} onClick={() => ctx.nav.push("evalPrep", scoped ? { classId: scope.classId, subjectId: scope.subjectId } : {})}>Nouvelle évaluation</Btn>
-        )}
+        <Btn full variant="accent" icon={PlayCircle} onClick={() => ctx.nav.push("evalPrep", scoped ? { classId: scope.classId, subjectId: scope.subjectId } : {})}>Nouvelle évaluation</Btn>
 
         {!scoped && (myClasses.length > 1 || mySubjects.length > 1) && (
           <div className="mobile-filter-panel">
@@ -2144,21 +3545,20 @@ function EvaluationsListScreen({ ctx }) {
           </div>
         )}
 
-        {!isResultsTab && (
-          <div className="mobile-segmented flex p-1">
-            {[{ key: "all", label: `Toutes (${counts.all})` }, { key: "inprogress", label: `En cours (${counts.inprogress})` }, { key: "completed", label: `Terminées (${counts.completed})` }].map((f) => (
-              <button key={f.key} onClick={() => setFilter(f.key)} className={filter === f.key ? "active" : ""}>{f.label}</button>
-            ))}
-          </div>
-        )}
+        <div className="mobile-segmented flex p-1">
+          {[{ key: "all", label: `Toutes (${counts.all})` }, { key: "inprogress", label: `En cours (${counts.inprogress})` }, { key: "completed", label: `Résultats (${counts.completed})` }].map((f) => (
+            <button key={f.key} onClick={() => setFilter(f.key)} className={filter === f.key ? "active" : ""}>{f.label}</button>
+          ))}
+        </div>
 
         {dashboard}
 
         {sessions.length === 0 ? (
-          <EmptyState icon={isResultsTab ? BarChart3 : ClipboardList} title={isResultsTab ? "Aucun résultat pour l'instant" : "Aucune évaluation"} text={isResultsTab ? "Les résultats apparaissent ici une fois une évaluation terminée." : "Lancez votre première évaluation depuis le bouton ci-dessus."} />
+          <EmptyState icon={filter === "completed" ? BarChart3 : ClipboardList} title={filter === "completed" ? "Aucun résultat pour l'instant" : "Aucune évaluation"} text={filter === "completed" ? "Les résultats apparaissent ici une fois une évaluation terminée." : "Lancez votre première évaluation depuis le bouton ci-dessus."} />
         ) : sessions.map((s) => {
-          const { cls } = locateClass(ctx.data, s.classId) || {};
-          const { subject, questionnaire } = cls ? findQuestionnaire(cls, s.subjectId, s.questionnaireId) : {};
+          const loc = locateClass(ctx.data, s.classId);
+          const cls = loc?.cls;
+          const { subject, questionnaire } = loc ? findQuestionnaire(loc.yr, loc.cls, s.subjectId, s.questionnaireId) : {};
           const avg = s.status === "completed" ? computeResults(ctx, s.id).classAverage : null;
           return (
             <Card key={s.id} onClick={() => s.status === "completed" ? ctx.nav.push("sessionResultsGlobal", { sessionId: s.id }) : ctx.nav.push("sessionQuestion", { sessionId: s.id, index: s.currentQuestionIndex || 0 })} className="flex items-center justify-between">
@@ -2168,7 +3568,7 @@ function EvaluationsListScreen({ ctx }) {
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
                 {avg !== null && <Badge tone={avg >= 50 ? "success" : "danger"}>Moy. {avg}%</Badge>}
-                {!isResultsTab && <Badge tone={s.status === "completed" ? "success" : "warning"}>{s.status === "completed" ? "Terminée" : "En cours"}</Badge>}
+                {filter !== "completed" && <Badge tone={s.status === "completed" ? "success" : "warning"}>{s.status === "completed" ? "Terminée" : "En cours"}</Badge>}
               </div>
             </Card>
           );
@@ -2178,20 +3578,27 @@ function EvaluationsListScreen({ ctx }) {
   );
 }
 
+/* Volet "exécution" pour une classe précise : lancer une évaluation, voir les résultats.
+   La préparation (Cours/Compétences/Questionnaires) ne vit plus ici — elle se fait une seule
+   fois au niveau, depuis "Programme", partagée entre toutes les sections. "Questionnaires"
+   n'a plus sa place ici non plus : consulter/modifier un questionnaire se fait aussi depuis
+   Programme (sous sa compétence), et "Résultats" montre déjà, pour chaque évaluation
+   terminée, quel questionnaire a été utilisé et son résultat — inutile de dupliquer cette
+   information dans une troisième liste. */
 function AffectationDetailsScreen({ ctx }) {
   const { classId, subjectId } = ctx.nav.current.params;
   const loc = locateClass(ctx.data, classId);
   if (!loc) return null;
-  const { subject } = findQuestionnaire(loc.cls, subjectId, null);
+  const readOnly = !!loc.yr.archived;
+  const { subject } = findQuestionnaire(loc.yr, loc.cls, subjectId, null);
   const sessionsHere = ctx.data.sessions.filter((s) => s.classId === classId && s.subjectId === subjectId);
   const items = [
-    { key: "c", label: "Cours", icon: BookOpen, sub: `${(subject.courses || []).length} cours · ${(subject.courses || []).reduce((n, c) => n + c.competencies.length, 0)} compétence(s)`, go: () => ctx.nav.push("courses", { classId, subjectId }) },
-    { key: "e", label: "Nouvelle évaluation", icon: PlayCircle, sub: "Lancer une session", go: () => ctx.nav.push("evalPrep", { classId, subjectId }) },
+    ...(readOnly ? [] : [{ key: "e", label: "Nouvelle évaluation", icon: PlayCircle, sub: "Lancer une session", go: () => ctx.nav.push("evalPrep", { classId, subjectId }) }]),
     { key: "r", label: "Résultats", icon: BarChart3, sub: `${sessionsHere.length} session(s)`, go: () => ctx.nav.push("evaluationsList", { classId, subjectId, completedOnly: true }) },
   ];
   return (
     <Screen>
-      <TopBar title={subject.name} subtitle={loc.cls.name} onBack={() => ctx.nav.pop()} />
+      <TopBar title={subject.name} subtitle={`${loc.cls.name}${readOnly ? " · lecture seule" : ""}`} onBack={() => ctx.nav.pop()} />
       <div className="px-4 pt-4 grid grid-cols-2 gap-3">
         {items.map((it) => (
           <Card key={it.key} onClick={it.go} className="flex flex-col gap-2">
@@ -2205,122 +3612,19 @@ function AffectationDetailsScreen({ ctx }) {
   );
 }
 
-function CoursesScreen({ ctx }) {
-  const { classId, subjectId } = ctx.nav.current.params;
-  const loc = locateClass(ctx.data, classId);
-  const subject = loc?.cls.subjects.find((s) => s.id === subjectId);
-  const [adding, setAdding] = useState(false);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  if (!loc || !subject) return null;
-  const courses = subject.courses || [];
-  const addCourse = () => {
-    if (!title.trim()) return;
-    const course = { id: uid("co"), title: title.trim(), description: description.trim(), competencies: [] };
-    ctx.setData((d) => updateClass(d, classId, (c) => ({ ...c, subjects: c.subjects.map((s) => s.id === subjectId ? { ...s, courses: [...(s.courses || []), course] } : s) })));
-    setTitle(""); setDescription(""); setAdding(false); ctx.showToast("Cours ajouté");
-  };
-  return (
-    <Screen>
-      <TopBar title="Cours" subtitle={`${loc.cls.name} · ${subject.name}`} onBack={() => ctx.nav.pop()} />
-      <div className="px-4 pt-4 space-y-2">
-        {adding ? <Card className="important-form-modal mb-3">
-          <Field label="Nom du cours ou chapitre"><TextInput autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex. Les fractions" /></Field>
-          <Field label="Objectif (facultatif)"><TextArea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ce que les élèves vont apprendre" /></Field>
-          <div className="flex gap-2"><Btn full variant="ghost" onClick={() => setAdding(false)}>Annuler</Btn><Btn full disabled={!title.trim()} onClick={addCourse}>Ajouter</Btn></div>
-        </Card> : <PageAction icon={Plus} title="Ajouter un cours" subtitle="Créer un chapitre puis définir ses compétences" onClick={() => setAdding(true)} />}
-        <SectionLabel>Programme de la matière</SectionLabel>
-        {courses.length === 0 && <EmptyState icon={BookOpen} title="Aucun cours" text="Ajoutez un premier cours pour organiser les compétences à évaluer." />}
-        {courses.map((course, index) => <Card key={course.id} onClick={() => ctx.nav.push("competencies", { classId, subjectId, courseId: course.id })} className="course-card flex items-center gap-3">
-          <div className="course-number">{String(index + 1).padStart(2, "0")}</div>
-          <div className="flex-1 min-w-0"><p className="font-bold text-[13px] truncate" style={{color:COLORS.text}}>{course.title}</p><p className="text-[10.5px] truncate" style={{color:COLORS.muted}}>{course.competencies.length} compétence(s){course.description ? ` · ${course.description}` : ""}</p></div>
-          <ChevronRight size={17} color={COLORS.muted}/>
-        </Card>)}
-      </div>
-    </Screen>
-  );
-}
-
-function CompetenciesScreen({ ctx }) {
-  const { classId, subjectId, courseId } = ctx.nav.current.params;
-  const loc = locateClass(ctx.data, classId);
-  const subject = loc?.cls.subjects.find((s) => s.id === subjectId);
-  const course = (subject?.courses || []).find((c) => c.id === courseId);
-  const [adding, setAdding] = useState(false);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  if (!loc || !subject || !course) return null;
-  const addCompetency = () => {
-    if (!title.trim()) return;
-    const competency = { id: uid("cp"), title: title.trim(), description: description.trim() };
-    ctx.setData((d) => updateClass(d, classId, (c) => ({ ...c, subjects: c.subjects.map((s) => s.id === subjectId ? { ...s, courses: (s.courses || []).map((co) => co.id === courseId ? { ...co, competencies: [...co.competencies, competency] } : co) } : s) })));
-    setTitle(""); setDescription(""); setAdding(false); ctx.showToast("Compétence ajoutée");
-  };
-  return (
-    <Screen>
-      <TopBar title={course.title} subtitle={`${subject.name} · Compétences`} onBack={() => ctx.nav.pop()} />
-      <div className="px-4 pt-4 space-y-2">
-        {adding ? <Card className="important-form-modal mb-3">
-          <Field label="Compétence à maîtriser"><TextInput autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex. Comparer deux fractions" /></Field>
-          <Field label="Critère de réussite (facultatif)"><TextArea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Décrivez le résultat attendu" /></Field>
-          <div className="flex gap-2"><Btn full variant="ghost" onClick={() => setAdding(false)}>Annuler</Btn><Btn full disabled={!title.trim()} onClick={addCompetency}>Ajouter</Btn></div>
-        </Card> : <PageAction icon={Plus} title="Ajouter une compétence" subtitle="Définir précisément ce qui sera évalué" onClick={() => setAdding(true)} />}
-        <SectionLabel>Compétences du cours</SectionLabel>
-        {course.competencies.length === 0 && <EmptyState icon={CheckCircle2} title="Aucune compétence" text="Définissez une compétence avant de créer son questionnaire." />}
-        {course.competencies.map((competency) => {
-          const count = subject.questionnaires.filter((q) => !q.archived && (q.competencyIds || []).includes(competency.id)).length;
-          return <Card key={competency.id} onClick={() => ctx.nav.push("questionnaires", { classId, subjectId, courseId, competencyId: competency.id })} className="competency-card flex items-center gap-3">
-            <div className="competency-check"><Check size={15}/></div>
-            <div className="flex-1 min-w-0"><p className="font-bold text-[12.5px]" style={{color:COLORS.text}}>{competency.title}</p><p className="text-[10.5px] truncate" style={{color:COLORS.muted}}>{count} questionnaire(s){competency.description ? ` · ${competency.description}` : ""}</p></div>
-            <ChevronRight size={17} color={COLORS.muted}/>
-          </Card>;
-        })}
-      </div>
-    </Screen>
-  );
-}
-
-function QuestionnairesScreen({ ctx }) {
-  const { classId, subjectId, courseId, competencyId } = ctx.nav.current.params;
-  const loc = locateClass(ctx.data, classId);
-  if (!loc) return null;
-  const { cls } = loc;
-  const subject = cls.subjects.find((s) => s.id === subjectId);
-  if (!subject) return null;
-  const course = (subject.courses || []).find((c) => c.id === courseId);
-  const competency = course?.competencies.find((c) => c.id === competencyId);
-  const visibleQuestionnaires = subject.questionnaires.filter((q) => !q.archived && (!competencyId || (q.competencyIds || []).includes(competencyId)));
-  return (
-    <Screen>
-      <TopBar title="Questionnaires" subtitle={competency ? competency.title : `${cls.name} · ${subject.name}`} onBack={() => ctx.nav.pop()} />
-      <div className="px-4 pt-4 space-y-2">
-        <PageAction icon={Plus} title="Créer un questionnaire" subtitle={competency ? `Évaluer : ${competency.title}` : "Préparer une nouvelle activité"} onClick={() => ctx.nav.push("createQuestionnaire", { classId, subjectId, courseId, competencyId })} />
-        <SectionLabel>Questionnaires disponibles</SectionLabel>
-        {visibleQuestionnaires.length === 0 && <EmptyState icon={ClipboardList} title="Aucun questionnaire" text={competency ? "Créez un questionnaire pour mesurer cette compétence." : "Créez le premier questionnaire de cette matière."} />}
-        {visibleQuestionnaires.map((q) => (
-          <Card key={q.id} onClick={() => ctx.nav.push("createQuestionnaire", { classId, subjectId, courseId: q.courseId, competencyId, questionnaireId: q.id })}>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: COLORS.primarySoft }}><ListChecks size={18} color={COLORS.primary} /></div>
-              <div className="flex-1"><p className="font-bold text-[13.5px]" style={{ color: COLORS.text }}>{q.title}</p><p className="text-[11.5px]" style={{ color: COLORS.muted }}>{q.questions.length} question(s)</p></div>
-              <ChevronRight size={17} color={COLORS.muted} />
-            </div>
-          </Card>
-        ))}
-      </div>
-    </Screen>
-  );
-}
-
 function CreateQuestionnaireScreen({ ctx }) {
   const { classId, subjectId, questionnaireId, courseId, competencyId } = ctx.nav.current.params;
   const loc = locateClass(ctx.data, classId);
   if (!loc) return null;
-  const { cls } = loc;
-  const subject = cls.subjects.find((s) => s.id === subjectId);
-  const existing = questionnaireId ? subject.questionnaires.find((q) => q.id === questionnaireId) : null;
+  const { yr, cls } = loc;
+  const subject = getLevelSubjects(yr, cls.level).find((s) => s.id === subjectId);
+  const found = questionnaireId ? findQuestionnaire(yr, cls, subjectId, questionnaireId) : null;
+  const existing = found?.questionnaire || null;
+  const isOverride = found?.isOverride || false;
   const linkedCourse = (subject.courses || []).find((c) => c.id === (courseId || existing?.courseId));
   const linkedCompetency = linkedCourse?.competencies.find((c) => c.id === competencyId || (existing?.competencyIds || []).includes(c.id));
   const locked = existing ? questionnaireHasSessions(ctx.data, existing.id) : false;
+  const siblingCount = yr.classes.filter((c) => !c.archived && c.level === cls.level && c.id !== cls.id).length;
 
   const [title, setTitle] = useState(existing?.title || "");
   const [description, setDescription] = useState(existing?.description || "");
@@ -2328,24 +3632,41 @@ function CreateQuestionnaireScreen({ ctx }) {
   const [confirmDeleteQ, setConfirmDeleteQ] = useState(null);
   const qId = existing?.id || null;
 
+  /* Un questionnaire se crée toujours partagé au niveau et le reste pour toujours — simple,
+     une seule version, la même pour toutes les sections du niveau. Modifiable librement tant
+     qu'aucune évaluation ne l'a utilisé ; verrouillé (questions figées) dès la première
+     utilisation, sans exception (pas de copie/duplication pour contourner le verrou). */
   const save = () => {
     if (!title.trim()) return;
     if (qId) {
-      ctx.setData((d) => updateClass(d, classId, (c) => ({ ...c, subjects: c.subjects.map((s) => (s.id === subjectId ? { ...s, questionnaires: s.questionnaires.map((q) => (q.id === qId ? { ...q, title, description, courseId: courseId || q.courseId, competencyIds: competencyId ? Array.from(new Set([...(q.competencyIds || []), competencyId])) : (q.competencyIds || []) } : q)) } : s)) })));
-      ctx.nav.push("questionnaires", { classId, subjectId, courseId: courseId || existing?.courseId, competencyId });
+      if (isOverride) {
+        ctx.setData((d) => updateClass(d, classId, (c) => ({ ...c, questionnaireOverrides: (c.questionnaireOverrides || []).map((q) => (q.id === qId ? { ...q, title, description, courseId: courseId || q.courseId, competencyIds: competencyId ? Array.from(new Set([...(q.competencyIds || []), competencyId])) : (q.competencyIds || []) } : q)) })));
+      } else {
+        ctx.setData((d) => updateLevel(d, yr.id, cls.level, (lv) => ({ ...lv, subjects: lv.subjects.map((s) => (s.id === subjectId ? { ...s, questionnaires: s.questionnaires.map((q) => (q.id === qId ? { ...q, title, description, courseId: courseId || q.courseId, competencyIds: competencyId ? Array.from(new Set([...(q.competencyIds || []), competencyId])) : (q.competencyIds || []) } : q)) } : s)) })));
+      }
+      ctx.nav.pop();
     } else {
       const newId = uid("qz");
-      ctx.setData((d) => updateClass(d, classId, (c) => ({ ...c, subjects: c.subjects.map((s) => (s.id === subjectId ? { ...s, questionnaires: [...s.questionnaires, { id: newId, title, description, courseId: courseId || null, competencyIds: competencyId ? [competencyId] : [], archived: false, questions: [] }] } : s)) })));
+      ctx.setData((d) => updateLevel(d, yr.id, cls.level, (lv) => ({ ...lv, subjects: lv.subjects.map((s) => (s.id === subjectId ? { ...s, questionnaires: [...s.questionnaires, { id: newId, title, description, courseId: courseId || null, competencyIds: competencyId ? [competencyId] : [], archived: false, questions: [] }] } : s)) })));
       ctx.nav.push("createQuestion", { classId, subjectId, questionnaireId: newId, courseId, competencyId });
     }
   };
   const doDelete = () => {
-    if (locked) { ctx.setData((d) => updateClass(d, classId, (c) => ({ ...c, subjects: c.subjects.map((s) => (s.id === subjectId ? { ...s, questionnaires: s.questionnaires.map((q) => (q.id === qId ? { ...q, archived: true } : q)) } : s)) }))); }
-    else { ctx.setData((d) => updateClass(d, classId, (c) => ({ ...c, subjects: c.subjects.map((s) => (s.id === subjectId ? { ...s, questionnaires: s.questionnaires.filter((q) => q.id !== qId) } : s)) }))); }
-    ctx.nav.push("questionnaires", { classId, subjectId, courseId: courseId || existing?.courseId, competencyId });
+    if (isOverride) {
+      ctx.setData((d) => updateClass(d, classId, (c) => ({ ...c, questionnaireOverrides: (c.questionnaireOverrides || []).filter((q) => q.id !== qId) })));
+    } else if (locked) {
+      ctx.setData((d) => updateLevel(d, yr.id, cls.level, (lv) => ({ ...lv, subjects: lv.subjects.map((s) => (s.id === subjectId ? { ...s, questionnaires: s.questionnaires.map((q) => (q.id === qId ? { ...q, archived: true } : q)) } : s)) })));
+    } else {
+      ctx.setData((d) => updateLevel(d, yr.id, cls.level, (lv) => ({ ...lv, subjects: lv.subjects.map((s) => (s.id === subjectId ? { ...s, questionnaires: s.questionnaires.filter((q) => q.id !== qId) } : s)) })));
+    }
+    ctx.nav.pop();
   };
   const deleteQuestion = (questionId) => {
-    ctx.setData((d) => updateClass(d, classId, (c) => ({ ...c, subjects: c.subjects.map((s) => (s.id === subjectId ? { ...s, questionnaires: s.questionnaires.map((q) => (q.id === qId ? { ...q, questions: q.questions.filter((qu) => qu.id !== questionId) } : q)) } : s)) })));
+    if (isOverride) {
+      ctx.setData((d) => updateClass(d, classId, (c) => ({ ...c, questionnaireOverrides: (c.questionnaireOverrides || []).map((q) => (q.id === qId ? { ...q, questions: q.questions.filter((qu) => qu.id !== questionId) } : q)) })));
+    } else {
+      ctx.setData((d) => updateLevel(d, yr.id, cls.level, (lv) => ({ ...lv, subjects: lv.subjects.map((s) => (s.id === subjectId ? { ...s, questionnaires: s.questionnaires.map((q) => (q.id === qId ? { ...q, questions: q.questions.filter((qu) => qu.id !== questionId) } : q)) } : s)) })));
+    }
     setConfirmDeleteQ(null);
   };
 
@@ -2353,12 +3674,16 @@ function CreateQuestionnaireScreen({ ctx }) {
     <Screen>
       <TopBar title={qId ? "Modifier le questionnaire" : "Nouveau questionnaire"} subtitle={subject.name} onBack={() => ctx.nav.pop()} />
       <div className="important-form-modal px-4 pt-4">
-        {locked && (
-          <div className="mb-4">
-            <Btn full variant="accent" icon={BarChart3} onClick={() => ctx.nav.push("evaluationsList", { classId, subjectId, questionnaireId: qId, completedOnly: true })}>
-              Voir les résultats de ce questionnaire
-            </Btn>
-          </div>
+        {isOverride ? (
+          <Card className="mb-4 flex items-start gap-3" style={{ background: COLORS.accentSoft, border: "none" }}>
+            <Copy size={16} color={COLORS.accent} className="shrink-0 mt-0.5" />
+            <p className="text-[11.5px] leading-5" style={{ color: COLORS.accentDark }}>Copie propre à « {cls.name} » — vos modifications n'affectent ni le modèle partagé du niveau, ni les autres sections.</p>
+          </Card>
+        ) : existing && siblingCount > 0 && !locked && (
+          <Card className="mb-4 flex items-start gap-3" style={{ background: COLORS.primarySoft, border: "none" }}>
+            <Info size={16} color={COLORS.primary} className="shrink-0 mt-0.5" />
+            <p className="text-[11.5px] leading-5" style={{ color: COLORS.primaryDark }}>Questionnaire partagé avec {siblingCount} autre(s) section(s) de « {cls.level} ». Le modifier ici les modifie aussi là-bas.</p>
+          </Card>
         )}
         <Field label="Titre du questionnaire"><TextInput autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex. Les fractions" /></Field>
         <Field label="Matière"><TextInput disabled value={subject.name} style={{ color: COLORS.muted, background: "#F2F4F7" }} /></Field>
@@ -2373,37 +3698,45 @@ function CreateQuestionnaireScreen({ ctx }) {
           </Card>
         )}
 
-        {existing && existing.questions.length > 0 && (
+        {existing && (
           <div className="mb-4">
-            <p className="font-bold text-[13px] mb-2" style={{ color: COLORS.text }}>Questions ({existing.questions.length})</p>
-            <div className="space-y-1.5">
-              {existing.questions.map((q, i) => (
-                <Card key={q.id} className="!py-2.5 flex items-center justify-between">
-                  <span className="text-[12.5px] truncate flex-1" style={{ color: COLORS.text }}>{i + 1}. {q.text}</span>
-                  <div className="flex items-center gap-1.5">
-                    <Badge tone="success">{q.correct}</Badge>
-                    {!locked && (
-                      <>
-                        <button onClick={() => ctx.nav.push("createQuestion", { classId, subjectId, questionnaireId: qId, editQuestionId: q.id, courseId: courseId || existing?.courseId, competencyId })} className="p-1"><Pencil size={13} color={COLORS.muted} /></button>
-                        <button onClick={() => setConfirmDeleteQ(q.id)} className="p-1"><Trash2 size={13} color={COLORS.danger} /></button>
-                      </>
-                    )}
-                  </div>
-                </Card>
-              ))}
+            <div className="flex items-center justify-between mb-2">
+              <p className="font-bold text-[13px]" style={{ color: COLORS.text }}>Questions ({existing.questions.length})</p>
+              {!locked && (
+                <AddRow tone="primary" full={false} label="Ajouter" onClick={() => ctx.nav.push("createQuestion", { classId, subjectId, questionnaireId: qId, courseId: courseId || existing?.courseId, competencyId })} />
+              )}
             </div>
+            {existing.questions.length === 0 ? (
+              <p className="text-[11.5px]" style={{ color: COLORS.muted }}>Aucune question pour l'instant.</p>
+            ) : (
+              <div className="space-y-1.5">
+                {existing.questions.map((q, i) => (
+                  <Card key={q.id} className="!py-2.5 flex items-center justify-between">
+                    <span className="text-[12.5px] truncate flex-1" style={{ color: COLORS.text }}>{i + 1}. {q.text}</span>
+                    <div className="flex items-center gap-1.5">
+                      <Badge tone="success">{q.correct}</Badge>
+                      {!locked && (
+                        <>
+                          <button onClick={() => ctx.nav.push("createQuestion", { classId, subjectId, questionnaireId: qId, editQuestionId: q.id, courseId: courseId || existing?.courseId, competencyId })} className="p-1"><Pencil size={13} color={COLORS.muted} /></button>
+                          <button onClick={() => setConfirmDeleteQ(q.id)} className="p-1"><Trash2 size={13} color={COLORS.danger} /></button>
+                        </>
+                      )}
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 mb-1">
           <Btn variant="ghost" full onClick={() => ctx.nav.pop()}>Annuler</Btn>
           <Btn full icon={Save} onClick={save} disabled={!title.trim()}>{qId ? "Enregistrer" : "Continuer"}</Btn>
         </div>
-        {existing && !locked && (
-          <div className="mt-2"><Btn variant="secondary" full icon={Plus} onClick={() => ctx.nav.push("createQuestion", { classId, subjectId, questionnaireId: qId, courseId: courseId || existing?.courseId, competencyId })}>Ajouter une question</Btn></div>
-        )}
         {existing && (
-          <div className="mt-2"><Btn variant="ghost" full icon={locked ? Archive : Trash2} onClick={() => setConfirmDelete(true)}>{locked ? "Archiver ce questionnaire" : "Supprimer ce questionnaire"}</Btn></div>
+          <button onClick={() => setConfirmDelete(true)} className="w-full text-center text-[12px] font-semibold py-2" style={{ color: locked ? COLORS.muted : COLORS.danger }}>
+            {locked ? "Archiver ce questionnaire" : "Supprimer ce questionnaire"}
+          </button>
         )}
       </div>
       <ConfirmModal open={confirmDelete} title={locked ? "Archiver le questionnaire ?" : "Supprimer le questionnaire ?"} text={locked ? "Il a déjà servi dans une évaluation ; il sera masqué mais les résultats passés restent intacts." : "Cette action est définitive."} onCancel={() => setConfirmDelete(false)} onConfirm={doDelete} confirmLabel={locked ? "Archiver" : "Supprimer"} danger />
@@ -2416,9 +3749,10 @@ function CreateQuestionScreen({ ctx }) {
   const { classId, subjectId, questionnaireId, editQuestionId, courseId, competencyId } = ctx.nav.current.params;
   const loc = locateClass(ctx.data, classId);
   if (!loc) return null;
-  const { cls } = loc;
-  const subject = cls.subjects.find((s) => s.id === subjectId);
-  const questionnaire = subject.questionnaires.find((q) => q.id === questionnaireId);
+  const { yr, cls } = loc;
+  const found = findQuestionnaire(yr, cls, subjectId, questionnaireId);
+  const questionnaire = found.questionnaire;
+  const isOverride = found.isOverride;
   const editing = editQuestionId ? questionnaire.questions.find((q) => q.id === editQuestionId) : null;
 
   const [text, setText] = useState(editing?.text || "");
@@ -2427,15 +3761,22 @@ function CreateQuestionScreen({ ctx }) {
   const [count, setCount] = useState(questionnaire?.questions.length || 0);
   const canSave = text.trim() && choices.A.trim() && choices.B.trim() && choices.C.trim() && choices.D.trim();
 
+  const applyToQuestionnaires = (updater) => {
+    if (isOverride) {
+      ctx.setData((d) => updateClass(d, classId, (c) => ({ ...c, questionnaireOverrides: (c.questionnaireOverrides || []).map((q) => (q.id === questionnaireId ? updater(q) : q)) })));
+    } else {
+      ctx.setData((d) => updateLevel(d, yr.id, cls.level, (lv) => ({ ...lv, subjects: lv.subjects.map((s) => (s.id === subjectId ? { ...s, questionnaires: s.questionnaires.map((q) => (q.id === questionnaireId ? updater(q) : q)) } : s)) })));
+    }
+  };
   const saveQuestion = (addAnother) => {
     if (!canSave) return;
     if (editing) {
-      ctx.setData((d) => updateClass(d, classId, (c) => ({ ...c, subjects: c.subjects.map((s) => (s.id === subjectId ? { ...s, questionnaires: s.questionnaires.map((q) => (q.id === questionnaireId ? { ...q, questions: q.questions.map((qu) => (qu.id === editQuestionId ? { id: qu.id, text: text.trim(), choices: { ...choices }, correct } : qu)) } : q)) } : s)) })));
+      applyToQuestionnaires((q) => ({ ...q, questions: q.questions.map((qu) => (qu.id === editQuestionId ? { id: qu.id, text: text.trim(), choices: { ...choices }, correct } : qu)) }));
       ctx.nav.push("createQuestionnaire", { classId, subjectId, questionnaireId, courseId, competencyId });
       return;
     }
     const newQ = { id: uid("q"), text: text.trim(), choices: { ...choices }, correct };
-    ctx.setData((d) => updateClass(d, classId, (c) => ({ ...c, subjects: c.subjects.map((s) => (s.id === subjectId ? { ...s, questionnaires: s.questionnaires.map((qz) => (qz.id === questionnaireId ? { ...qz, questions: [...qz.questions, newQ] } : qz)) } : s)) })));
+    applyToQuestionnaires((q) => ({ ...q, questions: [...q.questions, newQ] }));
     setCount((n) => n + 1);
     if (addAnother) { setText(""); setChoices({ A: "", B: "", C: "", D: "" }); setCorrect("A"); }
     else ctx.nav.push("createQuestionnaire", { classId, subjectId, questionnaireId, courseId, competencyId });
@@ -2462,7 +3803,7 @@ function CreateQuestionScreen({ ctx }) {
         ) : (
           <>
             <div className="grid grid-cols-2 gap-2 mb-2">
-              <Btn variant="ghost" icon={Trash2} onClick={() => ctx.nav.pop()}>Annuler</Btn>
+              <Btn variant="ghost" icon={X} onClick={() => ctx.nav.pop()}>Annuler</Btn>
               <Btn variant="secondary" icon={Plus} disabled={!canSave} onClick={() => saveQuestion(true)}>Ajouter une autre</Btn>
             </div>
             <Btn full icon={Save} disabled={!canSave} onClick={() => saveQuestion(false)}>Enregistrer et terminer</Btn>
@@ -2477,20 +3818,30 @@ function CreateQuestionScreen({ ctx }) {
 function EvalPrepScreen({ ctx }) {
   const teacher = findTeacher(ctx.data, ctx.currentUser.id);
   const assignments = getTeacherAssignments(ctx.data, teacher.id);
+  const levelGroups = getTeacherLevelGroups(ctx.data, teacher.id);
+  /* Arrivée depuis une classe/matière déjà connue (fiche d'affectation, résultats scopés) :
+     on saute directement au choix du cours plutôt que de refaire poser des questions dont
+     la réponse est déjà connue. Sinon, le flux suit la même hiérarchie que partout ailleurs
+     dans l'app : niveau → classe → matière → cours → questionnaire. */
+  const preset = ctx.nav.current.params || {};
+  const presetLoc = preset.classId ? locateClass(ctx.data, preset.classId) : null;
+  const initialStep = preset.classId && preset.subjectId ? 3 : preset.classId ? 2 : 0;
+  const levelKey = (yearId, level) => `${yearId}|${level}`;
 
-  const [classId, setClassId] = useState("");
-  const [subjectId, setSubjectId] = useState("");
+  const [level, setLevel] = useState(presetLoc ? levelKey(presetLoc.yr.id, presetLoc.cls.level) : "");
+  const [classId, setClassId] = useState(preset.classId || "");
+  const [subjectId, setSubjectId] = useState(preset.subjectId || "");
   const [courseId, setCourseId] = useState("");
   const [questionnaireId, setQuestionnaireId] = useState("");
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(initialStep);
 
   const loc = classId ? locateClass(ctx.data, classId) : null;
   const cls = loc?.cls;
-  const subject = cls?.subjects.find((s) => s.id === subjectId);
+  const subject = loc ? getLevelSubjects(loc.yr, cls.level).find((s) => s.id === subjectId) : null;
   const course = (subject?.courses || []).find((c) => c.id === courseId);
   const questionnaire = subject?.questionnaires.find((q) => q.id === questionnaireId && !q.archived);
-  const myClasses = [];
-  assignments.forEach(({ cls: assignedClass }) => { if (!myClasses.some((c) => c.id === assignedClass.id)) myClasses.push(assignedClass); });
+  const selectedGroup = levelGroups.find((g) => levelKey(g.yearId, g.level) === level);
+  const classesOfLevel = selectedGroup?.classes || [];
   const mySubjects = assignments.filter(({ cls: assignedClass }) => assignedClass.id === classId);
 
   const start = () => {
@@ -2506,40 +3857,76 @@ function EvalPrepScreen({ ctx }) {
     ctx.nav.push("sessionQuestion", { sessionId, index: 0 });
   };
 
-  const goBack = () => { if (step === 0) { ctx.nav.pop(); return; } setStep((s) => s - 1); };
+  const goBack = () => { if (step === initialStep) { ctx.nav.pop(); return; } setStep((s) => s - 1); };
 
-  let title = "Choisir la classe", body = null;
+  let title = "Choisir le niveau", body = null;
   if (step === 0) {
     body = <div className="px-4">
-      {myClasses.map((c) => <OptionCard key={c.id} icon={GraduationCap} title={c.name} subtitle={`${c.students.filter((s) => !s.archived).length} élèves`} selected={classId === c.id} onClick={() => { setClassId(c.id); setSubjectId(""); setCourseId(""); setQuestionnaireId(""); setStep(1); }} />)}
-      {myClasses.length === 0 && <EmptyState icon={GraduationCap} title="Aucune classe" text="Aucune classe ne vous est encore affectée." />}
+      {levelGroups.map((g) => <OptionCard key={levelKey(g.yearId, g.level)} icon={School} title={g.level} subtitle={`${g.yearLabel} · ${g.classes.length} classe(s)`} selected={level === levelKey(g.yearId, g.level)} onClick={() => { setLevel(levelKey(g.yearId, g.level)); setClassId(""); setSubjectId(""); setCourseId(""); setQuestionnaireId(""); setStep(1); }} />)}
+      {levelGroups.length === 0 && <EmptyState icon={School} title="Aucun niveau" text="Aucune classe ne vous est encore affectée." />}
     </div>;
   } else if (step === 1) {
-    title = "Choisir la matière";
+    title = "Choisir la classe";
     body = <div className="px-4">
-      {mySubjects.map(({ subject: s }) => <OptionCard key={s.id} icon={BookOpen} title={s.name} subtitle={`${(s.courses || []).length} cours`} selected={subjectId === s.id} onClick={() => { setSubjectId(s.id); setCourseId(""); setQuestionnaireId(""); setStep(2); }} />)}
+      {classesOfLevel.map((c) => <OptionCard key={c.id} icon={GraduationCap} title={c.name} subtitle={`${c.students.filter((s) => !s.archived).length} élèves`} selected={classId === c.id} onClick={() => { setClassId(c.id); setSubjectId(""); setCourseId(""); setQuestionnaireId(""); setStep(2); }} />)}
     </div>;
   } else if (step === 2) {
+    title = "Choisir la matière";
+    body = <div className="px-4">
+      {mySubjects.map(({ subject: s }) => <OptionCard key={s.id} icon={BookOpen} title={s.name} subtitle={`${(s.courses || []).length} cours`} selected={subjectId === s.id} onClick={() => { setSubjectId(s.id); setCourseId(""); setQuestionnaireId(""); setStep(3); }} />)}
+    </div>;
+  } else if (step === 3) {
     title = "Choisir le cours";
     const courses = subject?.courses || [];
     body = <div className="px-4">
-      {courses.map((c) => { const count = subject.questionnaires.filter((q) => !q.archived && q.courseId === c.id).length; return <OptionCard key={c.id} icon={BookOpen} title={c.title} subtitle={`${c.competencies.length} compétence(s) · ${count} questionnaire(s)`} selected={courseId === c.id} onClick={() => { setCourseId(c.id); setQuestionnaireId(""); setStep(3); }} />; })}
-      {courses.length === 0 && <EmptyState icon={BookOpen} title="Aucun cours disponible" text="Ajoutez d'abord un cours et ses compétences dans cette matière." action={<Btn size="sm" icon={Plus} onClick={() => ctx.nav.push("courses", { classId, subjectId })}>Ajouter un cours</Btn>} />}
-    </div>;
-  } else if (step === 3) {
-    title = "Choisir le questionnaire";
-    const qs = subject?.questionnaires.filter((q) => !q.archived && q.courseId === courseId) || [];
-    body = <div className="px-4">
-      {qs.map((q) => { const skills = getQuestionnaireCompetencies(subject, q); return <OptionCard key={q.id} icon={ListChecks} title={q.title} subtitle={`${q.questions.length} question(s)${skills.length ? ` · ${skills.map((s) => s.title).join(", ")}` : ""}`} disabled={q.questions.length === 0} selected={questionnaireId === q.id} onClick={() => { setQuestionnaireId(q.id); setStep(4); }} />; })}
-      {qs.length === 0 && <EmptyState icon={ListChecks} title="Aucun questionnaire pour ce cours" text="Créez un questionnaire depuis une compétence de ce cours avant de lancer l'évaluation." action={<Btn size="sm" icon={Plus} onClick={() => ctx.nav.push("competencies", { classId, subjectId, courseId })}>Voir les compétences</Btn>} />}
+      {courses.map((c) => { const count = subject.questionnaires.filter((q) => !q.archived && q.courseId === c.id).length; return <OptionCard key={c.id} icon={BookOpen} title={c.title} subtitle={`${c.competencies.length} compétence(s) · ${count} questionnaire(s)`} selected={courseId === c.id} onClick={() => { setCourseId(c.id); setQuestionnaireId(""); setStep(4); }} />; })}
+      {courses.length === 0 && <EmptyState icon={BookOpen} title="Aucun cours disponible" text="Ajoutez d'abord un cours et ses compétences dans cette matière." action={<Btn size="sm" icon={Plus} onClick={() => ctx.nav.push("teacherLevelSubjects", { yearId: loc.yr.id, level: loc.cls.level, subjectId })}>Ajouter un cours</Btn>} />}
     </div>;
   } else if (step === 4) {
+    title = "Choisir le questionnaire";
+    const sharedQs = subject?.questionnaires.filter((q) => !q.archived && q.courseId === courseId) || [];
+    const myOverrides = (cls?.questionnaireOverrides || []).filter((o) => o.subjectId === subjectId && !o.archived && o.courseId === courseId);
+    /* On montre toujours la version déjà utilisée par CETTE classe (l'adaptation si elle
+       existe, sinon le modèle partagé) — et on laisse le choix explicite, une fois sélectionné,
+       de le garder tel quel ou de l'adapter avant de commencer la séance. Les questionnaires
+       créés directement pour cette classe (sans modèle partagé) s'ajoutent à la liste. */
+    const displayQs = [
+      ...sharedQs.map((q) => {
+        const override = myOverrides.find((o) => o.sourceQuestionnaireId === q.id);
+        return override ? { ...override, isOverride: true } : { ...q, isOverride: false };
+      }),
+      ...myOverrides.filter((o) => !o.sourceQuestionnaireId).map((o) => ({ ...o, isOverride: true })),
+    ];
+    const selectedQ = displayQs.find((q) => q.id === questionnaireId);
+    body = <div className="px-4">
+      {displayQs.map((q) => {
+        const skills = getQuestionnaireCompetencies(subject, q);
+        return <OptionCard key={q.id} icon={q.isOverride ? Copy : ListChecks} title={q.title} subtitle={`${q.isOverride ? `Propre à ${cls.name} · ` : ""}${q.questions.length} question(s)${skills.length ? ` · ${skills.map((s) => s.title).join(", ")}` : ""}`} disabled={q.questions.length === 0} selected={questionnaireId === q.id} onClick={() => setQuestionnaireId(q.id)} />;
+      })}
+      {displayQs.length === 0 && <EmptyState icon={ListChecks} title="Aucun questionnaire pour ce cours" text="Créez un questionnaire depuis une compétence de ce cours avant de lancer l'évaluation." action={<Btn size="sm" icon={Plus} onClick={() => ctx.nav.push("teacherLevelSubjects", { yearId: loc.yr.id, level: loc.cls.level, subjectId })}>Voir le programme</Btn>} />}
+      {selectedQ && !selectedQ.isOverride && (
+        <div className="mt-3 space-y-2">
+          <p className="text-[11px] text-center" style={{ color: COLORS.muted }}>Partagé avec les autres sections de {cls.level}.</p>
+          <Btn full variant="accent" icon={ArrowRight} onClick={() => setStep(5)}>Continuer</Btn>
+          {!questionnaireHasSessions(ctx.data, selectedQ.id) && (
+            <Btn full variant="ghost" icon={Pencil} onClick={() => ctx.nav.push("createQuestionnaire", { classId, subjectId, questionnaireId: selectedQ.id, courseId })}>Modifier ce questionnaire (toutes les sections)</Btn>
+          )}
+        </div>
+      )}
+      {selectedQ && selectedQ.isOverride && (
+        <div className="mt-3">
+          <Btn full variant="accent" icon={ArrowRight} onClick={() => setStep(5)}>Continuer</Btn>
+        </div>
+      )}
+    </div>;
+  } else if (step === 5) {
     title = "Résumé de l'évaluation";
     const skills = getQuestionnaireCompetencies(subject, questionnaire);
     body = <div className="px-4">
       <Card className="mb-4" style={{ background: COLORS.primarySoft, border: "none" }}>
         <p className="font-bold text-[13px] mb-2" style={{ color: COLORS.primaryDark }}>Résumé</p>
         <div className="space-y-2 text-[12.5px]" style={{ color: COLORS.primaryDark }}>
+          <p className="flex items-center gap-2"><School size={14} className="shrink-0" />{cls.level}</p>
           <p className="flex items-center gap-2"><GraduationCap size={14} className="shrink-0" />{cls.name} ({cls.students.filter((s) => !s.archived).length} élèves)</p>
           <p className="flex items-center gap-2"><BookOpen size={14} className="shrink-0" />{subject.name} · {course.title}</p>
           {skills.length > 0 && <p className="flex items-center gap-2"><Target size={14} className="shrink-0" />{skills.map((s) => s.title).join(", ")}</p>}
@@ -2554,7 +3941,7 @@ function EvalPrepScreen({ ctx }) {
   return (
     <Screen>
       <TopBar title={title} onBack={goBack} />
-      <WizardProgress step={step} totalSteps={5} labels={["Choisir la classe", "Choisir la matière", "Choisir le cours", "Choisir le questionnaire", "Confirmer la séance"]} crumbs={[cls?.name, subject?.name, course?.title, questionnaire?.title].filter(Boolean)} helperText="Préparez la séance avant de lancer le scan" />
+      <WizardProgress step={step} totalSteps={6} labels={["Choisir le niveau", "Choisir la classe", "Choisir la matière", "Choisir le cours", "Choisir le questionnaire", "Confirmer la séance"]} crumbs={[cls?.level, cls?.name, subject?.name, course?.title, questionnaire?.title].filter(Boolean)} helperText="Préparez la séance avant de lancer le scan" />
       <div className="pt-2">{body}</div>
     </Screen>
   );
@@ -2566,7 +3953,7 @@ function SessionQuestionScreen({ ctx }) {
   const session = findSession(ctx.data, sessionId);
   if (!session) return null;
   const loc = locateClass(ctx.data, session.classId);
-  const { questionnaire } = findQuestionnaire(loc.cls, session.subjectId, session.questionnaireId);
+  const { questionnaire } = findQuestionnaire(loc.yr, loc.cls, session.subjectId, session.questionnaireId);
   const question = questionnaire.questions[index];
   const total = questionnaire.questions.length;
   return (
@@ -2609,7 +3996,7 @@ function ScanSimulationScreen({ ctx }) {
   const { sessionId, index } = ctx.nav.current.params;
   const session = findSession(ctx.data, sessionId);
   const loc = locateClass(ctx.data, session.classId);
-  const { questionnaire } = findQuestionnaire(loc.cls, session.subjectId, session.questionnaireId);
+  const { questionnaire } = findQuestionnaire(loc.yr, loc.cls, session.subjectId, session.questionnaireId);
   const question = questionnaire.questions[index];
   const students = session.participantSnapshot || loc.cls.students.filter((s) => !s.archived);
   const total = students.length;
@@ -2715,7 +4102,7 @@ function ScanSimulationScreen({ ctx }) {
     <Screen>
       <TopBar title="Scanner un élève" subtitle={`Question ${index + 1}`} onBack={() => setScanMode(null)} />
       <div className="px-4 pt-4">
-        <Field label="Rechercher un élève"><TextInput autoFocus value={studentSearch} onChange={(e) => setStudentSearch(e.target.value)} placeholder="Nom de l’élève" /></Field>
+        <SearchInput autoFocus value={studentSearch} onChange={(e) => setStudentSearch(e.target.value)} placeholder="Rechercher un élève" className="mb-3" />
         <div className="space-y-2 max-h-[520px] overflow-y-auto">{filteredStudents.map((student) => <Card key={student.id} onClick={() => setIndividualStudentId(student.id)} className="flex items-center gap-3 !py-3"><div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: COLORS.primarySoft }}><User size={16} color={COLORS.primary} /></div><span className="text-[12.5px] font-semibold flex-1" style={{ color: COLORS.text }}>{student.name}</span><ChevronRight size={16} color={COLORS.muted} /></Card>)}</div>
       </div>
     </Screen>
@@ -2767,7 +4154,7 @@ function ScanSimulationScreen({ ctx }) {
           </button>
           {absentPanelOpen && (
             <div className="mt-2">
-              <TextInput value={absentSearch} onChange={(e) => setAbsentSearch(e.target.value)} placeholder="Rechercher un élève à signaler absent" style={{ marginBottom: 8 }} />
+              <SearchInput value={absentSearch} onChange={(e) => setAbsentSearch(e.target.value)} placeholder="Rechercher un élève à signaler absent" className="mb-2" />
               <div className="max-h-[180px] overflow-y-auto space-y-1">
                 {filteredAbsentList.slice(0, 30).map((s) => (
                   <label key={s.id} className="flex items-center gap-2 py-1 text-[12.5px]" style={{ color: COLORS.text }}>
@@ -2827,7 +4214,7 @@ function VerifyAnswersScreen({ ctx }) {
   const { sessionId, index } = ctx.nav.current.params;
   const session = findSession(ctx.data, sessionId);
   const loc = locateClass(ctx.data, session.classId);
-  const { questionnaire } = findQuestionnaire(loc.cls, session.subjectId, session.questionnaireId);
+  const { questionnaire } = findQuestionnaire(loc.yr, loc.cls, session.subjectId, session.questionnaireId);
   const question = questionnaire.questions[index];
   const students = session.participantSnapshot || loc.cls.students.filter((s) => !s.archived);
   const declaredAbsentIds = session.declaredAbsentIds || [];
@@ -2875,10 +4262,7 @@ function VerifyAnswersScreen({ ctx }) {
       <TopBar title="Vérifier les réponses" subtitle={`Question ${index + 1} — ${detectedCount}/${students.length} détectés`} onBack={() => ctx.nav.pop()}
         right={<button onClick={() => { setSelectMode((v) => !v); setSelected(new Set()); }} className="text-[11.5px] font-semibold px-2.5 py-1.5 rounded-lg" style={{ background: selectMode ? COLORS.primary : COLORS.primarySoft, color: selectMode ? "#fff" : COLORS.primary }}>{selectMode ? "Terminer" : "Sélection multiple"}</button>} />
       <div className="px-4 pt-3">
-        <div className="flex items-center gap-2 px-3 py-2 rounded-xl mb-2" style={{ background: "#F2F4F7" }}>
-          <Search size={15} color={COLORS.muted} />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher un élève" className="flex-1 bg-transparent outline-none text-[13px]" />
-        </div>
+        <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher un élève" className="mb-2" />
         <div className="mobile-segmented flex p-1 mb-3">
           {[{ key: "all", label: `Tous (${students.length})` }, { key: "detected", label: `Détectés (${detectedCount})` }, { key: "undetected", label: `Non détectés (${students.length - detectedCount})` }].map((f) => (
             <button key={f.key} onClick={() => setFilter(f.key)} className={filter === f.key ? "active" : ""}>{f.label}</button>
@@ -2940,7 +4324,7 @@ function VerifyAnswersScreen({ ctx }) {
 function computeResults(ctx, sessionId) {
   const session = findSession(ctx.data, sessionId);
   const loc = locateClass(ctx.data, session.classId);
-  const { questionnaire } = findQuestionnaire(loc.cls, session.subjectId, session.questionnaireId);
+  const { questionnaire } = findQuestionnaire(loc.yr, loc.cls, session.subjectId, session.questionnaireId);
   const students = session.participantSnapshot || loc.cls.students.filter((s) => !s.archived);
   const questions = questionnaire.questions;
   const perStudent = students.map((s) => {
@@ -3188,10 +4572,7 @@ function ResultsByStudentScreen({ ctx }) {
       <TopBar title="Résultats" subtitle={`${r.loc.cls.name} · ${r.questionnaire.title}`} onBack={() => ctx.nav.pop()} />
       <ResultsTabs ctx={ctx} sessionId={sessionId} active="sessionResultsByStudent" />
       <div className="px-4">
-        <div className="flex items-center gap-2 px-3 py-2 rounded-xl mb-3" style={{ background: "#F2F4F7" }}>
-          <Search size={15} color={COLORS.muted} />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher un élève" className="flex-1 bg-transparent outline-none text-[13px]" />
-        </div>
+        <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher un élève" className="mb-3" />
         <div className="space-y-1.5 max-h-[500px] overflow-y-auto">
           {filtered.map((p) => (
             <Card key={p.student.id} onClick={() => ctx.nav.push("sessionResultsByStudent", { sessionId, studentId: p.student.id })} className="flex items-center justify-between !py-2.5">
@@ -3278,17 +4659,17 @@ function SyncScreen({ ctx }) {
 
 /* ================================ APP ROOT ================================ */
 const SCREENS = {
-  welcome: WelcomeScreen, register: RegisterWizardScreen, joinEstablishment: JoinEstablishmentScreen, login: LoginScreen,
+  splash: SplashScreen, welcome: WelcomeScreen, register: RegisterWizardScreen, joinEstablishment: JoinEstablishmentScreen, login: LoginScreen,
   forcedPasswordChange: ForcedPasswordChangeScreen, forgotPassword: ForgotPasswordScreen, myProfile: MyProfileScreen,
   adminDashboard: AdminDashboardScreen, adminResults: AdminResultsScreen, myEstablishment: MyEstablishmentScreen,
-  years: YearsScreen, classes: ClassesScreen, classDetails: ClassDetailsScreen,
+  years: YearsScreen, levels: LevelsScreen, levelDetails: LevelDetailsScreen, classes: ClassesScreen, classDetails: ClassDetailsScreen,
+  closeYear: CloseYearScreen, distributeStudents: DistributeStudentsScreen,
   importStudents: ImportStudentsScreen, importPreview: ImportPreviewScreen,
-  subjects: SubjectsScreen, teachersList: TeachersListScreen, createTeacher: CreateTeacherScreen,
-  shareCredentials: ShareCredentialsScreen, assignTeacher: AssignTeacherScreen, assignClassesToTeacher: AssignClassesToTeacherScreen,
-  teacherDashboard: TeacherDashboardScreen, affectationDetails: AffectationDetailsScreen,
-  evaluationsList: EvaluationsListScreen, resultsList: EvaluationsListScreen,
-  courses: CoursesScreen, competencies: CompetenciesScreen,
-  questionnaires: QuestionnairesScreen, createQuestionnaire: CreateQuestionnaireScreen, createQuestion: CreateQuestionScreen,
+  subjects: SubjectsScreen, teachersList: TeachersListScreen, teacherDetails: TeacherDetailsScreen, createTeacher: CreateTeacherScreen,
+  shareCredentials: ShareCredentialsScreen, assignClassesToTeacher: AssignClassesToTeacherScreen,
+  teacherDashboard: TeacherDashboardScreen, teacherYears: TeacherYearsScreen, teacherLevels: TeacherLevelsScreen, teacherLevelDetails: TeacherLevelDetailsScreen, teacherLevelSubjects: TeacherLevelSubjectsScreen, teacherLevelClasses: TeacherLevelClassesScreen, teacherClassSubjects: TeacherClassSubjectsScreen, affectationDetails: AffectationDetailsScreen,
+  evaluationsList: EvaluationsListScreen,
+  createQuestionnaire: CreateQuestionnaireScreen, createQuestion: CreateQuestionScreen,
   evalPrep: EvalPrepScreen, sessionQuestion: SessionQuestionScreen, scanSimulation: ScanSimulationScreen,
   verifyAnswers: VerifyAnswersScreen, sessionResultsGlobal: ResultsGlobalScreen,
   sessionResultsByQuestion: ResultsByQuestionScreen, sessionResultsByStudent: ResultsByStudentScreen, sync: SyncScreen,
@@ -3305,7 +4686,7 @@ export default function KagatPrototype() {
   const [mode, setMode] = useState("auth"); // 'auth' | 'app'
   const [authStack, setAuthStack] = useState(() => {
     const inviteCode = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("invite") : "";
-    return inviteCode ? [{ screen: "joinEstablishment", params: { inviteCode } }] : [{ screen: "welcome", params: {} }];
+    return inviteCode ? [{ screen: "joinEstablishment", params: { inviteCode } }] : [{ screen: "splash", params: {} }];
   });
   const [activeTab, setActiveTab] = useState("accueil");
   const [tabStacks, setTabStacks] = useState({});
@@ -3346,8 +4727,14 @@ export default function KagatPrototype() {
     return () => clearTimeout(timer);
   }, [isOnline, data.sessions]);
 
-  const enterApp = (role) => {
-    const tabs = role === "admin" ? ADMIN_TABS : (data.establishment?.accountType === "independent" ? INDEPENDENT_TABS : TEACHER_TABS);
+  /* accountTypeOverride : quand l'établissement vient tout juste d'être défini dans le même
+     geste (inscription, démo), `data` ici est encore l'ancienne valeur — React n'a pas encore
+     appliqué le setData précédent au moment où cette fonction s'exécute. Sans cet override,
+     un enseignant indépendant qui vient de créer son compte atterrirait sur les onglets d'un
+     enseignant d'établissement (pas d'onglet "Classes" pour créer ses propres classes). */
+  const enterApp = (role, accountTypeOverride) => {
+    const effectiveAccountType = accountTypeOverride !== undefined ? accountTypeOverride : data.establishment?.accountType;
+    const tabs = role === "admin" ? ADMIN_TABS : (effectiveAccountType === "independent" ? INDEPENDENT_TABS : TEACHER_TABS);
     const initial = {};
     tabs.forEach((t) => { initial[t.key] = [{ screen: t.root, params: {} }]; });
     setTabStacks(initial);
@@ -3387,6 +4774,11 @@ export default function KagatPrototype() {
   const current = nav.current;
   const ScreenComponent = SCREENS[current.screen] || WelcomeScreen;
   const showBottomBar = mode === "app" && !NO_BOTTOM_BAR_APP.has(current.screen);
+  /* Repère constant, présent sur tous les écrans une fois connecté : quelle est l'année
+     scolaire active en ce moment (par opposition à une année archivée qu'on est peut-être en
+     train de consulter dans l'écran lui-même). Un seul endroit à maintenir plutôt que de le
+     répéter dans chaque écran. */
+  const activeYearLabel = mode === "app" ? data.years.find((y) => !y.archived)?.label : null;
 
   return (
     <div className="prototype-stage w-full min-h-[100vh] flex items-center justify-center py-6" style={{ fontFamily: "'Plus Jakarta Sans', 'Segoe UI', sans-serif" }}>
@@ -3396,6 +4788,12 @@ export default function KagatPrototype() {
           <span>9:41</span>
           <div className="flex items-center gap-1">{isOnline ? <Wifi size={12} /> : <WifiOff size={12} />}<span>KAGAT</span></div>
         </div>
+        {activeYearLabel && (
+          <div className="app-year-banner flex items-center justify-center gap-1.5 py-1 shrink-0" style={{ background: COLORS.primarySoft }}>
+            <Calendar size={10.5} color={COLORS.primary} />
+            <span className="text-[10px] font-bold" style={{ color: COLORS.primaryDark }}>Année en cours · {activeYearLabel}</span>
+          </div>
+        )}
         <div className="app-scroll flex-1 overflow-y-auto relative" style={{ background: COLORS.bg }}>
           <ScreenComponent ctx={ctx} />
         </div>
