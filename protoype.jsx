@@ -574,8 +574,8 @@ function FacebookIcon({ size = 18, color = "#1877F2" }) {
     </svg>
   );
 }
-/* Boutons alignés sur les chartes graphiques officielles Google (fond blanc, bordure, ombre légère
-   car un bouton blanc sur fond clair a besoin de relief pour rester lisible) et Facebook (fond bleu plein) */
+/* Format unique pour Google et Facebook (fond blanc, bordure, ombre légère) : seul le logo
+   change entre les deux, pour qu'aucun des deux ne prenne le pas visuellement sur "Se connecter". */
 function SocialButton({ provider, onClick, disabled, size = "md" }) {
   const isGoogle = provider === "google";
   const tall = size === "lg";
@@ -585,14 +585,14 @@ function SocialButton({ provider, onClick, disabled, size = "md" }) {
       style={{
         height: tall ? 52 : 46,
         fontSize: tall ? 14 : 13,
-        background: isGoogle ? "#FFFFFF" : "#1877F2",
-        border: isGoogle ? `1.5px solid ${COLORS.border}` : "none",
-        color: isGoogle ? COLORS.text : "#FFFFFF",
-        boxShadow: isGoogle ? "0 2px 8px rgba(23,32,51,0.06)" : "0 6px 16px rgba(24,119,242,0.28)",
+        background: "#FFFFFF",
+        border: `1.5px solid ${COLORS.border}`,
+        color: COLORS.text,
+        boxShadow: "0 2px 8px rgba(23,32,51,0.06)",
         opacity: disabled ? 0.5 : 1,
         cursor: disabled ? "not-allowed" : "pointer",
       }}>
-      {isGoogle ? <GoogleIcon size={tall ? 20 : 18} /> : <FacebookIcon size={tall ? 20 : 18} color="#FFFFFF" />}
+      {isGoogle ? <GoogleIcon size={tall ? 20 : 18} /> : <FacebookIcon size={tall ? 20 : 18} />}
       <span>Continuer avec {isGoogle ? "Google" : "Facebook"}</span>
     </button>
   );
@@ -604,18 +604,6 @@ function OrDivider({ label = "ou" }) {
       <div className="flex-1 h-px" style={{ background: COLORS.border }} />
       <span className="text-[11px] font-bold uppercase" style={{ color: COLORS.muted, letterSpacing: "0.08em" }}>{label}</span>
       <div className="flex-1 h-px" style={{ background: COLORS.border }} />
-    </div>
-  );
-}
-/* Groupe boutons sociaux + séparateur — un seul point d'entrée réutilisé sur Accueil, Connexion et Inscription */
-function SocialAuthGroup({ onGoogle, onFacebook, dividerLabel = "ou" }) {
-  return (
-    <div className="mb-1">
-      <div className="flex flex-col gap-3">
-        <SocialButton provider="google" onClick={onGoogle} />
-        <SocialButton provider="facebook" onClick={onFacebook} />
-      </div>
-      <OrDivider label={dividerLabel} />
     </div>
   );
 }
@@ -936,15 +924,16 @@ function WelcomeScreen({ ctx }) {
         <div className="brand-mark w-24 h-24 rounded-[30px] flex items-center justify-center mt-7 mb-5" style={{ background: `linear-gradient(145deg, ${COLORS.primary}, ${COLORS.accent})` }}>
           <ScanLine size={40} color="#fff" />
         </div>
-        <h1 className="text-[28px] font-black mb-1 tracking-[-0.04em]" style={{ color: COLORS.text }}>KAGAT</h1>
-        <p className="text-[14px] font-semibold text-center mb-2" style={{ color: COLORS.text }}>Chaque réponse devient une opportunité d'apprendre.</p>
-        <p className="text-[12.5px] leading-5 text-center mb-9 max-w-[300px]" style={{ color: COLORS.muted }}>
-          Évaluation formative par cartes-réponses,<br />même sans connexion Internet.
-        </p>
-        {/* Groupe principal : "Se connecter" en tête, Google/Facebook juste en dessous
-            comme raccourcis rapides pour ceux qui préfèrent ne pas taper d'identifiants. */}
+        <h1 className="text-[28px] font-black mb-9 tracking-[-0.04em]" style={{ color: COLORS.text }}>KAGAT</h1>
+        {/* Groupe principal : "Se connecter" en tête, suivi du code d'invitation (2e parcours
+            d'entrée), puis Google/Facebook en raccourcis rapides pour qui ne veut pas taper
+            d'identifiants — un seul niveau d'accent (le bouton plein) pour éviter que Facebook
+            ne rivalise visuellement avec l'action principale. */}
         <div className="w-full">
           <Btn full icon={LogIn} onClick={() => ctx.nav.push("login")}>Se connecter</Btn>
+          <button onClick={() => ctx.nav.push("joinEstablishment")} className="w-full flex items-center justify-center gap-1.5 text-[12px] font-semibold mt-3.5" style={{ color: COLORS.accent }}>
+            <KeyRound size={14} /> J’ai un code d’invitation
+          </button>
           <OrDivider />
           <div className="flex flex-col gap-3">
             <SocialButton provider="google" onClick={() => quickSocialAuth(ctx, "google")} />
@@ -958,9 +947,6 @@ function WelcomeScreen({ ctx }) {
           <button onClick={() => ctx.nav.push("register")} className="text-center">
             <span className="text-[12.5px]" style={{ color: COLORS.muted }}>Vous n’avez pas de compte ? </span>
             <span className="text-[12.5px] font-bold" style={{ color: COLORS.primary }}>Créer un compte</span>
-          </button>
-          <button onClick={() => ctx.nav.push("joinEstablishment")} className="flex items-center gap-1.5 text-[12px] font-semibold" style={{ color: COLORS.accent }}>
-            <KeyRound size={14} /> J’ai un code d’invitation
           </button>
           <button onClick={() => quickIndependentDemoAuth(ctx)} className="flex items-center gap-1.5 text-[12px] font-semibold" style={{ color: COLORS.muted }}>
             <User size={14} /> Essayer comme enseignant indépendant (démo)
@@ -1130,26 +1116,19 @@ function RegisterWizardScreen({ ctx }) {
     title = "Comment voulez-vous vous inscrire ?";
     body = (
       <div className="px-4">
-        <Card className="text-center" style={{ background: `linear-gradient(180deg, ${COLORS.primarySoft}, ${COLORS.surface} 70%)`, border: "none", paddingTop: 22, paddingBottom: 18 }}>
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: "#fff", boxShadow: "0 4px 14px rgba(38,48,82,0.1)" }}>
-            <GoogleIcon size={24} />
-          </div>
-          <p className="text-[13.5px] font-extrabold mb-1" style={{ color: COLORS.text }}>Le plus rapide</p>
-          <p className="text-[11.5px] leading-5 mb-4" style={{ color: COLORS.muted }}>Compte personnel ou institutionnel, les deux fonctionnent.<br />Aucun code à saisir, aucun mot de passe à créer.</p>
-          <SocialButton provider="google" size="lg" onClick={() => chooseSocialChannel("google")} />
-        </Card>
+        <OptionCard icon={Send} title="S’inscrire avec un email" subtitle="Yahoo, Outlook, email pro… un code de vérification vous sera envoyé" onClick={() => chooseChannel("email")} />
+        <OptionCard icon={Phone} title="S’inscrire par téléphone" subtitle="Recevoir un code par SMS ou WhatsApp" onClick={() => chooseChannel("phone")} />
 
         <button onClick={() => setShowMoreOptions((v) => !v)} className="w-full flex items-center justify-center gap-1.5 mt-5 mb-1 py-1">
-          <span className="text-[12px] font-bold" style={{ color: COLORS.primary }}>{showMoreOptions ? "Masquer les autres options" : "Je n’ai pas de compte Google"}</span>
+          <span className="text-[12px] font-bold" style={{ color: COLORS.primary }}>{showMoreOptions ? "Masquer les autres options" : "S’inscrire d’une autre façon"}</span>
           <ChevronDown size={15} color={COLORS.primary} style={{ transform: showMoreOptions ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
         </button>
 
         {showMoreOptions && (
-          <div className="mt-3">
+          <div className="mt-3 flex flex-col gap-3">
             <OrDivider />
-            <div className="mb-3"><SocialButton provider="facebook" onClick={() => chooseSocialChannel("facebook")} /></div>
-            <OptionCard icon={Send} title="S’inscrire avec un email" subtitle="Yahoo, Outlook, email pro… un code de vérification vous sera envoyé" onClick={() => chooseChannel("email")} />
-            <OptionCard icon={Phone} title="S’inscrire par téléphone" subtitle="Recevoir un code par SMS ou WhatsApp" onClick={() => chooseChannel("phone")} />
+            <SocialButton provider="google" onClick={() => chooseSocialChannel("google")} />
+            <SocialButton provider="facebook" onClick={() => chooseSocialChannel("facebook")} />
           </div>
         )}
       </div>
@@ -1435,7 +1414,6 @@ function LoginScreen({ ctx }) {
     <Screen>
       <TopBar title="Connexion" onBack={() => ctx.nav.pop()} />
       <div className="px-4 pt-6">
-        <SocialAuthGroup onGoogle={() => quickSocialAuth(ctx, "google")} onFacebook={() => quickSocialAuth(ctx, "facebook")} dividerLabel="ou avec vos identifiants" />
         <Field label="Email ou téléphone"><TextInput value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Ex. karim.haddad@ecole.dz" autoCapitalize="none" /></Field>
         <Field label="Mot de passe"><TextInput type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Votre mot de passe" /></Field>
         {error && <p className="text-[12px] mb-3 font-semibold" style={{ color: COLORS.danger }}>{error}</p>}
