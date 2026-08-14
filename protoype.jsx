@@ -6,7 +6,7 @@ import {
   FileSpreadsheet, CreditCard, GraduationCap, School, Search, Home,
   PlayCircle, Camera, Save, X, ListChecks, UserCheck, UserX,
   Clock, CloudOff, UploadCloud, LogIn, Info, Pencil, MapPin, KeyRound, Copy,
-  Share2, Archive, Lock, UserPlus, Settings, LogOut, ShieldCheck, Phone, Send, Sparkles, SlidersHorizontal, Cake, Target, Mail
+  Share2, Archive, Lock, UserPlus, Settings, LogOut, ShieldCheck, Phone, Send, Sparkles, SlidersHorizontal, Cake, Target, Mail, Layers
 } from "lucide-react";
 
 /* =========================================================================
@@ -20,12 +20,12 @@ import {
 const COLORS = {
   bg: "#F6F7FB",
   surface: "#FFFFFF",
-  primary: "#3558D4",
-  primaryDark: "#20399A",
-  primarySoft: "#EBEFFF",
-  accent: "#7C4DDB",
-  accentDark: "#5630A5",
-  accentSoft: "#F2ECFF",
+  primary: "#1E77B4",
+  primaryDark: "#14335C",
+  primarySoft: "#DCEDF7",
+  accent: "#1E77B4",
+  accentDark: "#14335C",
+  accentSoft: "#DCEDF7",
   success: "#16866F",
   successSoft: "#E4F7F1",
   warning: "#B96B13",
@@ -35,6 +35,47 @@ const COLORS = {
   text: "#172033",
   muted: "#687083",
   border: "#E7E9F1",
+};
+
+/* ------------------------------ THEME (Material 3) ------------------------
+   Système central Material Design 3 pour toute l'app — couleurs par rôle,
+   échelle typographique, grille d'espacement, paliers de forme et d'icône.
+   COLORS (ci-dessus) reste la source des valeurs de marque et continue
+   d'être utilisé tel quel par le code existant ; THEME.color en est une vue
+   organisée par rôle Material, pour tout nouveau composant. THEME.type /
+   space / shape / icon sont les échelles de référence : les classes
+   Tailwind (`text-[13px]`, `rounded-[16px]`, `space-y-2`…) appliquées dans
+   les écrans doivent correspondre à ces valeurs plutôt qu'à un choix libre
+   au pixel près. */
+const THEME = {
+  color: {
+    primary: COLORS.primary, onPrimary: "#FFFFFF", primaryContainer: COLORS.primarySoft, onPrimaryContainer: COLORS.primaryDark,
+    secondary: COLORS.accent, onSecondary: "#FFFFFF", secondaryContainer: COLORS.accentSoft, onSecondaryContainer: COLORS.accentDark,
+    error: COLORS.danger, onError: "#FFFFFF", errorContainer: COLORS.dangerSoft, onErrorContainer: COLORS.danger,
+    success: COLORS.success, successContainer: COLORS.successSoft,
+    warning: COLORS.warning, warningContainer: COLORS.warningSoft,
+    surface: COLORS.surface, onSurface: COLORS.text, surfaceVariant: COLORS.bg, onSurfaceVariant: COLORS.muted,
+    outline: COLORS.border, outlineVariant: "#F0F2F7",
+  },
+  /* 7 rôles Material retenus pour une app mobile dense (Headline Small →
+     Label Small) — voir l'audit pour la correspondance avec les tailles
+     historiques qu'ils remplacent. */
+  type: {
+    headlineSmall: { fontSize: 28, fontWeight: 800, lineHeight: "34px" },
+    titleLarge: { fontSize: 18, fontWeight: 800, lineHeight: "24px" },
+    titleMedium: { fontSize: 14, fontWeight: 700, lineHeight: "20px" },
+    bodyMedium: { fontSize: 13, fontWeight: 500, lineHeight: "18px" },
+    bodySmall: { fontSize: 12, fontWeight: 500, lineHeight: "16px" },
+    labelMedium: { fontSize: 11, fontWeight: 700, lineHeight: "14px" },
+    labelSmall: { fontSize: 10, fontWeight: 700, lineHeight: "13px" },
+  },
+  /* Grille d'espacement Material — base 8dp, 4dp toléré pour les micro-écarts. */
+  space: { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 },
+  /* Paliers de forme — sm : boutons ronds/chips, md : sous-cartes et badges
+     d'icône, lg : cartes principales, full : boutons et onglets (pilule). */
+  shape: { sm: 10, md: 16, lg: 20, full: 999 },
+  /* Paliers d'icône Material — inline (texte courant), dense (rangées/listes), standard (héros). */
+  icon: { inline: 18, dense: 20, standard: 24 },
 };
 
 /* ---------------------------- DONNEES DEMO ------------------------------- */
@@ -94,6 +135,20 @@ const FRACTIONS_QUESTIONS = [
   { id: "q2", text: "Combien font 1/4 + 1/4 ?", choices: { A: "1/2", B: "1/4", C: "2/8", D: "1/8" }, correct: "A" },
   { id: "q3", text: "Quelle est la fraction la plus grande ?", choices: { A: "1/2", B: "1/3", C: "1/4", D: "1/5" }, correct: "A" },
 ];
+const DECIMALS_QUESTIONS = [
+  { id: "dq1", text: "Dans 3,45, quel chiffre représente les dixièmes ?", choices: { A: "3", B: "4", C: "5", D: "0" }, correct: "B" },
+  { id: "dq2", text: "Quel est le plus grand nombre ?", choices: { A: "2,5", B: "2,05", C: "2,45", D: "2,1" }, correct: "A" },
+  { id: "dq3", text: "Combien font 1,2 + 0,3 ?", choices: { A: "1,5", B: "1,3", C: "1,23", D: "4,5" }, correct: "A" },
+];
+const COMPARE_FRACTIONS_QUESTIONS = [
+  { id: "cq1", text: "Quelle fraction est la plus petite ?", choices: { A: "1/2", B: "1/5", C: "1/3", D: "1/4" }, correct: "B" },
+  { id: "cq2", text: "1/2 est-elle plus grande que 1/3 ?", choices: { A: "Oui", B: "Non", C: "Égales", D: "Impossible à dire" }, correct: "A" },
+];
+const GRAMMAR_QUESTIONS = [
+  { id: "gq1", text: "Quel est le participe passé du verbe « faire » ?", choices: { A: "Fais", B: "Fait", C: "Faisant", D: "Ferai" }, correct: "B" },
+  { id: "gq2", text: "Accordez : « Les fleurs que j'ai ... »", choices: { A: "cueilli", B: "cueillies", C: "cueillie", D: "cueillis" }, correct: "B" },
+  { id: "gq3", text: "Quel mot est un adverbe ?", choices: { A: "Rapide", B: "Rapidement", C: "Rapidité", D: "Rapides" }, correct: "B" },
+];
 
 function makeInitialData() {
   const studentsC1 = generateStudents(100, "a");
@@ -122,12 +177,17 @@ function makeInitialData() {
           "5e année": {
             subjects: [
               { id: "s1", name: "Mathématiques", archived: false,
-                courses: [{ id: "co1", title: "Les fractions", description: "Comprendre et manipuler les fractions", competencies: [
-                  { id: "cp1", title: "Reconnaître une fraction", description: "Identifier le numérateur et le dénominateur" },
-                  { id: "cp2", title: "Comparer des fractions", description: "Comparer des fractions simples" },
-                ] }],
+                courses: [
+                  { id: "co1", title: "Les fractions", description: "Comprendre et manipuler les fractions", competencies: [
+                    { id: "cp1", title: "Reconnaître une fraction", description: "Identifier le numérateur et le dénominateur" },
+                    { id: "cp2", title: "Comparer des fractions", description: "Comparer des fractions simples" },
+                  ] },
+                  { id: "co1b", title: "Les nombres décimaux", description: "Introduction aux nombres décimaux", competencies: [] },
+                ],
                 questionnaires: [
                   { id: "qz1", title: "Les fractions", description: "Notions de base sur les fractions", courseId: "co1", competencyIds: ["cp1"], archived: false, questions: FRACTIONS_QUESTIONS },
+                  { id: "qz1c", title: "Comparer des fractions", description: "", courseId: "co1", competencyNames: ["Comparer des fractions"], targetQuestionCount: 3, archived: false, questions: [FRACTIONS_QUESTIONS[2]] },
+                  { id: "qz1b", title: "Les nombres décimaux", description: "", courseId: "co1b", competencyNames: ["Lire un nombre décimal"], targetQuestionCount: 3, archived: false, questions: DECIMALS_QUESTIONS },
                 ] },
               { id: "s2", name: "Français", archived: false, courses: [], questionnaires: [] },
               { id: "s3", name: "Sciences", archived: false, courses: [], questionnaires: [] },
@@ -173,8 +233,9 @@ function makeInitialData() {
 
 /* Démo "enseignant indépendant" : un seul niveau, deux sections du même niveau — pour montrer
    tout de suite ce que le mode indépendant permet de voir : programme partagé entre les deux
-   classes (le même questionnaire pour les deux), mais avancement différent (5e A a déjà évalué
-   un cours, 5e B pas encore). */
+   classes (le même questionnaire pour les deux), mais avancement différent (5e A a évalué deux
+   sujets — dont un faible, pour voir tout de suite l'alerte "résultats faibles" — 5e B un seul,
+   et une évaluation encore en cours pour voir cet état aussi). */
 function makeIndependentDemoData() {
   const selfId = "t_ind1";
   const studentsA = generateStudents(12, "ia");
@@ -182,6 +243,15 @@ function makeIndependentDemoData() {
   const now = Date.now();
   const answersA = {};
   studentsA.forEach((s, i) => { answersA[s.id] = { q1: "B", q2: i % 4 === 0 ? "B" : "A", q3: "A" }; });
+  // Résultat faible (5e A, "Les nombres décimaux") — pour démontrer l'alerte "résultats faibles".
+  const weakDecimalsA = {};
+  studentsA.forEach((s, i) => { weakDecimalsA[s.id] = { dq1: "A", dq2: "C", dq3: i % 6 === 0 ? "A" : "D" }; });
+  // Bon résultat (5e B, "Les nombres décimaux") — même questionnaire partagé, avancement différent.
+  const goodDecimalsB = {};
+  studentsB.forEach((s, i) => { goodDecimalsB[s.id] = { dq1: "B", dq2: i % 5 === 0 ? "C" : "A", dq3: "A" }; });
+  // Évaluation encore en cours (5e A, Français) — seuls les premiers élèves scannés ont répondu.
+  const partialGrammarA = {};
+  studentsA.slice(0, 6).forEach((s, i) => { partialGrammarA[s.id] = { gq1: i % 3 === 0 ? "A" : "B" }; });
 
   return {
     establishment: {
@@ -212,8 +282,14 @@ function makeIndependentDemoData() {
                 ],
                 questionnaires: [
                   { id: "qz_ind1", title: "Les fractions", description: "Notions de base sur les fractions", courseId: "co_ind1", competencyIds: ["cp_ind1"], archived: false, questions: FRACTIONS_QUESTIONS },
+                  { id: "qz_ind3", title: "Comparer des fractions", description: "", courseId: "co_ind1", competencyNames: ["Comparer des fractions"], targetQuestionCount: 2, archived: false, questions: COMPARE_FRACTIONS_QUESTIONS },
+                  { id: "qz_ind2", title: "Les nombres décimaux", description: "", courseId: "co_ind2", competencyIds: ["cp_ind3"], targetQuestionCount: 3, archived: false, questions: DECIMALS_QUESTIONS },
                 ] },
-              { id: "s_ind2", name: "Français", archived: false, courses: [], questionnaires: [] },
+              { id: "s_ind2", name: "Français", archived: false,
+                courses: [{ id: "co_ind3", title: "Grammaire", description: "Accords et nature des mots", competencies: [] }],
+                questionnaires: [
+                  { id: "qz_ind4", title: "Les accords", description: "", courseId: "co_ind3", competencyNames: ["Accorder le participe passé"], targetQuestionCount: 3, archived: false, questions: GRAMMAR_QUESTIONS },
+                ] },
             ],
           },
         },
@@ -241,6 +317,30 @@ function makeIndependentDemoData() {
         participantSnapshot: studentsA.map((s) => ({ id: s.id, name: s.name, cardNumber: s.cardNumber, studentCode: s.studentCode })),
         answers: answersA, questionStatus: {}, declaredAbsentIds: [], status: "completed",
         syncStatus: "synced", lastSyncedAt: now - 3 * 86400000,
+      },
+      {
+        id: "sess_ind2", classId: "c_ind1", subjectId: "s_ind1", courseId: "co_ind2", questionnaireId: "qz_ind2", teacherId: selfId,
+        date: new Date(now - 1 * 86400000).toLocaleDateString("fr-FR"), createdAt: now - 1 * 86400000,
+        questionIds: DECIMALS_QUESTIONS.map((q) => q.id), currentQuestionIndex: DECIMALS_QUESTIONS.length - 1,
+        participantSnapshot: studentsA.map((s) => ({ id: s.id, name: s.name, cardNumber: s.cardNumber, studentCode: s.studentCode })),
+        answers: weakDecimalsA, questionStatus: {}, declaredAbsentIds: [], status: "completed",
+        syncStatus: "synced", lastSyncedAt: now - 1 * 86400000,
+      },
+      {
+        id: "sess_ind3", classId: "c_ind2", subjectId: "s_ind1", courseId: "co_ind2", questionnaireId: "qz_ind2", teacherId: selfId,
+        date: new Date(now - 2 * 86400000).toLocaleDateString("fr-FR"), createdAt: now - 2 * 86400000,
+        questionIds: DECIMALS_QUESTIONS.map((q) => q.id), currentQuestionIndex: DECIMALS_QUESTIONS.length - 1,
+        participantSnapshot: studentsB.map((s) => ({ id: s.id, name: s.name, cardNumber: s.cardNumber, studentCode: s.studentCode })),
+        answers: goodDecimalsB, questionStatus: {}, declaredAbsentIds: [], status: "completed",
+        syncStatus: "synced", lastSyncedAt: now - 2 * 86400000,
+      },
+      {
+        id: "sess_ind4", classId: "c_ind1", subjectId: "s_ind2", courseId: "co_ind3", questionnaireId: "qz_ind4", teacherId: selfId,
+        date: new Date(now).toLocaleDateString("fr-FR"), createdAt: now,
+        questionIds: GRAMMAR_QUESTIONS.map((q) => q.id), currentQuestionIndex: 1,
+        participantSnapshot: studentsA.map((s) => ({ id: s.id, name: s.name, cardNumber: s.cardNumber, studentCode: s.studentCode })),
+        answers: partialGrammarA, questionStatus: {}, declaredAbsentIds: [], status: "in_progress",
+        syncStatus: "pending", lastSyncedAt: null,
       },
     ],
   };
@@ -386,14 +486,12 @@ function getClassCourseProgress(data, cls, mySubjects) {
   mySubjects.forEach((s) => {
     const myOverrides = (cls.questionnaireOverrides || []).filter((o) => o.subjectId === s.id && !o.archived);
     (s.courses || []).forEach((course) => {
-      if (course.competencies.length === 0) return;
-      const done = course.competencies.every((comp) => {
-        const qs = s.questionnaires.filter((q) => !q.archived && (q.competencyIds || []).includes(comp.id));
-        return qs.some((q) => {
-          const override = myOverrides.find((o) => o.sourceQuestionnaireId === q.id);
-          const targetId = override ? override.id : q.id;
-          return data.sessions.some((sess) => sess.classId === cls.id && sess.subjectId === s.id && sess.questionnaireId === targetId && sess.status === "completed");
-        });
+      const qs = s.questionnaires.filter((q) => !q.archived && q.courseId === course.id);
+      if (qs.length === 0) return;
+      const done = qs.some((q) => {
+        const override = myOverrides.find((o) => o.sourceQuestionnaireId === q.id);
+        const targetId = override ? override.id : q.id;
+        return data.sessions.some((sess) => sess.classId === cls.id && sess.subjectId === s.id && sess.questionnaireId === targetId && sess.status === "completed");
       });
       items.push({ key: `${s.id}-${course.id}`, title: course.title, done, subjectId: s.id, courseId: course.id });
     });
@@ -491,12 +589,12 @@ function TopBar({ title, subtitle, onBack, right }) {
   return (
     <div className="app-topbar flex items-center gap-3 px-4 pt-3 pb-3 sticky top-0 z-20" style={{ background: "rgba(246,247,251,.94)" }}>
       {onBack ? (
-        <button onClick={onBack} className="topbar-action w-10 h-10 flex items-center justify-center rounded-[14px] -ml-1 active:scale-95 transition" aria-label="Retour">
+        <button onClick={onBack} className="topbar-action w-10 h-10 flex items-center justify-center rounded-[16px] -ml-1 active:scale-95 transition" aria-label="Retour">
           <ChevronLeft size={20} color={COLORS.primary} />
         </button>
-      ) : <div className="topbar-brand w-10 h-10 rounded-[14px] flex items-center justify-center"><GraduationCap size={20} /></div>}
+      ) : <div className="topbar-brand w-10 h-10 rounded-[16px] flex items-center justify-center"><GraduationCap size={20} /></div>}
       <div className="flex-1 min-w-0">
-        <h1 className="text-[17px] font-extrabold tracking-[-0.025em] truncate" style={{ color: COLORS.text }}>{title}</h1>
+        <h1 className="text-[18px] font-extrabold tracking-[-0.025em] truncate" style={{ color: COLORS.text }}>{title}</h1>
         {subtitle && <p className="text-[11px] truncate" style={{ color: COLORS.muted }}>{subtitle}</p>}
       </div>
       {right}
@@ -505,7 +603,7 @@ function TopBar({ title, subtitle, onBack, right }) {
 }
 
 function SectionLabel({ children }) {
-  return <div className="section-label flex items-center gap-2 px-0.5"><span /><p className="text-[10.5px] font-extrabold uppercase" style={{ color: COLORS.muted, letterSpacing: "0.09em" }}>{children}</p></div>;
+  return <div className="section-label flex items-center gap-2 px-0.5"><span /><p className="text-[11px] font-extrabold uppercase" style={{ color: COLORS.muted, letterSpacing: "0.09em" }}>{children}</p></div>;
 }
 /* Bouton d'ajout inline (cours, compétence, questionnaire…) — un vrai bouton avec bordure
    pointillée et icône +, plutôt qu'un simple lien texte souligné par la couleur : plus visible
@@ -519,9 +617,9 @@ function AddRow({ label, onClick, tone = "primary", full = true }) {
   };
   const t = tones[tone];
   return (
-    <button onClick={onClick} className={`flex items-center justify-center gap-1.5 rounded-xl shrink-0 ${full ? "w-full py-2.5" : "py-1.5 px-3"}`} style={{ border: `1.5px dashed ${t.fg}66`, background: t.bg, color: t.fg }}>
+    <button onClick={onClick} className={`flex items-center justify-center gap-1.5 rounded-[16px] shrink-0 ${full ? "w-full py-2.5" : "py-1.5 px-3"}`} style={{ border: `1.5px dashed ${t.fg}66`, background: t.bg, color: t.fg }}>
       <Plus size={13} />
-      <span className="text-[11.5px] font-bold">{label}</span>
+      <span className="text-[12px] font-bold">{label}</span>
     </button>
   );
 }
@@ -529,27 +627,45 @@ function getQuestionnaireCompetencies(subject, questionnaire) {
   const ids = questionnaire?.competencyIds || [];
   return (subject?.courses || []).flatMap((course) => course.competencies || []).filter((competency) => ids.includes(competency.id));
 }
+/* Compétences évaluées par un questionnaire, en libellés simples — priorité aux étiquettes
+   libres (competencyNames, saisies à la création du questionnaire), avec repli sur l'ancien
+   modèle à compétences réelles rattachées au cours pour les données existantes. */
+function getQuestionnaireSkillLabels(subject, questionnaire) {
+  if (questionnaire?.competencyNames?.length) return questionnaire.competencyNames;
+  return getQuestionnaireCompetencies(subject, questionnaire).map((c) => c.title);
+}
 
+/* Échelle de hauteur unique pour tous les boutons Btn de l'app (convention Material/Flutter :
+   cible tactile confortable) — fixée en minHeight plutôt que déduite du padding+police, pour
+   qu'elle reste identique quel que soit le texte ou la variante. */
+const BTN_SIZES = {
+  md: { minHeight: 48, padding: "0 20px", fontSize: 13, iconSize: 17 },
+  sm: { minHeight: 40, padding: "0 16px", fontSize: 12, iconSize: 16 },
+};
+/* Correspondance avec les 5 types de bouton Material 3 (aucun n'a de structure séparée —
+   c'est la même pilule 40/48px, seule la variante de style change) :
+     primary / danger / success / accent  → Filled   (fond plein + ombre colorée)
+     secondary                            → Filled Tonal (fond doux, sans ombre)
+     ghost                                → Outlined (contour seul)
+     text                                 → Text     (aucun décor) */
 function Btn({ children, onClick, variant = "primary", full, disabled, icon: Icon, size = "md", type = "button" }) {
-  /* Système inspiré de Material 3 (boutons Flutter) : Filled a une ombre colorée nette,
-     Tonal (secondary) un fond doux sans ombre, Outlined (ghost) juste un contour, Text
-     aucun décor — chaque variante a un seul niveau d'accent, pas de bordure + ombre + fond
-     empilés en même temps. Forme "stadium" (pilule) plutôt que des coins légèrement arrondis. */
+  /* Forme "stadium" (pilule) plutôt que des coins légèrement arrondis — chaque variante a un
+     seul niveau d'accent, pas de bordure + ombre + fond empilés en même temps. */
   const styles = {
-    primary: { background: disabled ? "#B7C0D9" : COLORS.primary, color: "#fff", border: "none", boxShadow: disabled ? "none" : "0 8px 18px rgba(53,88,212,.26)" },
-    accent: { background: disabled ? "#D3C6E8" : COLORS.accent, color: "#fff", border: "none", boxShadow: disabled ? "none" : "0 8px 18px rgba(124,77,219,.26)" },
+    primary: { background: disabled ? "#B7C0D9" : COLORS.primary, color: "#fff", border: "none", boxShadow: disabled ? "none" : "0 8px 18px rgba(30,119,180,.26)" },
+    accent: { background: disabled ? "#8FC5E0" : COLORS.accent, color: "#fff", border: "none", boxShadow: disabled ? "none" : "0 8px 18px rgba(30,119,180,.26)" },
     danger: { background: disabled ? "#EFC1BB" : COLORS.danger, color: "#fff", border: "none", boxShadow: disabled ? "none" : "0 8px 18px rgba(214,77,61,.24)" },
     success: { background: disabled ? "#AFDBCC" : COLORS.success, color: "#fff", border: "none", boxShadow: disabled ? "none" : "0 8px 18px rgba(22,134,111,.24)" },
     secondary: { background: disabled ? "#EEF1F4" : COLORS.primarySoft, color: disabled ? COLORS.muted : COLORS.primary, border: "none", boxShadow: "none" },
     ghost: { background: "transparent", color: disabled ? COLORS.muted : COLORS.primary, border: `1.5px solid ${disabled ? COLORS.border : COLORS.primary}`, boxShadow: "none" },
     text: { background: "transparent", color: disabled ? COLORS.muted : COLORS.primary, border: "none", boxShadow: "none" },
   };
-  const pad = size === "sm" ? "py-2 px-4 text-[11.5px]" : "py-3 px-5 text-[13px]";
+  const sz = BTN_SIZES[size] || BTN_SIZES.md;
   return (
     <button type={type} onClick={disabled ? undefined : onClick} disabled={disabled}
-      className={`app-button app-button--${variant} rounded-full font-semibold tracking-[0.01em] flex items-center justify-center gap-1.5 transition-all duration-150 active:scale-[0.97] ${pad} ${full ? "w-full" : ""} ${disabled ? "cursor-not-allowed" : ""}`}
-      style={styles[variant]}>
-      {Icon && <Icon size={size === "sm" ? 15 : 17} />}
+      className={`app-button app-button--${variant} rounded-full font-semibold tracking-[0.01em] flex items-center justify-center gap-1.5 transition-all duration-150 active:scale-[0.97] ${full ? "w-full" : ""} ${disabled ? "cursor-not-allowed" : ""}`}
+      style={{ ...styles[variant], minHeight: sz.minHeight, padding: sz.padding, fontSize: sz.fontSize }}>
+      {Icon && <Icon size={sz.iconSize} />}
       {children}
     </button>
   );
@@ -576,15 +692,14 @@ function FacebookIcon({ size = 18, color = "#1877F2" }) {
 }
 /* Format unique pour Google et Facebook (fond blanc, bordure, ombre légère) : seul le logo
    change entre les deux, pour qu'aucun des deux ne prenne le pas visuellement sur "Se connecter". */
-function SocialButton({ provider, onClick, disabled, size = "md" }) {
+function SocialButton({ provider, onClick, disabled }) {
   const isGoogle = provider === "google";
-  const tall = size === "lg";
   return (
     <button type="button" onClick={disabled ? undefined : onClick} disabled={disabled}
-      className="w-full flex items-center justify-center gap-3 rounded-[14px] font-bold transition active:scale-[0.98]"
+      className="w-full flex items-center justify-center gap-3 rounded-[16px] font-bold transition active:scale-[0.98]"
       style={{
-        height: tall ? 52 : 46,
-        fontSize: tall ? 14 : 13,
+        minHeight: 48,
+        fontSize: 13,
         background: "#FFFFFF",
         border: `1.5px solid ${COLORS.border}`,
         color: COLORS.text,
@@ -592,7 +707,7 @@ function SocialButton({ provider, onClick, disabled, size = "md" }) {
         opacity: disabled ? 0.5 : 1,
         cursor: disabled ? "not-allowed" : "pointer",
       }}>
-      {isGoogle ? <GoogleIcon size={tall ? 20 : 18} /> : <FacebookIcon size={tall ? 20 : 18} />}
+      {isGoogle ? <GoogleIcon size={18} /> : <FacebookIcon size={18} />}
       <span>Continuer avec {isGoogle ? "Google" : "Facebook"}</span>
     </button>
   );
@@ -619,10 +734,12 @@ function quickSocialAuth(ctx, provider) {
   ctx.enterApp("teacher");
 }
 
+/* Material 3 "Elevated card" — élévation seule (pas de bordure), rayon "Large" (16px) de
+   l'échelle de formes. Une carte ne combine jamais bordure ET ombre en Material. */
 function Card({ children, className = "", onClick, style }) {
   return (
-    <div onClick={onClick} className={`app-card rounded-[22px] p-4 ${onClick ? "app-card--interactive cursor-pointer active:scale-[0.99] transition" : ""} ${className}`}
-      style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, boxShadow: "0 8px 24px rgba(38,48,82,0.055)", ...style }}>
+    <div onClick={onClick} className={`app-card rounded-[16px] p-4 ${onClick ? "app-card--interactive cursor-pointer active:scale-[0.99] transition" : ""} ${className}`}
+      style={{ background: COLORS.surface, border: "none", boxShadow: "0 1px 2px rgba(23,32,51,0.08), 0 4px 10px rgba(23,32,51,0.06)", ...style }}>
       {children}
     </div>
   );
@@ -639,51 +756,57 @@ function Badge({ children, tone = "neutral", icon: Icon }) {
   };
   const t = tones[tone];
   return (
-    <span className="app-badge inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10.5px] font-bold" style={{ background: t.bg, color: t.fg }}>
+    <span className="app-badge inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold" style={{ background: t.bg, color: t.fg }}>
       {Icon && <Icon size={12} />}{children}
     </span>
   );
 }
 
+/* TextField Material 3 "outlined" — le label vit dans le contour du champ et migre au-dessus
+   au focus/remplissage (voir .app-field-label dans index.css). Purement visuel : les enfants
+   (TextInput/TextArea/etc.) gardent leurs props value/onChange/placeholder inchangées. */
 function Field({ label, children }) {
   return (
-    <label className="app-field block mb-4">
-      <span className="block text-[11px] font-bold mb-2 ml-0.5" style={{ color: COLORS.text }}>{label}</span>
+    <label className="app-field block relative mb-5">
       {children}
+      <span className="app-field-label">{label}</span>
     </label>
   );
 }
 
 function DemoFillButton({ onClick, label = "Utiliser un exemple de démo" }) {
-  return <button type="button" onClick={onClick} className="mb-4 inline-flex items-center gap-1.5 text-[11.5px] font-bold" style={{ color: COLORS.accent }}><Sparkles size={14} />{label}</button>;
+  return <button type="button" onClick={onClick} className="mb-4 inline-flex items-center gap-1.5 text-[12px] font-bold" style={{ color: COLORS.accent }}><Sparkles size={18} />{label}</button>;
 }
 
 function OfflineVerificationState({ onRetry, onEdit }) {
   return (
     <div className="px-4 pt-6">
       <Card className="text-center py-6" style={{ background: COLORS.warningSoft, border: "none" }}>
-        <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: "#fff" }}><WifiOff size={25} color={COLORS.warning} /></div>
+        <div className="w-14 h-14 rounded-[16px] flex items-center justify-center mx-auto mb-3" style={{ background: "#fff" }}><WifiOff size={24} color={COLORS.warning} /></div>
         <Badge tone="warning" icon={Clock}>En attente de connexion</Badge>
-        <p className="text-[15px] font-bold mt-4 mb-2" style={{ color: COLORS.text }}>Vérification nécessaire</p>
-        <p className="text-[12.5px] leading-5" style={{ color: COLORS.muted }}>Vous êtes hors ligne. Votre compte sera vérifié dès la reconnexion.</p>
+        <p className="text-[14px] font-bold mt-4 mb-2" style={{ color: COLORS.text }}>Vérification nécessaire</p>
+        <p className="text-[13px] leading-5" style={{ color: COLORS.muted }}>Vous êtes hors ligne. Votre compte sera vérifié dès la reconnexion.</p>
       </Card>
-      <Card className="my-4 flex items-start gap-3"><Lock size={18} color={COLORS.primary} className="shrink-0 mt-0.5" /><p className="text-[11.5px] leading-5" style={{ color: COLORS.muted }}>L’accès à KAGAT reste verrouillé jusqu’à la synchronisation et la vérification de votre compte.</p></Card>
+      <Card className="my-4 flex items-start gap-3"><Lock size={18} color={COLORS.primary} className="shrink-0 mt-0.5" /><p className="text-[12px] leading-5" style={{ color: COLORS.muted }}>L’accès à KAGAT reste verrouillé jusqu’à la synchronisation et la vérification de votre compte.</p></Card>
       <Btn full icon={RefreshCw} onClick={onRetry}>Réessayer la connexion</Btn>
       <div className="mt-2"><Btn full variant="ghost" icon={Pencil} onClick={onEdit}>Modifier mes informations</Btn></div>
     </div>
   );
 }
 
-const inputStyle = { width: "100%", padding: "12px 13px", minHeight: 46, borderRadius: 14, border: `1px solid ${COLORS.border}`, fontSize: 13.5, color: COLORS.text, background: "#FFFFFF", outline: "none" };
-function TextInput(props) { return <input {...props} style={{ ...inputStyle, ...(props.style || {}) }} />; }
-function TextArea(props) { return <textarea {...props} style={{ ...inputStyle, resize: "none", ...(props.style || {}) }} />; }
+/* padding-top généreux : c'est l'espace que le label "outlined" occupe au repos avant de
+   migrer au-dessus du champ (voir Field). Rayon 8px — plus petit que les boutons/cartes,
+   conforme au shape "extra small" que Material réserve aux champs de saisie. */
+const inputStyle = { width: "100%", padding: "20px 13px 8px", minHeight: 52, borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13.5, color: COLORS.text, background: "#FFFFFF", outline: "none" };
+function TextInput(props) { return <input placeholder=" " {...props} style={{ ...inputStyle, ...(props.style || {}) }} />; }
+function TextArea(props) { return <textarea placeholder=" " {...props} style={{ ...inputStyle, resize: "none", ...(props.style || {}) }} />; }
 /* Barre de recherche unique, réutilisée partout où on filtre une liste (élèves, enseignants…) —
    avant, certains écrans utilisaient TextInput (fond blanc, bordure) et d'autres un champ avec
    icône (fond gris, sans bordure) : deux styles différents pour la même action. */
 function SearchInput({ value, onChange, placeholder, autoFocus, className = "" }) {
   return (
-    <div className={`flex items-center gap-2 px-3.5 rounded-2xl ${className}`} style={{ background: "#F2F4F7", minHeight: 44 }}>
-      <Search size={15} color={COLORS.muted} className="shrink-0" />
+    <div className={`flex items-center gap-2 px-3.5 rounded-[16px] ${className}`} style={{ background: "#F2F4F7", minHeight: 44 }}>
+      <Search size={18} color={COLORS.muted} className="shrink-0" />
       <input autoFocus={autoFocus} value={value} onChange={onChange} placeholder={placeholder} className="flex-1 bg-transparent outline-none text-[13px]" style={{ color: COLORS.text }} />
     </div>
   );
@@ -692,11 +815,11 @@ function SearchInput({ value, onChange, placeholder, autoFocus, className = "" }
 function EmptyState({ icon: Icon, title, text, action }) {
   return (
     <div className="empty-state flex flex-col items-center text-center py-10 px-6">
-      <div className="empty-state-icon w-16 h-16 rounded-[22px] flex items-center justify-center mb-4" style={{ background: COLORS.primarySoft }}>
-        <Icon size={27} color={COLORS.primary} />
+      <div className="empty-state-icon w-16 h-16 rounded-[20px] flex items-center justify-center mb-4" style={{ background: COLORS.primarySoft }}>
+        <Icon size={24} color={COLORS.primary} />
       </div>
       <p className="font-bold text-[14px] mb-1" style={{ color: COLORS.text }}>{title}</p>
-      <p className="text-[12.5px] mb-4" style={{ color: COLORS.muted }}>{text}</p>
+      <p className="text-[13px] mb-4" style={{ color: COLORS.muted }}>{text}</p>
       {action}
     </div>
   );
@@ -712,9 +835,9 @@ function TypedConfirmModal({ open, title, text, confirmWord, onCancel, onConfirm
   return (
     <div className="absolute inset-0 z-50 flex items-end justify-center" style={{ background: "rgba(15,23,33,0.45)" }}>
       <div className="w-full rounded-t-2xl p-5" style={{ background: COLORS.surface }}>
-        <p className="font-bold text-[15px] mb-1" style={{ color: COLORS.text }}>{title}</p>
+        <p className="font-bold text-[14px] mb-1" style={{ color: COLORS.text }}>{title}</p>
         <p className="text-[13px] mb-3" style={{ color: COLORS.muted }}>{text}</p>
-        <p className="text-[11.5px] mb-1.5 font-semibold" style={{ color: COLORS.text }}>Tapez « {confirmWord} » pour confirmer :</p>
+        <p className="text-[12px] mb-1.5 font-semibold" style={{ color: COLORS.text }}>Tapez « {confirmWord} » pour confirmer :</p>
         <TextInput autoFocus value={value} onChange={(e) => setValue(e.target.value)} placeholder={confirmWord} style={{ marginBottom: 12 }} />
         <div className="flex gap-2">
           <Btn variant="ghost" full onClick={onCancel}>Annuler</Btn>
@@ -725,11 +848,11 @@ function TypedConfirmModal({ open, title, text, confirmWord, onCancel, onConfirm
   );
 }
 
-/* Célébration — réservée aux vrais moments forts, d'où le violet accent utilisé nulle part ailleurs pour un fond plein */
+/* Célébration — réservée aux vrais moments forts, d'où le bleu accent utilisé nulle part ailleurs pour un fond plein */
 function CelebrationOverlay({ average, onClose }) {
   return (
     <div className="absolute inset-0 z-[80] flex items-center justify-center px-8" style={{ background: "rgba(15,23,33,0.55)" }}>
-      <div className="w-full rounded-3xl p-6 text-center" style={{ background: COLORS.surface }}>
+      <div className="w-full rounded-[20px] p-6 text-center" style={{ background: COLORS.surface }}>
         <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: COLORS.accentSoft }}>
           <Sparkles size={30} color={COLORS.accent} />
         </div>
@@ -747,11 +870,11 @@ function ToastHost({ toasts, onDismiss }) {
   return (
     <div className="absolute left-0 right-0 z-[70] px-4 flex flex-col gap-2 items-center pointer-events-none" style={{ bottom: 78 }}>
       {toasts.map((t) => (
-        <div key={t.id} className="w-full max-w-[340px] flex items-center gap-2.5 px-4 py-3 rounded-2xl pointer-events-auto" style={{ background: "#1F2933", boxShadow: "0 10px 28px rgba(15,23,33,0.3)" }}>
-          {t.tone === "success" ? <CheckCircle2 size={16} color="#8FE3C7" className="shrink-0" /> : <Info size={16} color="#CFE0F5" className="shrink-0" />}
-          <span className="flex-1 text-[12.5px] text-white">{t.message}</span>
+        <div key={t.id} className="w-full max-w-[340px] flex items-center gap-2.5 px-4 py-3 rounded-[16px] pointer-events-auto" style={{ background: "#1F2933", boxShadow: "0 10px 28px rgba(15,23,33,0.3)" }}>
+          {t.tone === "success" ? <CheckCircle2 size={18} color="#8FE3C7" className="shrink-0" /> : <Info size={18} color="#CFE0F5" className="shrink-0" />}
+          <span className="flex-1 text-[13px] text-white">{t.message}</span>
           {t.actionLabel && (
-            <button onClick={() => { t.onAction?.(); onDismiss(t.id); }} className="text-[12px] font-bold shrink-0" style={{ color: "#C9A8F0" }}>{t.actionLabel}</button>
+            <button onClick={() => { t.onAction?.(); onDismiss(t.id); }} className="text-[12px] font-bold shrink-0" style={{ color: "#8FC5E0" }}>{t.actionLabel}</button>
           )}
         </div>
       ))}
@@ -764,7 +887,7 @@ function ConfirmModal({ open, title, text, onCancel, onConfirm, confirmLabel = "
   return (
     <div className="absolute inset-0 z-50 flex items-end justify-center" style={{ background: "rgba(15,23,33,0.45)" }}>
       <div className="w-full rounded-t-2xl p-5" style={{ background: COLORS.surface }}>
-        <p className="font-bold text-[15px] mb-1" style={{ color: COLORS.text }}>{title}</p>
+        <p className="font-bold text-[14px] mb-1" style={{ color: COLORS.text }}>{title}</p>
         <p className="text-[13px] mb-4" style={{ color: COLORS.muted }}>{text}</p>
         <div className="flex gap-2">
           <Btn variant="ghost" full onClick={onCancel}>Annuler</Btn>
@@ -778,13 +901,13 @@ function ConfirmModal({ open, title, text, onCancel, onConfirm, confirmLabel = "
 function OptionCard({ selected, onClick, title, subtitle, icon: Icon, disabled }) {
   return (
     <Card onClick={disabled ? undefined : onClick} className="flex items-center gap-3 mb-2"
-      style={{ opacity: disabled ? 0.45 : 1, borderColor: selected ? COLORS.primary : COLORS.border, borderWidth: selected ? 2 : 1, background: selected ? COLORS.primarySoft : COLORS.surface }}>
-      <div className="option-icon w-11 h-11 rounded-[15px] flex items-center justify-center shrink-0" style={{ background: selected ? COLORS.primary : COLORS.primarySoft }}>
+      style={{ opacity: disabled ? 0.45 : 1, border: selected ? `2px solid ${COLORS.primary}` : `1px solid ${COLORS.border}`, background: selected ? COLORS.primarySoft : COLORS.surface }}>
+      <div className="option-icon w-11 h-11 rounded-[16px] flex items-center justify-center shrink-0" style={{ background: selected ? COLORS.primary : COLORS.primarySoft }}>
         <Icon size={18} color={selected ? "#fff" : COLORS.primary} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-bold text-[13.5px] truncate" style={{ color: COLORS.text }}>{title}</p>
-        {subtitle && <p className="text-[11.5px] truncate" style={{ color: COLORS.muted }}>{subtitle}</p>}
+        <p className="font-bold text-[14px] truncate" style={{ color: COLORS.text }}>{title}</p>
+        {subtitle && <p className="text-[12px] truncate" style={{ color: COLORS.muted }}>{subtitle}</p>}
       </div>
       {selected && <CheckCircle2 size={20} color={COLORS.primary} />}
     </Card>
@@ -799,7 +922,7 @@ function WizardProgress({ step, totalSteps, crumbs = [], labels = [], helperText
         <div>
           <div className="flex items-center gap-2">
             <span className="wizard-count">{String(safeStep + 1).padStart(2, "0")}</span>
-            <div><p className="text-[12px] font-extrabold" style={{ color: COLORS.text }}>{activeLabel}</p><p className="text-[9.5px] font-semibold mt-0.5" style={{ color: COLORS.muted }}>{helperText || "Quelques secondes suffisent"}</p></div>
+            <div><p className="text-[12px] font-extrabold" style={{ color: COLORS.text }}>{activeLabel}</p><p className="text-[10px] font-semibold mt-0.5" style={{ color: COLORS.muted }}>{helperText || "Quelques secondes suffisent"}</p></div>
           </div>
         </div>
         <span className="text-[10px] font-bold shrink-0" style={{ color: COLORS.muted }}>{safeStep + 1}/{totalSteps}</span>
@@ -829,8 +952,8 @@ const ADMIN_TABS = [
 ];
 const TEACHER_TABS = [
   { key: "accueil", label: "Accueil", icon: Home, root: "teacherDashboard" },
-  { key: "programme", label: "Programme", icon: School, root: "teacherYears" },
-  { key: "evaluations", label: "Évaluations", icon: ClipboardList, root: "evaluationsList" },
+  { key: "programme", label: "Classes", icon: School, root: "teacherYears" },
+  { key: "evaluations", label: "Évaluer", icon: ClipboardList, root: "evaluationsList" },
   { key: "profil", label: "Profil", icon: User, root: "myProfile" },
 ];
 /* Compte indépendant : un seul enseignant qui gère aussi ses classes/matières — tabs fusionnés */
@@ -849,15 +972,18 @@ function getTabsFor(ctx) {
 function BottomTabBar({ ctx }) {
   const tabs = getTabsFor(ctx);
   return (
-    <div className="app-bottom-nav flex items-stretch px-2 pt-2 pb-2 sticky bottom-0 z-20" style={{ background: "rgba(255,255,255,.96)" }}>
+    <div className="app-bottom-nav flex items-stretch px-1 pt-2 pb-2 sticky bottom-0 z-20" style={{ background: "rgba(255,255,255,.96)" }}>
       {tabs.map((t) => {
         const active = ctx.nav.activeTab === t.key;
         return (
-          <button key={t.key} onClick={() => ctx.nav.switchTab(t.key)} className="flex-1 flex flex-col items-center gap-1 py-1">
-            <div className="nav-icon w-12 flex items-center justify-center rounded-full py-1.5 transition-all" style={{ background: active ? COLORS.primarySoft : "transparent", transform: active ? "translateY(-1px)" : "none" }}>
-              <t.icon size={19} color={active ? COLORS.primary : COLORS.muted} />
+          <button key={t.key} onClick={() => ctx.nav.switchTab(t.key)} className="flex-1 min-w-0 flex flex-col items-center gap-1 py-1 px-0.5">
+            {/* Indicateur Material NavigationBar : pilule derrière l'icône active — taille
+               "dense" (icône 20px, pilule 56×28) plutôt que "standard" (24/64), pour rester
+               lisible même sur la barre à 5 onglets côté gestionnaire, sur un écran de téléphone. */}
+            <div className="nav-icon w-14 h-7 flex items-center justify-center rounded-full transition-all" style={{ background: active ? COLORS.primarySoft : "transparent", transform: active ? "translateY(-1px)" : "none" }}>
+              <t.icon size={THEME.icon.dense} color={active ? COLORS.primary : COLORS.muted} />
             </div>
-            <span className="text-[10px] font-semibold" style={{ color: active ? COLORS.primary : COLORS.muted }}>{t.label}</span>
+            <span className="text-[11px] font-semibold truncate max-w-full" style={{ color: active ? COLORS.primary : COLORS.muted }}>{t.label}</span>
           </button>
         );
       })}
@@ -871,7 +997,7 @@ function SyncIndicator({ ctx }) {
   const bg = alert.level === "critical" ? COLORS.dangerSoft : alert.level === "warning" ? COLORS.warningSoft : COLORS.successSoft;
   return (
     <button onClick={() => ctx.nav.push("sync")} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full" style={{ background: ctx.isOnline ? bg : COLORS.warningSoft }}>
-      {ctx.isOnline ? <Wifi size={14} color={tone} /> : <WifiOff size={14} color={COLORS.warning} />}
+      {ctx.isOnline ? <Wifi size={18} color={tone} /> : <WifiOff size={18} color={COLORS.warning} />}
       {alert.count > 0 && <span className="text-[10px] font-bold px-1.5 rounded-full" style={{ background: tone, color: "#fff" }}>{alert.count}</span>}
     </button>
   );
@@ -885,7 +1011,7 @@ function OnboardingTip({ ctx, text }) {
     <Card className="flex items-start gap-3" style={{ background: COLORS.accentSoft, border: "none" }}>
       <Info size={18} color={COLORS.accent} className="mt-0.5 shrink-0" />
       <p className="text-[12px] flex-1" style={{ color: COLORS.accentDark }}>{text}</p>
-      <button onClick={() => ctx.setOnboardingSeen(true)} className="shrink-0"><X size={16} color={COLORS.accent} /></button>
+      <button onClick={() => ctx.setOnboardingSeen(true)} className="shrink-0"><X size={18} color={COLORS.accent} /></button>
     </Card>
   );
 }
@@ -899,7 +1025,7 @@ function SplashScreen({ ctx }) {
       <div className="welcome-hero flex flex-col items-center px-6" style={{ justifyContent: "space-between", paddingTop: 72, paddingBottom: 40 }}>
         <span />
         <div className="flex flex-col items-center">
-          <div className="brand-mark w-28 h-28 rounded-[34px] flex items-center justify-center mb-6" style={{ background: `linear-gradient(145deg, ${COLORS.primary}, ${COLORS.accent})`, boxShadow: "0 18px 40px rgba(53,88,212,0.28)" }}>
+          <div className="brand-mark w-28 h-28 rounded-[34px] flex items-center justify-center mb-6" style={{ background: COLORS.primary, boxShadow: "0 18px 40px rgba(30,119,180,0.32)" }}>
             <ScanLine size={46} color="#fff" />
           </div>
           <h1 className="text-[34px] font-black mb-2 tracking-[-0.045em]" style={{ color: COLORS.text }}>KAGAT</h1>
@@ -921,7 +1047,7 @@ function WelcomeScreen({ ctx }) {
     <Screen>
       <div className="welcome-hero flex flex-col items-center justify-center pt-14 px-6 pb-8">
         <Badge tone="success" icon={Wifi}>Conçu pour fonctionner hors ligne</Badge>
-        <div className="brand-mark w-24 h-24 rounded-[30px] flex items-center justify-center mt-7 mb-5" style={{ background: `linear-gradient(145deg, ${COLORS.primary}, ${COLORS.accent})` }}>
+        <div className="brand-mark w-24 h-24 rounded-[30px] flex items-center justify-center mt-7 mb-5" style={{ background: COLORS.primary }}>
           <ScanLine size={40} color="#fff" />
         </div>
         <h1 className="text-[28px] font-black mb-9 tracking-[-0.04em]" style={{ color: COLORS.text }}>KAGAT</h1>
@@ -932,7 +1058,7 @@ function WelcomeScreen({ ctx }) {
         <div className="w-full">
           <Btn full icon={LogIn} onClick={() => ctx.nav.push("login")}>Se connecter</Btn>
           <button onClick={() => ctx.nav.push("joinEstablishment")} className="w-full flex items-center justify-center gap-1.5 text-[12px] font-semibold mt-3.5" style={{ color: COLORS.accent }}>
-            <KeyRound size={14} /> J’ai un code d’invitation
+            <KeyRound size={18} /> J’ai un code d’invitation
           </button>
           <OrDivider />
           <div className="flex flex-col gap-3">
@@ -945,11 +1071,11 @@ function WelcomeScreen({ ctx }) {
             qui arrivent ici sans compte — visible, mais sans concurrencer l'action principale. */}
         <div className="w-full mt-6 pt-5 flex flex-col items-center gap-3.5" style={{ borderTop: `1px solid ${COLORS.border}` }}>
           <button onClick={() => ctx.nav.push("register")} className="text-center">
-            <span className="text-[12.5px]" style={{ color: COLORS.muted }}>Vous n’avez pas de compte ? </span>
-            <span className="text-[12.5px] font-bold" style={{ color: COLORS.primary }}>Créer un compte</span>
+            <span className="text-[13px]" style={{ color: COLORS.muted }}>Vous n’avez pas de compte ? </span>
+            <span className="text-[13px] font-bold" style={{ color: COLORS.primary }}>Créer un compte</span>
           </button>
           <button onClick={() => quickIndependentDemoAuth(ctx)} className="flex items-center gap-1.5 text-[12px] font-semibold" style={{ color: COLORS.muted }}>
-            <User size={14} /> Essayer comme enseignant indépendant (démo)
+            <User size={18} /> Essayer comme enseignant indépendant (démo)
           </button>
         </div>
       </div>
@@ -1121,7 +1247,7 @@ function RegisterWizardScreen({ ctx }) {
 
         <button onClick={() => setShowMoreOptions((v) => !v)} className="w-full flex items-center justify-center gap-1.5 mt-5 mb-1 py-1">
           <span className="text-[12px] font-bold" style={{ color: COLORS.primary }}>{showMoreOptions ? "Masquer les autres options" : "S’inscrire d’une autre façon"}</span>
-          <ChevronDown size={15} color={COLORS.primary} style={{ transform: showMoreOptions ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
+          <ChevronDown size={18} color={COLORS.primary} style={{ transform: showMoreOptions ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
         </button>
 
         {showMoreOptions && (
@@ -1152,7 +1278,7 @@ function RegisterWizardScreen({ ctx }) {
     title = "Vérification";
     body = (
       <div className="px-4">
-        <p className="text-[12.5px] mb-4" style={{ color: COLORS.muted }}>Un code à 6 chiffres a été envoyé {channel === "email" ? "par email" : "par SMS ou WhatsApp"} à <b>{masked}</b>.</p>
+        <p className="text-[13px] mb-4" style={{ color: COLORS.muted }}>Un code à 6 chiffres a été envoyé {channel === "email" ? "par email" : "par SMS ou WhatsApp"} à <b>{masked}</b>.</p>
         <DemoFillButton onClick={() => { setCodeInput(demoCode); setVerifyError(""); }} label="Saisir automatiquement le code de test" />
         <Field label="Code de vérification">
           <TextInput autoFocus value={codeInput} onChange={(e) => { setCodeInput(e.target.value); setVerifyError(""); }} placeholder="123456" maxLength={6} style={{ letterSpacing: "0.3em", fontSize: 18, textAlign: "center" }} />
@@ -1171,12 +1297,12 @@ function RegisterWizardScreen({ ctx }) {
           <Card className="mb-4 flex items-start gap-3" style={{ background: COLORS.successSoft, border: "none" }}>
             {socialProvider === "google" ? <GoogleIcon size={20} /> : <FacebookIcon size={20} />}
             <div>
-              <p className="text-[12.5px] font-bold" style={{ color: COLORS.success }}>Vérifié automatiquement via {socialProvider === "google" ? "Google" : "Facebook"}</p>
-              <p className="text-[11.5px] mt-1 leading-5" style={{ color: COLORS.muted }}>Nous avons récupéré votre nom et votre email depuis votre profil. Vérifiez-les puis complétez le reste.</p>
+              <p className="text-[13px] font-bold" style={{ color: COLORS.success }}>Vérifié automatiquement via {socialProvider === "google" ? "Google" : "Facebook"}</p>
+              <p className="text-[12px] mt-1 leading-5" style={{ color: COLORS.muted }}>Nous avons récupéré votre nom et votre email depuis votre profil. Vérifiez-les puis complétez le reste.</p>
             </div>
           </Card>
         ) : (
-          <p className="text-[12.5px] mb-4" style={{ color: COLORS.muted }}>Compte vérifié. Parlez-nous un peu de vous.</p>
+          <p className="text-[13px] mb-4" style={{ color: COLORS.muted }}>Compte vérifié. Parlez-nous un peu de vous.</p>
         )}
         <DemoFillButton onClick={() => { setName(accountType === "institution" ? "Karim Haddad" : "Nadia Amari"); setNationality("Algérienne"); setPersonCountry("Algérie"); setPersonCity("Alger"); setBirthDate("1990-05-15"); setGender(accountType === "institution" ? "M" : "F"); }} />
         <Field label="Nom complet"><TextInput autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex. Karim Haddad" /></Field>
@@ -1215,7 +1341,7 @@ function RegisterWizardScreen({ ctx }) {
     const setS = (k) => (e) => setSchool((s) => ({ ...s, [k]: e.target.value }));
     body = (
       <div className="px-4">
-        <p className="text-[12.5px] mb-4" style={{ color: COLORS.muted }}>Dernière étape avant d'entrer dans l'application.</p>
+        <p className="text-[13px] mb-4" style={{ color: COLORS.muted }}>Dernière étape avant d'entrer dans l'application.</p>
         <DemoFillButton onClick={() => setSchool({ name: accountType === "independent" ? "Mon espace pédagogique" : "École Démo KAGAT", country: "Algérie", region: "Alger", city: "Alger", type: "Public", level: "Primaire" })} />
         <Field label={accountType === "independent" ? "Nom de l'école (ou un nom de votre choix)" : "Nom de l'établissement"}><TextInput autoFocus value={school.name} onChange={setS("name")} placeholder="Ex. École Al Amal" /></Field>
         <div className="grid grid-cols-2 gap-2">
@@ -1316,7 +1442,7 @@ function JoinEstablishmentScreen({ ctx }) {
       {waitingForConnection ? <OfflineVerificationState onRetry={() => ctx.isOnline ? findInvitation() : ctx.showToast("Aucune connexion détectée", { tone: "warning" })} onEdit={() => setWaitingForConnection(false)} /> : <div className="px-4 pt-5">
         <div className="flex items-center justify-center gap-2 mb-5">{[0, 1, 2, 3].map((n) => <div key={n} className="h-1.5 w-10 rounded-full" style={{ background: n <= step ? COLORS.primary : COLORS.border }} />)}</div>
         {step === 0 && <>
-          <Card className="mb-4" style={{ background: COLORS.primarySoft, border: "none" }}><p className="text-[13px] font-bold" style={{ color: COLORS.primaryDark }}>Enseignant(e) : accédez à votre école</p><p className="text-[11.5px] mt-1 leading-5" style={{ color: COLORS.muted }}>Demandez un code à votre établissement ou utilisez votre email officiel.</p></Card>
+          <Card className="mb-4" style={{ background: COLORS.primarySoft, border: "none" }}><p className="text-[13px] font-bold" style={{ color: COLORS.primaryDark }}>Enseignant(e) : accédez à votre école</p><p className="text-[12px] mt-1 leading-5" style={{ color: COLORS.muted }}>Demandez un code à votre établissement ou utilisez votre email officiel.</p></Card>
           <DemoFillButton onClick={prepareDemoInvitation} label="Utiliser une invitation de démonstration" />
           <OptionCard icon={Send} title="Email institutionnel" subtitle="Retrouver l’invitation associée à mon email officiel" selected={accessMethod === "email"} onClick={() => { setAccessMethod("email"); setError(""); }} />
           <OptionCard icon={KeyRound} title="Code d’invitation" subtitle="Saisir le code transmis par mon établissement" selected={accessMethod === "code"} onClick={() => { setAccessMethod("code"); setError(""); }} />
@@ -1326,15 +1452,15 @@ function JoinEstablishmentScreen({ ctx }) {
           <Btn full icon={ArrowRight} disabled={!accessMethod || (accessMethod === "email" ? !institutionalEmail.trim() : !inviteCode.trim())} onClick={findInvitation}>Continuer</Btn>
         </>}
         {step === 1 && invitation && <>
-          <Card className="mb-4" style={{ background: COLORS.successSoft, border: "none" }}><p className="text-[12.5px] font-bold" style={{ color: COLORS.success }}>{invitation.establishmentName}</p><p className="text-[11.5px] mt-1" style={{ color: COLORS.muted }}>Invitation destinée à {invitation.email}</p></Card>
-          <p className="text-[12.5px] mb-3" style={{ color: COLORS.text }}>Un code de vérification a été envoyé à votre email.</p>
+          <Card className="mb-4" style={{ background: COLORS.successSoft, border: "none" }}><p className="text-[13px] font-bold" style={{ color: COLORS.success }}>{invitation.establishmentName}</p><p className="text-[12px] mt-1" style={{ color: COLORS.muted }}>Invitation destinée à {invitation.email}</p></Card>
+          <p className="text-[13px] mb-3" style={{ color: COLORS.text }}>Un code de vérification a été envoyé à votre email.</p>
           <DemoFillButton onClick={() => { setVerificationCode(demoCode); setError(""); }} label="Utiliser le code de démonstration" />
           <Field label="Code de vérification"><TextInput autoFocus value={verificationCode} onChange={(e) => { setVerificationCode(e.target.value); setError(""); }} placeholder="123456" maxLength={6} style={{ textAlign: "center", letterSpacing: "0.2em" }} /></Field>
           {error && <p className="text-[12px] mb-3 font-semibold" style={{ color: COLORS.danger }}>{error}</p>}
           <Btn full icon={ShieldCheck} disabled={verificationCode.length < 6} onClick={verifyEmail}>Vérifier mon email</Btn>
         </>}
         {step === 2 && invitation && <>
-          <p className="text-[14px] font-bold mb-1" style={{ color: COLORS.text }}>Vos informations</p><p className="text-[11.5px] mb-4" style={{ color: COLORS.muted }}>Complétez votre profil pour rejoindre {invitation.establishmentName}.</p>
+          <p className="text-[14px] font-bold mb-1" style={{ color: COLORS.text }}>Vos informations</p><p className="text-[12px] mb-4" style={{ color: COLORS.muted }}>Complétez votre profil pour rejoindre {invitation.establishmentName}.</p>
           <DemoFillButton onClick={() => { setName(invitation.name || "Amina Enseignante"); setNationality("Algérienne"); setCountry("Algérie"); setCity("Alger"); setBirthDate("1992-04-18"); setGender("F"); }} />
           <Field label="Nom complet"><TextInput autoFocus value={name} onChange={(e) => setName(e.target.value)} /></Field>
           <Field label="Email vérifié"><TextInput value={invitation.email} readOnly style={{ background: "#F2F4F7", color: COLORS.muted }} /></Field>
@@ -1351,13 +1477,13 @@ function JoinEstablishmentScreen({ ctx }) {
           <Btn full icon={ArrowRight} disabled={!name.trim()} onClick={continueToPassword}>Continuer</Btn>
         </>}
         {step === 3 && invitation && <>
-          <Card className="mb-4 flex items-start gap-3" style={{ background: COLORS.successSoft, border: "none" }}><ShieldCheck size={19} color={COLORS.success} className="shrink-0 mt-0.5" /><div><p className="text-[12.5px] font-bold" style={{ color: COLORS.success }}>Profil vérifié</p><p className="text-[11.5px] mt-1" style={{ color: COLORS.muted }}>Choisissez maintenant un mot de passe personnel et sécurisé.</p></div></Card>
+          <Card className="mb-4 flex items-start gap-3" style={{ background: COLORS.successSoft, border: "none" }}><ShieldCheck size={20} color={COLORS.success} className="shrink-0 mt-0.5" /><div><p className="text-[13px] font-bold" style={{ color: COLORS.success }}>Profil vérifié</p><p className="text-[12px] mt-1" style={{ color: COLORS.muted }}>Choisissez maintenant un mot de passe personnel et sécurisé.</p></div></Card>
           <DemoFillButton onClick={() => { setPassword("Demo2026!"); setConfirm("Demo2026!"); setError(""); }} />
           <Field label="Créer un mot de passe"><TextInput type="password" value={password} onChange={(e) => { setPassword(e.target.value); setError(""); }} placeholder="Au moins 6 caractères" /></Field>
           <Field label="Confirmer le mot de passe"><TextInput type="password" value={confirm} onChange={(e) => { setConfirm(e.target.value); setError(""); }} placeholder="Répétez le mot de passe" /></Field>
           {error && <p className="text-[12px] mb-3 font-semibold" style={{ color: COLORS.danger }}>{error}</p>}
           <Btn full icon={UserCheck} disabled={password.length < 6 || !confirm} onClick={finish}>Créer mon compte et rejoindre</Btn>
-          <p className="text-[10.5px] text-center mt-3" style={{ color: COLORS.muted }}>Votre mot de passe reste personnel et n’est jamais transmis à l’administrateur.</p>
+          <p className="text-[11px] text-center mt-3" style={{ color: COLORS.muted }}>Votre mot de passe reste personnel et n’est jamais transmis à l’administrateur.</p>
         </>}
       </div>}
     </Screen>
@@ -1419,8 +1545,8 @@ function LoginScreen({ ctx }) {
         {error && <p className="text-[12px] mb-3 font-semibold" style={{ color: COLORS.danger }}>{error}</p>}
 
         <Card className="flex items-center gap-2 mb-5">
-          {ctx.isOnline ? <Wifi size={17} color={COLORS.success} /> : <WifiOff size={17} color={COLORS.warning} />}
-          <span className="text-[12.5px]" style={{ color: COLORS.muted }}>
+          {ctx.isOnline ? <Wifi size={18} color={COLORS.success} /> : <WifiOff size={18} color={COLORS.warning} />}
+          <span className="text-[13px]" style={{ color: COLORS.muted }}>
             {ctx.isOnline ? "Connexion détectée — vos données se synchroniseront automatiquement." : "Aucune connexion détectée — vous pouvez vous connecter hors ligne, tout se synchronisera dès le retour du réseau."}
           </span>
         </Card>
@@ -1437,8 +1563,8 @@ function LoginScreen({ ctx }) {
 
         <div className="w-full mt-6 pt-5 text-center" style={{ borderTop: `1px solid ${COLORS.border}` }}>
           <button onClick={() => ctx.nav.push("register")}>
-            <span className="text-[12.5px]" style={{ color: COLORS.muted }}>Pas encore de compte ? </span>
-            <span className="text-[12.5px] font-bold" style={{ color: COLORS.primary }}>Créer un compte</span>
+            <span className="text-[13px]" style={{ color: COLORS.muted }}>Pas encore de compte ? </span>
+            <span className="text-[13px] font-bold" style={{ color: COLORS.primary }}>Créer un compte</span>
           </button>
         </div>
       </div>
@@ -1495,7 +1621,7 @@ function ForcedPasswordChangeScreen({ ctx }) {
       <TopBar title="Choisissez votre mot de passe" />
       <div className="px-4 pt-6">
         <Card className="mb-4" style={{ background: COLORS.primarySoft, border: "none" }}>
-          <p className="text-[12.5px]" style={{ color: COLORS.primaryDark }}>
+          <p className="text-[13px]" style={{ color: COLORS.primaryDark }}>
             Bienvenue {teacher.name}. Pour votre sécurité, remplacez le mot de passe temporaire reçu par un mot de passe personnel avant de continuer.
           </p>
         </Card>
@@ -1553,28 +1679,28 @@ function MyProfileScreen({ ctx }) {
         <Card className="mb-4">
           <div className="flex items-center justify-between mb-3"><p className="text-[11px] font-bold uppercase" style={{ color: COLORS.muted, letterSpacing: "0.06em" }}>Informations du compte</p><Badge tone="success" icon={ShieldCheck}>Compte actif</Badge></div>
           <div className="space-y-2 text-[12px]" style={{ color: COLORS.text }}>
-            <p className="flex items-center gap-2"><User size={14} color={COLORS.primary} className="shrink-0" /><span>{roleLabel}</span></p>
-            {person.email && <p className="flex items-center gap-2"><Mail size={14} color={COLORS.primary} className="shrink-0" /><span>{person.email}</span></p>}
-            {person.phone && <p className="flex items-center gap-2"><Phone size={14} color={COLORS.primary} className="shrink-0" /><span>{person.phone}</span></p>}
-            <p className="flex items-center gap-2"><KeyRound size={14} color={COLORS.primary} className="shrink-0" /><span>Identifiant : {person.username}</span></p>
-            {(person.city || person.country) && <p className="flex items-center gap-2"><MapPin size={14} color={COLORS.primary} className="shrink-0" /><span>{[person.city, person.country].filter(Boolean).join(", ")}</span></p>}
-            {calcAge(person.birthDate) !== null && <p className="flex items-center gap-2"><Cake size={14} color={COLORS.primary} className="shrink-0" /><span>{calcAge(person.birthDate)} ans{genderLabel(person.gender) ? ` · ${genderLabel(person.gender)}` : ""}</span></p>}
-            {formatDateFr(person.createdAt) && <p className="flex items-center gap-2"><Calendar size={14} color={COLORS.primary} className="shrink-0" /><span>Membre depuis le {formatDateFr(person.createdAt)}</span></p>}
-            {formatDateFr(person.lastLoginAt) && <p className="flex items-center gap-2"><KeyRound size={14} color={COLORS.primary} className="shrink-0" /><span>Dernière connexion : {formatDateFr(person.lastLoginAt)}</span></p>}
+            <p className="flex items-center gap-2"><User size={18} color={COLORS.primary} className="shrink-0" /><span>{roleLabel}</span></p>
+            {person.email && <p className="flex items-center gap-2"><Mail size={18} color={COLORS.primary} className="shrink-0" /><span>{person.email}</span></p>}
+            {person.phone && <p className="flex items-center gap-2"><Phone size={18} color={COLORS.primary} className="shrink-0" /><span>{person.phone}</span></p>}
+            <p className="flex items-center gap-2"><KeyRound size={18} color={COLORS.primary} className="shrink-0" /><span>Identifiant : {person.username}</span></p>
+            {(person.city || person.country) && <p className="flex items-center gap-2"><MapPin size={18} color={COLORS.primary} className="shrink-0" /><span>{[person.city, person.country].filter(Boolean).join(", ")}</span></p>}
+            {calcAge(person.birthDate) !== null && <p className="flex items-center gap-2"><Cake size={18} color={COLORS.primary} className="shrink-0" /><span>{calcAge(person.birthDate)} ans{genderLabel(person.gender) ? ` · ${genderLabel(person.gender)}` : ""}</span></p>}
+            {formatDateFr(person.createdAt) && <p className="flex items-center gap-2"><Calendar size={18} color={COLORS.primary} className="shrink-0" /><span>Membre depuis le {formatDateFr(person.createdAt)}</span></p>}
+            {formatDateFr(person.lastLoginAt) && <p className="flex items-center gap-2"><KeyRound size={18} color={COLORS.primary} className="shrink-0" /><span>Dernière connexion : {formatDateFr(person.lastLoginAt)}</span></p>}
           </div>
         </Card>
 
         <Card onClick={(isAdmin || isSelfTeacher) ? () => ctx.nav.push("myEstablishment") : undefined} className="flex items-center gap-3 mb-3">
-            <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: COLORS.primarySoft }}><School size={16} color={COLORS.primary} /></div>
+            <div className="w-9 h-9 rounded-[16px] flex items-center justify-center" style={{ background: COLORS.primarySoft }}><School size={18} color={COLORS.primary} /></div>
             <div className="flex-1"><p className="font-bold text-[13px]" style={{ color: COLORS.text }}>{ctx.data.establishment.name}</p><p className="text-[11px]" style={{ color: COLORS.muted }}>{[ctx.data.establishment.city, ctx.data.establishment.country].filter(Boolean).join(", ") || "Établissement rattaché"}</p></div>
-            {(isAdmin || isSelfTeacher) && <ChevronRight size={16} color={COLORS.muted} />}
+            {(isAdmin || isSelfTeacher) && <ChevronRight size={18} color={COLORS.muted} />}
         </Card>
 
-        {done && <Card className="mb-4" style={{ background: COLORS.successSoft, border: "none" }}><p className="text-[12.5px] font-semibold" style={{ color: COLORS.success }}>Mot de passe modifié.</p></Card>}
+        {done && <Card className="mb-4" style={{ background: COLORS.successSoft, border: "none" }}><p className="text-[13px] font-semibold" style={{ color: COLORS.success }}>Mot de passe modifié.</p></Card>}
 
         {editing ? (
           <Card className="important-form-modal mb-4">
-            <div className="flex items-start gap-3 mb-4"><div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: COLORS.primarySoft }}><Lock size={18} color={COLORS.primary} /></div><div><p className="font-bold text-[14px]" style={{ color: COLORS.text }}>Modifier le mot de passe</p><p className="text-[11px] mt-1" style={{ color: COLORS.muted }}>Utilisez au moins 6 caractères et ne partagez jamais votre mot de passe.</p></div></div>
+            <div className="flex items-start gap-3 mb-4"><div className="w-10 h-10 rounded-[16px] flex items-center justify-center shrink-0" style={{ background: COLORS.primarySoft }}><Lock size={18} color={COLORS.primary} /></div><div><p className="font-bold text-[14px]" style={{ color: COLORS.text }}>Modifier le mot de passe</p><p className="text-[11px] mt-1" style={{ color: COLORS.muted }}>Utilisez au moins 6 caractères et ne partagez jamais votre mot de passe.</p></div></div>
             <Field label="Ancien mot de passe"><TextInput type="password" value={oldPwd} onChange={(e) => setOldPwd(e.target.value)} /></Field>
             <Field label="Nouveau mot de passe"><TextInput type="password" value={newPwd} onChange={(e) => setNewPwd(e.target.value)} placeholder="Au moins 6 caractères" /></Field>
             <Field label="Confirmer le nouveau mot de passe"><TextInput type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Répétez le mot de passe" /></Field>
@@ -1631,7 +1757,7 @@ function AdminDashboardScreen({ ctx }) {
           <StatCard icon={School} value={totalClasses} label="Classes actives" />
           <StatCard icon={GraduationCap} value={totalStudents} label="Élèves inscrits" tone="success" />
           <StatCard icon={Users} value={totalTeachers} label="Enseignants" tone="accent" />
-          <StatCard icon={Send} value={pendingInvitations} label="Invitations en attente" tone="warning" />
+          <StatCard icon={Mail} value={pendingInvitations} label="Invitations en attente" tone="warning" />
         </div>
 
         {attention.length > 0 && (
@@ -1640,9 +1766,9 @@ function AdminDashboardScreen({ ctx }) {
             <div className="space-y-2">
               {attention.map((it) => (
                 <Card key={it.key} onClick={it.go} className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: COLORS.warningSoft }}><it.icon size={18} color={COLORS.warning} /></div>
+                  <div className="w-10 h-10 rounded-[16px] flex items-center justify-center shrink-0" style={{ background: COLORS.warningSoft }}><it.icon size={18} color={COLORS.warning} /></div>
                   <div className="flex-1 min-w-0"><p className="font-bold text-[13px]" style={{ color: COLORS.text }}>{it.label}</p><p className="text-[11px]" style={{ color: COLORS.muted }}>{it.sub}</p></div>
-                  <ChevronRight size={16} color={COLORS.muted} className="shrink-0" />
+                  <ChevronRight size={18} color={COLORS.muted} className="shrink-0" />
                 </Card>
               ))}
             </div>
@@ -1683,7 +1809,7 @@ function AdminResultsScreen({ ctx }) {
   return (
     <Screen>
       <TopBar title="Résultats" subtitle={activeYear ? activeYear.label : ctx.data.establishment.name} right={<SyncIndicator ctx={ctx} />} />
-      <div className="px-4 pt-4 space-y-3">
+      <div className="px-4 pt-4 space-y-2">
         {!activeYear || completedSessions.length === 0 ? (
           <EmptyState icon={BarChart3} title="Aucun résultat pour l'instant" text="Les résultats apparaîtront ici dès qu'une évaluation aura été terminée dans une classe." />
         ) : (
@@ -1692,7 +1818,7 @@ function AdminResultsScreen({ ctx }) {
               <DonutChart segments={bandCounts.map((b) => ({ value: b.value, color: b.color }))} />
               <div className="flex-1 min-w-0">
                 <p className="text-[11px] font-semibold" style={{ color: COLORS.muted }}>Moyenne de l'établissement</p>
-                <p className="text-[26px] font-extrabold mb-2" style={{ color: overallAvg >= WEAK_RESULT_THRESHOLD ? COLORS.success : COLORS.danger }}>{overallAvg}%</p>
+                <p className="text-[28px] font-extrabold mb-2" style={{ color: overallAvg >= WEAK_RESULT_THRESHOLD ? COLORS.success : COLORS.danger }}>{overallAvg}%</p>
                 <div className="space-y-1">
                   {bandCounts.filter((b) => b.value > 0).map((b) => (
                     <div key={b.key} className="flex items-center gap-1.5 text-[11px]" style={{ color: COLORS.text }}>
@@ -1705,15 +1831,15 @@ function AdminResultsScreen({ ctx }) {
             </Card>
 
             <Card style={{ background: coverage < 50 ? COLORS.warningSoft : COLORS.successSoft, border: "none" }}>
-              <p className="text-[11.5px] font-semibold" style={{ color: coverage < 50 ? COLORS.warning : COLORS.success }}>Couverture des évaluations</p>
-              <p className="text-[22px] font-extrabold" style={{ color: coverage < 50 ? COLORS.warning : COLORS.success }}>{classesWithEval.size} / {allClasses.length} classe{allClasses.length > 1 ? "s" : ""} <span className="text-[13px] font-semibold">({coverage}%)</span></p>
+              <p className="text-[12px] font-semibold" style={{ color: coverage < 50 ? COLORS.warning : COLORS.success }}>Couverture des évaluations</p>
+              <p className="text-[28px] font-extrabold" style={{ color: coverage < 50 ? COLORS.warning : COLORS.success }}>{classesWithEval.size} / {allClasses.length} classe{allClasses.length > 1 ? "s" : ""} <span className="text-[13px] font-semibold">({coverage}%)</span></p>
               <p className="text-[11px] mt-1" style={{ color: coverage < 50 ? COLORS.warning : COLORS.success }}>ont déjà lancé au moins une évaluation cette année.</p>
             </Card>
 
             <SectionLabel>Par niveau</SectionLabel>
             {perLevel.map((l) => (
               <Card key={l.level} className="flex items-center justify-between">
-                <div className="flex-1 min-w-0"><p className="font-bold text-[13.5px]" style={{ color: COLORS.text }}>{l.level}</p><p className="text-[11px]" style={{ color: COLORS.muted }}>{l.classCount} classe(s) · {l.sessionCount} évaluation(s) terminée(s)</p></div>
+                <div className="flex-1 min-w-0"><p className="font-bold text-[14px]" style={{ color: COLORS.text }}>{l.level}</p><p className="text-[11px]" style={{ color: COLORS.muted }}>{l.classCount} classe(s) · {l.sessionCount} évaluation(s) terminée(s)</p></div>
                 {l.avg === null ? <Badge tone="neutral">Aucun résultat</Badge> : <Badge tone={l.avg >= WEAK_RESULT_THRESHOLD ? "success" : "warning"}>{l.avg}%</Badge>}
               </Card>
             ))}
@@ -1776,7 +1902,7 @@ function YearsScreen({ ctx }) {
             <Field label="Année scolaire"><TextInput autoFocus value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Ex. 2026–2027" /></Field>
             <div className="flex gap-2"><Btn variant="ghost" full onClick={() => setAdding(false)}>Annuler</Btn><Btn full onClick={addYear}>Créer</Btn></div>
           </Card>
-        ) : <PageAction icon={Plus} title="Ajouter une année" subtitle="Puis, à l'intérieur, ses niveaux et ses classes" onClick={() => setAdding(true)} />}
+        ) : <Btn full icon={Plus} onClick={() => setAdding(true)}>Ajouter une année</Btn>}
         <SectionLabel>Années disponibles</SectionLabel>
         {ctx.data.years.map((y) => {
           const classCount = y.classes.filter((c) => !c.archived).length;
@@ -1784,12 +1910,12 @@ function YearsScreen({ ctx }) {
           return (
             <Card key={y.id} onClick={() => ctx.nav.push("levels", { yearId: y.id })} className="flex flex-col gap-3">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: y.archived ? "#EEF1F4" : COLORS.primarySoft }}><Calendar size={18} color={y.archived ? COLORS.muted : COLORS.primary} /></div>
+                <div className="w-10 h-10 rounded-[16px] flex items-center justify-center shrink-0" style={{ background: y.archived ? "#EEF1F4" : COLORS.primarySoft }}><Calendar size={18} color={y.archived ? COLORS.muted : COLORS.primary} /></div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap"><p className="font-bold text-[13.5px]" style={{ color: COLORS.text }}>{y.label}</p>{y.archived && <Badge tone="neutral">Archivée</Badge>}</div>
-                  <p className="text-[11.5px]" style={{ color: COLORS.muted }}>{classCount} classe(s){y.archived ? " · lecture seule" : ""}</p>
+                  <div className="flex items-center gap-2 flex-wrap"><p className="font-bold text-[14px]" style={{ color: COLORS.text }}>{y.label}</p>{y.archived && <Badge tone="neutral">Archivée</Badge>}</div>
+                  <p className="text-[12px]" style={{ color: COLORS.muted }}>{classCount} classe(s){y.archived ? " · lecture seule" : ""}</p>
                 </div>
-                <ChevronRight size={17} color={COLORS.muted} className="shrink-0" />
+                <ChevronRight size={18} color={COLORS.muted} className="shrink-0" />
               </div>
               {closable && (
                 <Btn full size="sm" variant="secondary" icon={Calendar} onClick={(e) => { e.stopPropagation(); ctx.nav.push("closeYear", { yearId: y.id }); }}>
@@ -1916,7 +2042,7 @@ function CloseYearScreen({ ctx }) {
       <div className="px-4 pt-4">
         <Card className="mb-4 flex items-start gap-3" style={{ background: COLORS.primarySoft, border: "none" }}>
           <Info size={18} color={COLORS.primary} className="shrink-0 mt-0.5" />
-          <p className="text-[11.5px] leading-5" style={{ color: COLORS.primaryDark }}>Par défaut, tous les élèves passent à l'année supérieure, dans la même section qu'aujourd'hui (« 5e année A » devient « 6e année A »). Marquez uniquement les exceptions (redoublement, départ) — inutile de traiter chaque élève un par un.</p>
+          <p className="text-[12px] leading-5" style={{ color: COLORS.primaryDark }}>Par défaut, tous les élèves passent à l'année supérieure, dans la même section qu'aujourd'hui (« 5e année A » devient « 6e année A »). Marquez uniquement les exceptions (redoublement, départ) — inutile de traiter chaque élève un par un.</p>
         </Card>
 
         <Field label="Nouvelle année scolaire"><TextInput value={newYearLabel} onChange={(e) => setNewYearLabel(e.target.value)} placeholder="Ex. 2027–2028" /></Field>
@@ -1933,14 +2059,14 @@ function CloseYearScreen({ ctx }) {
           return (
             <Card key={l.level} className="mb-2">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: COLORS.primarySoft }}><Users size={17} color={COLORS.primary} /></div>
+                <div className="w-10 h-10 rounded-[16px] flex items-center justify-center shrink-0" style={{ background: COLORS.primarySoft }}><Users size={18} color={COLORS.primary} /></div>
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-[13px]" style={{ color: COLORS.text }}>{l.level}</p>
                   <p className="text-[11px]" style={{ color: COLORS.muted }}>{l.students.length} élève(s)</p>
                 </div>
               </div>
               <div className="flex items-center gap-2 mt-3">
-                <ArrowRight size={14} color={COLORS.muted} className="shrink-0" />
+                <ArrowRight size={18} color={COLORS.muted} className="shrink-0" />
                 <TextInput value={targets[l.level] ?? ""} onChange={(e) => setTargets((t) => ({ ...t, [l.level]: e.target.value }))} placeholder="Niveau suivant" style={{ minHeight: 38, padding: "8px 11px", fontSize: 12.5 }} />
               </div>
               {/* Chaque section garde son propre nom de classe d'arrivée — modifiable ici si
@@ -1964,7 +2090,7 @@ function CloseYearScreen({ ctx }) {
                 {leaveCount > 0 && <Badge tone="danger" icon={UserX}>{leaveCount} quittent</Badge>}
               </div>
               <button onClick={() => { setExpanded(isOpen ? "" : l.level); setSearch(""); }} className="w-full flex items-center justify-center gap-1.5 mt-3 py-1">
-                <span className="text-[11.5px] font-bold" style={{ color: COLORS.primary }}>{isOpen ? "Fermer" : "Gérer les exceptions"}</span>
+                <span className="text-[12px] font-bold" style={{ color: COLORS.primary }}>{isOpen ? "Fermer" : "Gérer les exceptions"}</span>
                 <ChevronDown size={13} color={COLORS.primary} style={{ transform: isOpen ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
               </button>
               {isOpen && (
@@ -1981,7 +2107,7 @@ function CloseYearScreen({ ctx }) {
                         </div>
                       );
                     })}
-                    {filtered.length === 0 && <p className="text-[11.5px] text-center py-3" style={{ color: COLORS.muted }}>Aucun élève trouvé.</p>}
+                    {filtered.length === 0 && <p className="text-[12px] text-center py-3" style={{ color: COLORS.muted }}>Aucun élève trouvé.</p>}
                   </div>
                 </div>
               )}
@@ -2052,13 +2178,13 @@ function DistributeStudentsScreen({ ctx }) {
       <TopBar title="Répartir les élèves" subtitle={`${cls.level} · ${cls.students.length} à placer`} onBack={finishLater} />
       <div className="px-4 pt-4">
         {otherPending.length > 0 && (
-          <div className="mb-3"><Badge tone="accent" icon={ListChecks}>{otherPending.length} niveau(x) suivront après celui-ci</Badge></div>
+          <div className="mb-3"><Badge tone="accent" icon={Layers}>{otherPending.length} niveau(x) suivront après celui-ci</Badge></div>
         )}
         {targetClasses.length === 0 ? (
           <>
             <Card className="mb-4 flex items-start gap-3" style={{ background: COLORS.warningSoft, border: "none" }}>
               <AlertTriangle size={18} color={COLORS.warning} className="shrink-0 mt-0.5" />
-              <p className="text-[11.5px] leading-5" style={{ color: COLORS.warning }}>Aucune classe de « {cls.level} » n'existe encore cette année. Créez-en au moins une pour pouvoir y répartir ces élèves.</p>
+              <p className="text-[12px] leading-5" style={{ color: COLORS.warning }}>Aucune classe de « {cls.level} » n'existe encore cette année. Créez-en au moins une pour pouvoir y répartir ces élèves.</p>
             </Card>
             <Btn full icon={Plus} onClick={() => ctx.nav.push("classes", { yearId: yr.id, level: cls.level, fromDistribute: true })}>Créer une classe</Btn>
           </>
@@ -2074,11 +2200,11 @@ function DistributeStudentsScreen({ ctx }) {
             {cls.students.length > 3 && <DemoFillButton onClick={loadDemoSelection} label="Sélectionner la moitié (démo)" />}
 
             <div className="flex items-center justify-between mb-2">
-              <button onClick={selectAllFiltered} className="text-[11.5px] font-bold" style={{ color: COLORS.primary }}>Tout sélectionner</button>
-              {selected.size > 0 && <button onClick={clearSelection} className="text-[11.5px] font-bold" style={{ color: COLORS.muted }}>Effacer ({selected.size})</button>}
+              <button onClick={selectAllFiltered} className="text-[12px] font-bold" style={{ color: COLORS.primary }}>Tout sélectionner</button>
+              {selected.size > 0 && <button onClick={clearSelection} className="text-[12px] font-bold" style={{ color: COLORS.muted }}>Effacer ({selected.size})</button>}
             </div>
             <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher un élève…" className="mb-2.5" />
-            <div className="rounded-2xl overflow-hidden mb-4" style={{ border: `1px solid ${COLORS.border}` }}>
+            <div className="rounded-[16px] overflow-hidden mb-4" style={{ border: `1px solid ${COLORS.border}` }}>
               {filtered.map((s, i) => {
                 const isSelected = selected.has(s.id);
                 return (
@@ -2099,7 +2225,7 @@ function DistributeStudentsScreen({ ctx }) {
           </>
         )}
         <button onClick={finishLater} className="w-full text-center mt-4 py-1">
-          <span className="text-[11.5px] font-semibold" style={{ color: COLORS.muted }}>Terminer plus tard</span>
+          <span className="text-[12px] font-semibold" style={{ color: COLORS.muted }}>Terminer plus tard</span>
         </button>
       </div>
     </Screen>
@@ -2117,7 +2243,7 @@ function SubjectPicker({ catalog, preselected = [], excluded = [], onAddCustom, 
   };
   return (
     <div>
-      <div className="rounded-2xl overflow-hidden mb-3" style={{ border: `1px solid ${COLORS.border}` }}>
+      <div className="rounded-[16px] overflow-hidden mb-3" style={{ border: `1px solid ${COLORS.border}` }}>
         {available.map((name, i) => {
           const isSelected = selected.has(name);
           return (
@@ -2134,7 +2260,7 @@ function SubjectPicker({ catalog, preselected = [], excluded = [], onAddCustom, 
       </div>
       <div className="flex gap-2">
         <TextInput value={customInput} onChange={(e) => setCustomInput(e.target.value)} placeholder="Ajouter une matière personnalisée" />
-        <button onClick={addCustom} className="w-11 h-11 shrink-0 rounded-xl flex items-center justify-center" style={{ background: COLORS.primarySoft }}><Plus size={18} color={COLORS.primary} /></button>
+        <button onClick={addCustom} className="w-10 h-10 shrink-0 rounded-[16px] flex items-center justify-center" style={{ background: COLORS.primarySoft }}><Plus size={18} color={COLORS.primary} /></button>
       </div>
     </div>
   );
@@ -2170,20 +2296,20 @@ function LevelsScreen({ ctx }) {
             <p className="text-[11px] -mt-2 mb-3" style={{ color: COLORS.muted }}>Vous ajouterez ses matières puis ses classes juste après.</p>
             <div className="flex gap-2"><Btn variant="ghost" full onClick={() => setAdding(false)}>Annuler</Btn><Btn full disabled={!levelName.trim()} onClick={addLevel}>Créer</Btn></div>
           </Card>
-        ) : <PageAction icon={Plus} title="Ajouter un niveau" subtitle="Puis, à l'intérieur, ses matières et ses classes" onClick={() => setAdding(true)} />)}
+        ) : <Btn full icon={Plus} onClick={() => setAdding(true)}>Ajouter un niveau</Btn>)}
         <SectionLabel>Niveaux de {year.label}</SectionLabel>
         {levelNames.map((level) => {
           const subjects = getLevelSubjects(year, level).filter((s) => !s.archived);
           const classes = year.classes.filter((c) => !c.archived && c.level === level);
           return (
             <Card key={level} onClick={() => ctx.nav.push("levelDetails", { yearId, level })} className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: COLORS.primarySoft }}><School size={18} color={COLORS.primary} /></div>
-              <div className="flex-1"><p className="font-bold text-[13.5px]" style={{ color: COLORS.text }}>{level}</p><p className="text-[11.5px]" style={{ color: COLORS.muted }}>{classes.length} classe(s) · {subjects.length} matière(s)</p></div>
-              <ChevronRight size={17} color={COLORS.muted} />
+              <div className="w-10 h-10 rounded-[16px] flex items-center justify-center" style={{ background: COLORS.primarySoft }}><Layers size={18} color={COLORS.primary} /></div>
+              <div className="flex-1"><p className="font-bold text-[14px]" style={{ color: COLORS.text }}>{level}</p><p className="text-[12px]" style={{ color: COLORS.muted }}>{classes.length} classe(s) · {subjects.length} matière(s)</p></div>
+              <ChevronRight size={18} color={COLORS.muted} />
             </Card>
           );
         })}
-        {levelNames.length === 0 && <EmptyState icon={School} title="Aucun niveau" text="Créez votre première classe — le niveau se crée automatiquement avec elle." />}
+        {levelNames.length === 0 && <EmptyState icon={Layers} title="Aucun niveau" text="Créez votre première classe — le niveau se crée automatiquement avec elle." />}
       </div>
     </Screen>
   );
@@ -2216,15 +2342,15 @@ function LevelDetailsScreen({ ctx }) {
       <div className="px-4 pt-4 space-y-2">
         {items.map((it) => (
           <Card key={it.key} onClick={it.go} className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-[15px] flex items-center justify-center" style={{ background: COLORS.primarySoft }}><it.icon size={19} color={COLORS.primary} /></div>
-            <div className="flex-1"><p className="font-bold text-[13.5px]" style={{ color: COLORS.text }}>{it.label}</p><p className="text-[11.5px]" style={{ color: COLORS.muted }}>{it.sub}</p></div>
-            <ChevronRight size={17} color={COLORS.muted} />
+            <div className="w-11 h-11 rounded-[16px] flex items-center justify-center" style={{ background: COLORS.primarySoft }}><it.icon size={20} color={COLORS.primary} /></div>
+            <div className="flex-1"><p className="font-bold text-[14px]" style={{ color: COLORS.text }}>{it.label}</p><p className="text-[12px]" style={{ color: COLORS.muted }}>{it.sub}</p></div>
+            <ChevronRight size={18} color={COLORS.muted} />
           </Card>
         ))}
         {!year.archived && subjects.length === 0 && (
           <Card className="flex items-start gap-3 mt-2" style={{ background: COLORS.warningSoft, border: "none" }}>
-            <AlertTriangle size={16} color={COLORS.warning} className="shrink-0 mt-0.5" />
-            <p className="text-[11.5px] leading-5" style={{ color: COLORS.warning }}>Définissez d'abord les matières de ce niveau avant de créer des classes — elles seront proposées automatiquement à chaque nouvelle section.</p>
+            <AlertTriangle size={18} color={COLORS.warning} className="shrink-0 mt-0.5" />
+            <p className="text-[12px] leading-5" style={{ color: COLORS.warning }}>Définissez d'abord les matières de ce niveau avant de créer des classes — elles seront proposées automatiquement à chaque nouvelle section.</p>
           </Card>
         )}
       </div>
@@ -2284,21 +2410,21 @@ function ClassesScreen({ ctx }) {
             </p>
             <div className="flex gap-2"><Btn variant="ghost" full onClick={() => setAdding(false)}>Annuler</Btn><Btn full disabled={!form.name.trim()} onClick={createClass}>Créer</Btn></div>
           </Card>
-        ) : <PageAction icon={Plus} title="Ajouter une classe" subtitle={`Nouvelle section de « ${level} »`} onClick={openAdd} />)}
+        ) : <Btn full icon={Plus} onClick={openAdd}>Ajouter une classe</Btn>)}
         <SectionLabel>Classes de {level}</SectionLabel>
         {classesOfLevel.map((c) => (
           <Card key={c.id} onClick={() => ctx.nav.push(c.pendingDistribution ? "distributeStudents" : "importStudents", { classId: c.id })}
-            style={c.pendingDistribution ? { borderColor: COLORS.warning, borderStyle: "dashed" } : undefined}>
+            style={c.pendingDistribution ? { border: `1.5px dashed ${COLORS.warning}` } : undefined}>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: c.pendingDistribution ? COLORS.warningSoft : COLORS.primarySoft }}>
-                {c.pendingDistribution ? <ListChecks size={18} color={COLORS.warning} /> : <GraduationCap size={18} color={COLORS.primary} />}
+              <div className="w-10 h-10 rounded-[16px] flex items-center justify-center" style={{ background: c.pendingDistribution ? COLORS.warningSoft : COLORS.primarySoft }}>
+                {c.pendingDistribution ? <Users size={18} color={COLORS.warning} /> : <GraduationCap size={18} color={COLORS.primary} />}
               </div>
-              <div className="flex-1"><p className="font-bold text-[13.5px]" style={{ color: COLORS.text }}>{c.name}</p><p className="text-[11.5px]" style={{ color: COLORS.muted }}>{c.level}</p></div>
-              <ChevronRight size={17} color={COLORS.muted} />
+              <div className="flex-1"><p className="font-bold text-[14px]" style={{ color: COLORS.text }}>{c.name}</p><p className="text-[12px]" style={{ color: COLORS.muted }}>{c.level}</p></div>
+              <ChevronRight size={18} color={COLORS.muted} />
             </div>
             <div className="flex gap-2 mt-3 flex-wrap">
               {c.pendingDistribution ? (
-                <Badge tone="warning" icon={ListChecks}>{c.students.filter((s) => !s.archived).length} élèves à répartir</Badge>
+                <Badge tone="warning" icon={Users}>{c.students.filter((s) => !s.archived).length} élèves à répartir</Badge>
               ) : (
                 <>
                   <Badge tone="primary" icon={Users}>{c.students.filter((s) => !s.archived).length} élèves</Badge>
@@ -2412,11 +2538,11 @@ function ImportStudentsScreen({ ctx }) {
 
   return (
     <Screen>
-      <TopBar title="Élèves" subtitle={`${loc.cls.name}${readOnly ? " · lecture seule" : ""}`} onBack={() => ctx.nav.pop()} right={readOnly ? undefined : <button onClick={() => ctx.nav.push("classDetails", { classId })} className="p-1" aria-label="Paramètres de la classe"><Settings size={17} color={COLORS.muted} /></button>} />
-      <div className="px-4 pt-4 space-y-3">
+      <TopBar title="Élèves" subtitle={`${loc.cls.name}${readOnly ? " · lecture seule" : ""}`} onBack={() => ctx.nav.pop()} right={readOnly ? undefined : <button onClick={() => ctx.nav.push("classDetails", { classId })} className="p-1" aria-label="Paramètres de la classe"><Settings size={18} color={COLORS.muted} /></button>} />
+      <div className="px-4 pt-4 space-y-2">
         {ctx.nav.current.params.justCreated && (
           <Card className="flex items-center gap-2" style={{ background: COLORS.successSoft, border: "none" }}>
-            <CheckCircle2 size={17} color={COLORS.success} />
+            <CheckCircle2 size={18} color={COLORS.success} />
             <p className="text-[12px] font-semibold" style={{ color: COLORS.success }}>Classe créée. Importez maintenant la liste des élèves.</p>
           </Card>
         )}
@@ -2424,7 +2550,7 @@ function ImportStudentsScreen({ ctx }) {
           <CreditCard size={20} color={COLORS.accent} className="mt-0.5" />
           <div className="flex-1">
             <p className="font-semibold text-[13px]" style={{ color: COLORS.text }}>{loc.cls.cardCount || 40} cartes-réponses réservées pour cette classe</p>
-            <p className="text-[11.5px]" style={{ color: COLORS.muted }}>{active.filter((s) => s.cardAssigned).length} déjà attribuées à un élève. Les cartes existent déjà (jeu imprimé et réutilisable de l'établissement) — vous attribuez simplement un numéro à chaque élève ici. L'impression se fait séparément, en dehors de l'application.</p>
+            <p className="text-[12px]" style={{ color: COLORS.muted }}>{active.filter((s) => s.cardAssigned).length} déjà attribuées à un élève. Les cartes existent déjà (jeu imprimé et réutilisable de l'établissement) — vous attribuez simplement un numéro à chaque élève ici. L'impression se fait séparément, en dehors de l'application.</p>
           </div>
         </Card>
         {!readOnly && (
@@ -2433,7 +2559,7 @@ function ImportStudentsScreen({ ctx }) {
               <FileSpreadsheet size={20} color={COLORS.primary} className="mt-0.5" />
               <div className="flex-1">
                 <p className="font-semibold text-[13px]" style={{ color: COLORS.text }}>Fichier CSV ou Excel</p>
-                <p className="text-[11.5px] mb-3" style={{ color: COLORS.muted }}>Importer une nouvelle liste d'élèves — les cartes sont attribuées automatiquement.</p>
+                <p className="text-[12px] mb-3" style={{ color: COLORS.muted }}>Importer une nouvelle liste d'élèves — les cartes sont attribuées automatiquement.</p>
                 <Btn variant="secondary" size="sm" icon={Upload} onClick={runSimulatedImport}>Choisir un fichier</Btn>
               </div>
             </Card>
@@ -2453,19 +2579,19 @@ function ImportStudentsScreen({ ctx }) {
         {active.length > 8 && (
           <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher un élève" />
         )}
-        <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${COLORS.border}` }}>
+        <div className="rounded-[16px] overflow-hidden" style={{ border: `1px solid ${COLORS.border}` }}>
           <div className="max-h-[420px] overflow-y-auto">
-            {visibleStudents.length === 0 && <div className="py-8 text-center text-[12.5px]" style={{ color: COLORS.muted }}>Aucun élève ne correspond.</div>}
+            {visibleStudents.length === 0 && <div className="py-8 text-center text-[13px]" style={{ color: COLORS.muted }}>Aucun élève ne correspond.</div>}
             {visibleStudents.map((s, i) => (
               <div key={s.id} className="px-3 py-2.5" style={{ borderTop: i ? `1px solid ${COLORS.border}` : "none", background: i % 2 ? "#FBFCFD" : "#fff" }}>
                 {readOnly ? (
                   <div className="w-full flex items-center justify-between">
-                    <span className="text-[12.5px] font-medium truncate" style={{ color: COLORS.text }}>{s.name}</span>
+                    <span className="text-[13px] font-medium truncate" style={{ color: COLORS.text }}>{s.name}</span>
                     {s.cardAssigned ? <Badge tone="primary">#{s.cardNumber}</Badge> : <Badge tone="warning">Sans carte</Badge>}
                   </div>
                 ) : (
                   <button onClick={() => setActionsFor(s.id)} className="w-full flex items-center justify-between">
-                    <span className="text-[12.5px] font-medium truncate" style={{ color: COLORS.text }}>{s.name}</span>
+                    <span className="text-[13px] font-medium truncate" style={{ color: COLORS.text }}>{s.name}</span>
                     <div className="flex items-center gap-1.5 shrink-0">
                       {s.cardAssigned ? <Badge tone="primary">#{s.cardNumber}</Badge> : <Badge tone="warning">Sans carte</Badge>}
                       <Pencil size={13} color={COLORS.muted} />
@@ -2480,7 +2606,7 @@ function ImportStudentsScreen({ ctx }) {
 
       {editingId && (
         <div className="important-form-modal">
-          <p className="font-bold text-[15px] mb-3" style={{ color: COLORS.text }}>Modifier le nom de l’élève</p>
+          <p className="font-bold text-[14px] mb-3" style={{ color: COLORS.text }}>Modifier le nom de l’élève</p>
           <Field label="Nom complet"><TextInput autoFocus value={editName} onChange={(e) => setEditName(e.target.value)} /></Field>
           <div className="flex gap-2"><Btn variant="ghost" full onClick={() => setEditingId(null)}>Annuler</Btn><Btn full onClick={saveEdit}>Enregistrer</Btn></div>
         </div>
@@ -2490,9 +2616,9 @@ function ImportStudentsScreen({ ctx }) {
         <div className="absolute inset-0 z-50 flex items-end justify-center" style={{ background: "rgba(15,23,33,0.45)" }} onClick={() => setActionsFor(null)}>
           <div className="w-full rounded-t-2xl p-5" style={{ background: COLORS.surface }} onClick={(e) => e.stopPropagation()}>
             <p className="font-bold text-[14px] mb-3" style={{ color: COLORS.text }}>{actionsStudent.name}</p>
-            <button onClick={() => startEdit(actionsStudent)} className="w-full text-left py-3 text-[13.5px] font-medium" style={{ color: COLORS.text }}>Modifier le nom</button>
-            <button onClick={() => startEditCard(actionsStudent)} className="w-full text-left py-3 text-[13.5px] font-medium" style={{ color: COLORS.text }}>Modifier le numéro de carte</button>
-            <button onClick={() => { setConfirmArchiveId(actionsStudent.id); setActionsFor(null); }} className="w-full text-left py-3 text-[13.5px] font-medium" style={{ color: COLORS.danger }}>Retirer l'élève</button>
+            <button onClick={() => startEdit(actionsStudent)} className="w-full text-left py-3 text-[14px] font-medium" style={{ color: COLORS.text }}>Modifier le nom</button>
+            <button onClick={() => startEditCard(actionsStudent)} className="w-full text-left py-3 text-[14px] font-medium" style={{ color: COLORS.text }}>Modifier le numéro de carte</button>
+            <button onClick={() => { setConfirmArchiveId(actionsStudent.id); setActionsFor(null); }} className="w-full text-left py-3 text-[14px] font-medium" style={{ color: COLORS.danger }}>Retirer l'élève</button>
             <Btn variant="ghost" full onClick={() => setActionsFor(null)}>Annuler</Btn>
           </div>
         </div>
@@ -2501,9 +2627,9 @@ function ImportStudentsScreen({ ctx }) {
       {editingCardId && (
         <div className="absolute inset-0 z-50 flex items-end justify-center" style={{ background: "rgba(15,23,33,0.45)" }}>
           <div className="w-full rounded-t-2xl p-5" style={{ background: COLORS.surface }}>
-            <p className="font-bold text-[15px] mb-3" style={{ color: COLORS.text }}>Modifier le numéro de carte</p>
+            <p className="font-bold text-[14px] mb-3" style={{ color: COLORS.text }}>Modifier le numéro de carte</p>
             <TextInput autoFocus value={editCardValue} onChange={(e) => { setEditCardValue(e.target.value); setDupWarning(false); }} placeholder="Ex. 042" />
-            {dupWarning && <p className="text-[11.5px] mt-2 font-semibold" style={{ color: COLORS.danger }}>Ce numéro est déjà utilisé par un autre élève de la classe.</p>}
+            {dupWarning && <p className="text-[12px] mt-2 font-semibold" style={{ color: COLORS.danger }}>Ce numéro est déjà utilisé par un autre élève de la classe.</p>}
             <div className="flex gap-2 mt-4">
               <Btn variant="ghost" full onClick={() => { setEditingCardId(null); setDupWarning(false); }}>Annuler</Btn>
               <Btn full onClick={saveEditCard}>Enregistrer</Btn>
@@ -2556,9 +2682,9 @@ function ImportPreviewScreen({ ctx }) {
         <div className="flex gap-2 mb-3"><Badge tone="success" icon={CheckCircle2}>{valid.length} valides</Badge><Badge tone="danger" icon={AlertTriangle}>{invalid.length} à corriger</Badge></div>
         <div className="space-y-1.5">
           {staged.map((r) => (
-            <Card key={r.id} className="flex items-center justify-between !py-2.5" style={{ background: r.ok && r.name.trim() ? COLORS.surface : COLORS.dangerSoft, borderColor: r.ok && r.name.trim() ? COLORS.border : "#F0C6C1" }}>
+            <Card key={r.id} className="flex items-center justify-between !py-2.5" style={{ background: r.ok && r.name.trim() ? COLORS.surface : COLORS.dangerSoft, border: r.ok && r.name.trim() ? "none" : "1.5px solid #F0C6C1" }}>
               <div className="flex items-center gap-2">
-                {r.ok && r.name.trim() ? <CheckCircle2 size={16} color={COLORS.success} /> : <XCircle size={16} color={COLORS.danger} />}
+                {r.ok && r.name.trim() ? <CheckCircle2 size={18} color={COLORS.success} /> : <XCircle size={18} color={COLORS.danger} />}
                 <span className="text-[13px] font-medium" style={{ color: COLORS.text }}>{r.name.trim() || "(ligne vide)"}</span>
               </div>
               {!r.ok || !r.name.trim() ? <span className="text-[11px] font-semibold" style={{ color: COLORS.danger }}>{r.reason || "Nom manquant"}</span> : <span className="text-[11px]" style={{ color: COLORS.muted }}>Ligne {r.rowNumber}</span>}
@@ -2611,23 +2737,23 @@ function SubjectsScreen({ ctx }) {
       <div className="px-4 pt-4 space-y-2">
         {!yr.archived && (adding ? (
           <Card className="important-form-modal mb-3">
-            <p className="text-[11.5px] mb-2" style={{ color: COLORS.muted }}>Cochez les matières à ajouter au niveau « {level} ».</p>
+            <p className="text-[12px] mb-2" style={{ color: COLORS.muted }}>Cochez les matières à ajouter au niveau « {level} ».</p>
             <SubjectPicker catalog={ctx.data.subjectCatalog} selected={selectedSubjects} onToggle={toggleSubject} onAddCustom={addCustomToCatalog} excluded={existingNames} />
             <div className="flex gap-2 mt-3">
               <Btn variant="ghost" full onClick={() => { setAdding(false); setSelectedSubjects(new Set()); }}>Annuler</Btn>
               <Btn full disabled={selectedSubjects.size === 0} onClick={confirmAdd}>Ajouter ({selectedSubjects.size})</Btn>
             </div>
           </Card>
-        ) : <PageAction icon={Plus} title="Ajouter une matière" subtitle={`Compléter le programme de « ${level} »`} onClick={() => setAdding(true)} />)}
+        ) : <Btn full icon={Plus} onClick={() => setAdding(true)}>Ajouter une matière</Btn>)}
         <SectionLabel>Matières de {level}</SectionLabel>
         {levelSubjects.filter((s) => !s.archived).map((s) => {
           const canDelete = s.questionnaires.length === 0;
           return (
             <Card key={s.id}>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: COLORS.primarySoft }}><BookOpen size={18} color={COLORS.primary} /></div>
-                <div className="flex-1"><p className="font-bold text-[13.5px]" style={{ color: COLORS.text }}>{s.name}</p><p className="text-[11.5px]" style={{ color: COLORS.muted }}>{s.questionnaires.length} questionnaire(s)</p></div>
-                {!yr.archived && <button onClick={() => setConfirmDeleteId(s.id)} disabled={!canDelete} className="p-1.5" style={{ opacity: canDelete ? 1 : 0.3 }}><Trash2 size={15} color={COLORS.danger} /></button>}
+                <div className="w-10 h-10 rounded-[16px] flex items-center justify-center" style={{ background: COLORS.primarySoft }}><BookOpen size={18} color={COLORS.primary} /></div>
+                <div className="flex-1"><p className="font-bold text-[14px]" style={{ color: COLORS.text }}>{s.name}</p><p className="text-[12px]" style={{ color: COLORS.muted }}>{s.questionnaires.length} questionnaire(s)</p></div>
+                {!yr.archived && <button onClick={() => setConfirmDeleteId(s.id)} disabled={!canDelete} className="p-1.5" style={{ opacity: canDelete ? 1 : 0.3 }}><Trash2 size={18} color={COLORS.danger} /></button>}
               </div>
             </Card>
           );
@@ -2660,7 +2786,7 @@ function TeachersListScreen({ ctx }) {
     <Screen>
       <TopBar title="Enseignants" subtitle={ctx.data.establishment.name} />
       <div className="px-4 pt-4 space-y-2">
-        <PageAction icon={UserPlus} title="Inviter un enseignant" subtitle="Il créera lui-même son compte et son mot de passe" onClick={() => ctx.nav.push("createTeacher")} />
+        <Btn full icon={UserPlus} onClick={() => ctx.nav.push("createTeacher")}>Inviter un enseignant</Btn>
         {(ctx.data.invitations || []).filter((i) => i.status === "pending").length > 0 && <Card className="mb-2" style={{ background: COLORS.warningSoft, border: "none" }}>
           <p className="text-[12px] font-bold mb-2" style={{ color: COLORS.warning }}>Invitations en attente</p>
           {(ctx.data.invitations || []).filter((i) => i.status === "pending").map((i) => {
@@ -2675,17 +2801,17 @@ function TeachersListScreen({ ctx }) {
         </Card>}
         <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher un enseignant" className="mb-1" />
         <SectionLabel>Tous les enseignants</SectionLabel>
-        {filteredTeachers.length === 0 && <div className="py-8 text-center text-[12.5px]" style={{ color: COLORS.muted }}>Aucun enseignant ne correspond.</div>}
+        {filteredTeachers.length === 0 && <div className="py-8 text-center text-[13px]" style={{ color: COLORS.muted }}>Aucun enseignant ne correspond.</div>}
         {filteredTeachers.map((t) => {
           const classCount = groupAssignmentsByClass(ctx, t.id).length;
           return (
             <Card key={t.id} onClick={() => ctx.nav.push("teacherDetails", { teacherId: t.id })} className="flex items-center gap-3" style={{ opacity: t.active ? 1 : 0.55 }}>
               <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: COLORS.primarySoft }}><User size={18} color={COLORS.primary} /></div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2"><p className="font-bold text-[13.5px] truncate" style={{ color: COLORS.text }}>{t.name}</p>{!t.active && <Badge tone="neutral">Désactivé</Badge>}</div>
-                <p className="text-[11.5px] truncate" style={{ color: classCount ? COLORS.muted : COLORS.warning }}>{classCount > 0 ? `${classCount} classe(s) assignée(s)` : "Aucune classe assignée"}</p>
+                <div className="flex items-center gap-2"><p className="font-bold text-[14px] truncate" style={{ color: COLORS.text }}>{t.name}</p>{!t.active && <Badge tone="neutral">Désactivé</Badge>}</div>
+                <p className="text-[12px] truncate" style={{ color: classCount ? COLORS.muted : COLORS.warning }}>{classCount > 0 ? `${classCount} classe(s) assignée(s)` : "Aucune classe assignée"}</p>
               </div>
-              <ChevronRight size={17} color={COLORS.muted} className="shrink-0" />
+              <ChevronRight size={18} color={COLORS.muted} className="shrink-0" />
             </Card>
           );
         })}
@@ -2722,12 +2848,12 @@ function TeacherDetailsScreen({ ctx }) {
   return (
     <Screen>
       <TopBar title={teacher.name} subtitle={ctx.data.establishment.name} onBack={() => ctx.nav.pop()} />
-      <div className="px-4 pt-4 space-y-3">
+      <div className="px-4 pt-4 space-y-2">
         <Card className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-full flex items-center justify-center shrink-0" style={{ background: COLORS.primarySoft }}><User size={20} color={COLORS.primary} /></div>
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-[14.5px] truncate" style={{ color: COLORS.text }}>{teacher.name}</p>
-            <p className="text-[11.5px] truncate" style={{ color: COLORS.muted }}>{teacher.email || teacher.phone || teacher.username}{teacher.city || teacher.country ? ` · ${[teacher.city, teacher.country].filter(Boolean).join(", ")}` : ""}</p>
+            <p className="font-bold text-[14px] truncate" style={{ color: COLORS.text }}>{teacher.name}</p>
+            <p className="text-[12px] truncate" style={{ color: COLORS.muted }}>{teacher.email || teacher.phone || teacher.username}{teacher.city || teacher.country ? ` · ${[teacher.city, teacher.country].filter(Boolean).join(", ")}` : ""}</p>
           </div>
           <Badge tone={teacher.active ? "success" : "neutral"}>{teacher.active ? "Actif" : "Désactivé"}</Badge>
         </Card>
@@ -2735,8 +2861,8 @@ function TeacherDetailsScreen({ ctx }) {
         <SectionLabel>Classes et matières</SectionLabel>
         {byClass.length > 0 ? byClass.map((e) => (
           <Card key={e.classId} className="flex items-start gap-3">
-            <GraduationCap size={17} color={COLORS.primary} className="shrink-0 mt-0.5" />
-            <p className="text-[12.5px] leading-5" style={{ color: COLORS.text }}><b>{e.className}</b> — {e.subjectNames.join(", ")}</p>
+            <GraduationCap size={18} color={COLORS.primary} className="shrink-0 mt-0.5" />
+            <p className="text-[13px] leading-5" style={{ color: COLORS.text }}><b>{e.className}</b> — {e.subjectNames.join(", ")}</p>
           </Card>
         )) : <EmptyState icon={GraduationCap} title="Aucune classe assignée" text="Assignez cet enseignant à une ou plusieurs classes." />}
 
@@ -2747,9 +2873,9 @@ function TeacherDetailsScreen({ ctx }) {
               const classCount = y.levels.reduce((sum, g) => sum + g.classes.length, 0);
               return (
                 <Card key={y.yearId} className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: "#EEF1F4" }}><Calendar size={16} color={COLORS.muted} /></div>
+                  <div className="w-9 h-9 rounded-[16px] flex items-center justify-center shrink-0" style={{ background: "#EEF1F4" }}><Calendar size={18} color={COLORS.muted} /></div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap"><p className="font-bold text-[12.5px]" style={{ color: COLORS.text }}>{y.yearLabel}</p><Badge tone="neutral">Archivée</Badge></div>
+                    <div className="flex items-center gap-2 flex-wrap"><p className="font-bold text-[13px]" style={{ color: COLORS.text }}>{y.yearLabel}</p><Badge tone="neutral">Archivée</Badge></div>
                     <p className="text-[11px]" style={{ color: COLORS.muted }}>{y.levels.length} niveau(x) · {classCount} classe(s) · {y.levels.flatMap((g) => g.subjects).length} matière(s)</p>
                   </div>
                 </Card>
@@ -2761,12 +2887,12 @@ function TeacherDetailsScreen({ ctx }) {
         <SectionLabel>Actions</SectionLabel>
         <div className="grid grid-cols-2 gap-3">
           <Card onClick={() => ctx.nav.push("assignClassesToTeacher", { teacherId })} className="flex flex-col gap-2">
-            <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: COLORS.accentSoft }}><BookOpen size={17} color={COLORS.accent} /></div>
+            <div className="w-9 h-9 rounded-[16px] flex items-center justify-center" style={{ background: COLORS.accentSoft }}><BookOpen size={18} color={COLORS.accent} /></div>
             <p className="font-bold text-[13px]" style={{ color: COLORS.text }}>Assigner des matières</p>
             <p className="text-[11px]" style={{ color: COLORS.muted }}>Classes et sections</p>
           </Card>
           <Card onClick={resend} className="flex flex-col gap-2">
-            <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: COLORS.primarySoft }}><Share2 size={17} color={COLORS.primary} /></div>
+            <div className="w-9 h-9 rounded-[16px] flex items-center justify-center" style={{ background: COLORS.primarySoft }}><Share2 size={18} color={COLORS.primary} /></div>
             <p className="font-bold text-[13px]" style={{ color: COLORS.text }}>Envoyer une invitation</p>
             <p className="text-[11px]" style={{ color: COLORS.muted }}>Code + accès à l'école</p>
           </Card>
@@ -2800,8 +2926,8 @@ function CreateTeacherScreen({ ctx }) {
       <TopBar title="Inviter un enseignant" onBack={() => ctx.nav.pop()} />
       <div className="important-form-modal px-4 pt-4">
         <Card className="mb-4 flex items-start gap-3" style={{ background: COLORS.primarySoft, border: "none" }}>
-          <ShieldCheck size={19} color={COLORS.primary} className="shrink-0 mt-0.5" />
-          <div><p className="text-[12.5px] font-bold" style={{ color: COLORS.primaryDark }}>Une invitation, pas un mot de passe</p><p className="text-[11.5px] mt-1" style={{ color: COLORS.muted }}>L’enseignant vérifiera son email et créera lui-même son mot de passe.</p></div>
+          <ShieldCheck size={20} color={COLORS.primary} className="shrink-0 mt-0.5" />
+          <div><p className="text-[13px] font-bold" style={{ color: COLORS.primaryDark }}>Une invitation, pas un mot de passe</p><p className="text-[12px] mt-1" style={{ color: COLORS.muted }}>L’enseignant vérifiera son email et créera lui-même son mot de passe.</p></div>
         </Card>
         <DemoFillButton onClick={() => { setName("Amina Enseignante"); setEmail("amina@ecole-demo.dz"); setEmailError(""); }} />
         <Field label="Nom complet"><TextInput autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex. Chaïma Rahal" /></Field>
@@ -2840,15 +2966,15 @@ function ShareCredentialsScreen({ ctx }) {
       <TopBar title="Invitation prête" onBack={() => ctx.nav.resetTo("teachersList")} />
       <div className="px-4 pt-4">
         <Card className="mb-3" style={{ background: COLORS.successSoft, border: "none" }}>
-          <p className="text-[12.5px] font-semibold" style={{ color: COLORS.success }}>L’invitation de {invitation.name} est prête. Aucun mot de passe n’est envoyé.</p>
+          <p className="text-[13px] font-semibold" style={{ color: COLORS.success }}>L’invitation de {invitation.name} est prête. Aucun mot de passe n’est envoyé.</p>
         </Card>
-        <Card className="mb-3 text-center"><p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: COLORS.muted }}>Code d’invitation</p><p className="text-[22px] font-black mt-1 tracking-wide" style={{ color: COLORS.primary }}>{invitation.code}</p></Card>
+        <Card className="mb-3 text-center"><p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: COLORS.muted }}>Code d’invitation</p><p className="text-[28px] font-black mt-1 tracking-wide" style={{ color: COLORS.primary }}>{invitation.code}</p></Card>
 
         <SectionLabel>Classes et matières assignées</SectionLabel>
         {assignments.length > 0 ? (
           <Card className="mb-3 space-y-1.5">
             {assignments.map((a) => (
-              <div key={a.classId} className="flex items-start gap-1.5 text-[11.5px]" style={{ color: COLORS.text }}>
+              <div key={a.classId} className="flex items-start gap-1.5 text-[12px]" style={{ color: COLORS.text }}>
                 <GraduationCap size={13} color={COLORS.primary} className="mt-0.5 shrink-0" />
                 <span><b>{a.className}</b> — {a.subjectNames.join(", ")}</span>
               </div>
@@ -2856,8 +2982,8 @@ function ShareCredentialsScreen({ ctx }) {
           </Card>
         ) : (
           <Card className="mb-3 flex items-start gap-3" style={{ background: COLORS.warningSoft, border: "none" }}>
-            <AlertTriangle size={16} color={COLORS.warning} className="shrink-0 mt-0.5" />
-            <p className="text-[11.5px] leading-5" style={{ color: COLORS.warning }}>Aucune classe assignée pour l'instant.</p>
+            <AlertTriangle size={18} color={COLORS.warning} className="shrink-0 mt-0.5" />
+            <p className="text-[12px] leading-5" style={{ color: COLORS.warning }}>Aucune classe assignée pour l'instant.</p>
           </Card>
         )}
         <button onClick={() => ctx.nav.push("assignClassesToTeacher", { inviteId })} className="w-full text-center text-[12px] font-semibold py-2 mb-1" style={{ color: COLORS.primary }}>{assignments.length > 0 ? "Modifier l'affectation" : "Assigner des classes"}</button>
@@ -2954,9 +3080,9 @@ function AssignClassesToTeacherScreen({ ctx }) {
     body = <div className="px-4">
       {allLevels.map((level) => {
         const count = allClasses.filter((c) => c.level === level).length;
-        return <OptionCard key={level} icon={School} title={level} subtitle={`${count} classe${count > 1 ? "s" : ""}`} selected={currentLevel === level} onClick={() => pickLevel(level)} />;
+        return <OptionCard key={level} icon={Layers} title={level} subtitle={`${count} classe${count > 1 ? "s" : ""}`} selected={currentLevel === level} onClick={() => pickLevel(level)} />;
       })}
-      {allLevels.length === 0 && <EmptyState icon={School} title="Aucun niveau" text="Créez un niveau et ses classes avant d'assigner un enseignant." />}
+      {allLevels.length === 0 && <EmptyState icon={Layers} title="Aucun niveau" text="Créez un niveau et ses classes avant d'assigner un enseignant." />}
       {inviteId && <Btn variant="ghost" full onClick={finish}>Assigner plus tard</Btn>}
     </div>;
   } else if (phase === "pickClass") {
@@ -2967,8 +3093,8 @@ function AssignClassesToTeacherScreen({ ctx }) {
   } else if (phase === "pickSubjects") {
     title = "Choisir les matières";
     body = <div className="px-4">
-      <p className="text-[11.5px] mb-3" style={{ color: COLORS.muted }}>Cochez toutes les matières que {personName.split(" ")[0]} enseigne dans « {currentClass.name} ».</p>
-      <div className="rounded-2xl overflow-hidden mb-4" style={{ border: `1px solid ${COLORS.border}` }}>
+      <p className="text-[12px] mb-3" style={{ color: COLORS.muted }}>Cochez toutes les matières que {personName.split(" ")[0]} enseigne dans « {currentClass.name} ».</p>
+      <div className="rounded-[16px] overflow-hidden mb-4" style={{ border: `1px solid ${COLORS.border}` }}>
         {currentSubjects.filter((s) => !s.archived).map((s, i) => {
           const isSelected = selectedSubjectIds.has(s.id);
           const currentTeacherId = (currentClass.teacherBySubject || {})[s.id];
@@ -2978,7 +3104,7 @@ function AssignClassesToTeacherScreen({ ctx }) {
               style={{ borderTop: i ? `1px solid ${COLORS.border}` : "none", background: isSelected ? COLORS.accentSoft : "#fff" }}>
               <div className="text-left">
                 <p className="text-[13px]" style={{ color: COLORS.text }}>{s.name}</p>
-                {otherTeacher && <p className="text-[10.5px]" style={{ color: COLORS.warning }}>Actuellement : {otherTeacher.name}</p>}
+                {otherTeacher && <p className="text-[11px]" style={{ color: COLORS.warning }}>Actuellement : {otherTeacher.name}</p>}
               </div>
               <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: isSelected ? COLORS.accent : "transparent", border: isSelected ? "none" : `1.5px solid ${COLORS.border}` }}>
                 {isSelected && <Check size={13} color="#fff" />}
@@ -2994,8 +3120,8 @@ function AssignClassesToTeacherScreen({ ctx }) {
     title = "Classe ajoutée";
     body = <div className="px-4">
       <Card className="mb-4" style={{ background: COLORS.successSoft, border: "none" }}>
-        <p className="text-[12.5px] font-semibold" style={{ color: COLORS.success }}>{personName} enseigne maintenant dans {doneRounds.length} classe{doneRounds.length > 1 ? "s" : ""} :</p>
-        {doneRounds.map((r, i) => <p key={i} className="text-[11.5px] mt-1" style={{ color: COLORS.success }}>· {r.className} — {r.subjectNames.join(", ")}</p>)}
+        <p className="text-[13px] font-semibold" style={{ color: COLORS.success }}>{personName} enseigne maintenant dans {doneRounds.length} classe{doneRounds.length > 1 ? "s" : ""} :</p>
+        {doneRounds.map((r, i) => <p key={i} className="text-[12px] mt-1" style={{ color: COLORS.success }}>· {r.className} — {r.subjectNames.join(", ")}</p>)}
       </Card>
       <p className="text-[13px] font-semibold mb-3" style={{ color: COLORS.text }}>Assigner {personName.split(" ")[0]} à une autre classe ?</p>
       <div className="flex gap-2">
@@ -3038,13 +3164,13 @@ function TeacherDashboardScreen({ ctx }) {
         <div className="dashboard-hero teacher-hero">
           <div className="dashboard-hero-icon"><ScanLine size={24} /></div>
           <div className="flex-1"><Badge tone="success">Prêt pour la classe</Badge><p>Lancez une évaluation en quelques secondes.</p></div>
-          <button onClick={() => ctx.nav.push("evalPrep", {})} className="hero-play" aria-label="Nouvelle évaluation"><PlayCircle size={21}/></button>
+          <button onClick={() => ctx.nav.push("evalPrep", {})} className="hero-play" aria-label="Lancer une évaluation"><PlayCircle size={20}/></button>
         </div>
         <OnboardingTip ctx={ctx} text={isIndependent ? "Dans l'onglet Classes → un niveau : préparez vos cours et questionnaires une seule fois (partagés entre vos sections), puis lancez l'évaluation dans la classe de votre choix." : "Dans l'onglet Programme : préparez vos cours et questionnaires une seule fois (partagés entre vos sections), puis lancez l'évaluation dans la classe de votre choix."} />
 
         {alert.level !== "ok" && (
           <Card onClick={() => ctx.nav.push("sync")} className="flex items-center gap-2" style={{ background: alert.level === "critical" ? COLORS.dangerSoft : COLORS.warningSoft, border: "none" }}>
-            <AlertTriangle size={17} color={alert.level === "critical" ? COLORS.danger : COLORS.warning} />
+            <AlertTriangle size={18} color={alert.level === "critical" ? COLORS.danger : COLORS.warning} />
             <p className="text-[12px] font-semibold flex-1" style={{ color: alert.level === "critical" ? COLORS.danger : COLORS.warning }}>
               {alert.count} évaluation(s) non synchronisée(s) — connectez-vous pour sauvegarder vos données.
             </p>
@@ -3054,7 +3180,7 @@ function TeacherDashboardScreen({ ctx }) {
         {/* Des chiffres, pas une deuxième liste des niveaux — celle-ci vit déjà dans l'onglet Programme. */}
         <SectionLabel>Vue d'ensemble</SectionLabel>
         <div className="grid grid-cols-2 gap-3">
-          <StatCard icon={School} value={levelGroups.length} label="Niveaux enseignés" />
+          <StatCard icon={Layers} value={levelGroups.length} label="Niveaux enseignés" />
           <StatCard icon={GraduationCap} value={totalClasses} label="Classes" tone="accent" />
           <StatCard icon={Users} value={totalStudents} label="Élèves" tone="success" />
           <StatCard icon={ClipboardList} value={inProgress} label="Évaluations en cours" tone="warning" />
@@ -3073,19 +3199,19 @@ function TeacherYearsScreen({ ctx }) {
   const yearGroups = getTeacherYearGroups(ctx.data, teacher.id, { includeArchivedYears: true });
   return (
     <Screen>
-      <TopBar title="Mes années" subtitle={ctx.data.establishment.name} />
+      <TopBar title="Mes années scolaires" subtitle={ctx.data.establishment.name} />
       <div className="px-4 pt-4 space-y-2">
         {yearGroups.length === 0 ? (
-          <EmptyState icon={Calendar} title="Aucune classe assignée" text="Contactez votre gestionnaire d'école pour être affecté à une classe." />
+          <EmptyState icon={GraduationCap} title="Aucune classe assignée" text="Contactez votre gestionnaire d'école pour être affecté à une classe." />
         ) : yearGroups.map((y) => {
           const classCount = y.levels.reduce((sum, g) => sum + g.classes.length, 0);
           const noAssignment = y.levels.length === 0;
           return (
             <Card key={y.yearId} onClick={() => ctx.nav.push("teacherLevels", { yearId: y.yearId })} className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-[15px] flex items-center justify-center" style={{ background: y.yearArchived ? "#EEF1F4" : COLORS.primarySoft }}><Calendar size={19} color={y.yearArchived ? COLORS.muted : COLORS.primary} /></div>
+              <div className="w-11 h-11 rounded-[16px] flex items-center justify-center" style={{ background: y.yearArchived ? "#EEF1F4" : COLORS.primarySoft }}><Calendar size={20} color={y.yearArchived ? COLORS.muted : COLORS.primary} /></div>
               <div className="flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <p className="font-bold text-[13.5px]" style={{ color: COLORS.text }}>{y.yearLabel}</p>
+                  <p className="font-bold text-[14px]" style={{ color: COLORS.text }}>{y.yearLabel}</p>
                   {y.yearArchived ? <Badge tone="neutral">Archivée</Badge> : <Badge tone="primary">En cours</Badge>}
                 </div>
                 <p className="text-[11px]" style={{ color: COLORS.muted }}>
@@ -3093,7 +3219,7 @@ function TeacherYearsScreen({ ctx }) {
                   {y.yearArchived ? " · lecture seule" : ""}
                 </p>
               </div>
-              <ChevronRight size={17} color={COLORS.muted}/>
+              <ChevronRight size={18} color={COLORS.muted}/>
             </Card>
           );
         })}
@@ -3114,12 +3240,12 @@ function TeacherLevelsScreen({ ctx }) {
       <TopBar title="Mes niveaux" subtitle={`${yr.label}${yr.archived ? " · lecture seule" : ""}`} onBack={() => ctx.nav.pop()} />
       <div className="px-4 pt-4 space-y-2">
         {levelGroups.length === 0 ? (
-          <EmptyState icon={School} title="Pas encore assigné" text={yr.archived ? "Aucune classe ne vous était assignée dans cette année." : "Le gestionnaire n'a pas encore configuré vos matières et classes pour cette année."} />
+          <EmptyState icon={Layers} title="Pas encore assigné" text={yr.archived ? "Aucune classe ne vous était assignée dans cette année." : "Le gestionnaire n'a pas encore configuré vos matières et classes pour cette année."} />
         ) : levelGroups.map((g) => (
           <Card key={g.level} onClick={() => ctx.nav.push("teacherLevelDetails", { yearId: g.yearId, level: g.level })} className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-[15px] flex items-center justify-center" style={{ background: yr.archived ? "#EEF1F4" : COLORS.primarySoft }}><School size={19} color={yr.archived ? COLORS.muted : COLORS.primary} /></div>
-            <div className="flex-1"><p className="font-bold text-[13.5px]" style={{ color: COLORS.text }}>{g.level}</p><p className="text-[11px]" style={{ color: COLORS.muted }}>{g.classes.length} classe(s) · {g.subjects.length} matière(s)</p></div>
-            <ChevronRight size={17} color={COLORS.muted}/>
+            <div className="w-11 h-11 rounded-[16px] flex items-center justify-center" style={{ background: yr.archived ? "#EEF1F4" : COLORS.primarySoft }}><Layers size={20} color={yr.archived ? COLORS.muted : COLORS.primary} /></div>
+            <div className="flex-1"><p className="font-bold text-[14px]" style={{ color: COLORS.text }}>{g.level}</p><p className="text-[11px]" style={{ color: COLORS.muted }}>{g.classes.length} classe(s) · {g.subjects.length} matière(s)</p></div>
+            <ChevronRight size={18} color={COLORS.muted}/>
           </Card>
         ))}
       </div>
@@ -3140,8 +3266,8 @@ function TeacherLevelDetailsScreen({ ctx }) {
   if (!group) return null;
 
   const items = [
-    { key: "prepare", label: yr.archived ? "Voir le programme" : "Préparer mon programme", icon: ClipboardList, sub: `Cours, compétences, questionnaires · ${group.subjects.length} matière(s)`, go: () => ctx.nav.push("teacherLevelSubjects", { yearId, level }) },
-    { key: "classes", label: "Voir mes classes", icon: GraduationCap, sub: yr.archived ? `Résultats · ${group.classes.length} classe(s)` : `Lancer une évaluation, résultats · ${group.classes.length} classe(s)`, go: () => ctx.nav.push("teacherLevelClasses", { yearId, level }) },
+    { key: "prepare", label: yr.archived ? "Voir mes évaluations" : "Préparer mes évaluations", icon: ClipboardList, sub: `Cours, compétences, questionnaires · ${group.subjects.length} matière(s)`, go: () => ctx.nav.push("teacherLevelSubjects", { yearId, level }) },
+    { key: "classes", label: "Voir les résultats de mes classes", icon: GraduationCap, sub: `Résultats par classe · ${group.classes.length} classe(s)`, go: () => ctx.nav.push("teacherLevelClasses", { yearId, level }) },
   ];
 
   return (
@@ -3150,9 +3276,9 @@ function TeacherLevelDetailsScreen({ ctx }) {
       <div className="px-4 pt-4 space-y-2">
         {items.map((it) => (
           <Card key={it.key} onClick={it.go} className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-[15px] flex items-center justify-center" style={{ background: COLORS.primarySoft }}><it.icon size={19} color={COLORS.primary} /></div>
-            <div className="flex-1"><p className="font-bold text-[13.5px]" style={{ color: COLORS.text }}>{it.label}</p><p className="text-[11.5px]" style={{ color: COLORS.muted }}>{it.sub}</p></div>
-            <ChevronRight size={17} color={COLORS.muted} />
+            <div className="w-11 h-11 rounded-[16px] flex items-center justify-center" style={{ background: COLORS.primarySoft }}><it.icon size={20} color={COLORS.primary} /></div>
+            <div className="flex-1"><p className="font-bold text-[14px]" style={{ color: COLORS.text }}>{it.label}</p><p className="text-[12px]" style={{ color: COLORS.muted }}>{it.sub}</p></div>
+            <ChevronRight size={18} color={COLORS.muted} />
           </Card>
         ))}
       </div>
@@ -3160,12 +3286,14 @@ function TeacherLevelDetailsScreen({ ctx }) {
   );
 }
 
-/* "Préparer mon programme" — tout sur un seul écran, comme le programme d'un cours dans une
-   app d'enseignement en ligne : Matière → Cours → Compétence, chaque niveau se déplie sur
-   place (flèche qui tourne), jamais de nouvel écran pour simplement consulter. Seuls ajouter
-   un cours/une compétence/un questionnaire, ou ouvrir un questionnaire pour le modifier,
-   déclenchent une vraie action. Une matière n'a besoin que d'UNE classe "témoin" pour écrire
-   dans ses questionnaires, puisque ce contenu est partagé par toutes les sections du niveau. */
+/* "Préparer mes évaluations" — tout sur un seul écran : Matière → Cours → Questionnaires,
+   chaque niveau se déplie sur place (flèche qui tourne), jamais de nouvel écran pour
+   simplement consulter. Les compétences évaluées ne sont plus une entité séparée à naviguer :
+   ce sont de simples étiquettes libres saisies à la création du questionnaire (facultatives,
+   ajoutées une par une). Seuls ajouter un cours/un questionnaire, ou ouvrir un questionnaire
+   pour le modifier, déclenchent une vraie action. Une matière n'a besoin que d'UNE classe
+   "témoin" pour écrire dans ses questionnaires, puisque ce contenu est partagé par toutes les
+   sections du niveau. */
 function TeacherLevelSubjectsScreen({ ctx }) {
   const { yearId, level, subjectId: presetSubjectId } = ctx.nav.current.params;
   const teacher = findTeacher(ctx.data, ctx.currentUser.id);
@@ -3186,14 +3314,16 @@ function TeacherLevelSubjectsScreen({ ctx }) {
 
   const [openSubjectId, setOpenSubjectId] = useState(presetSubjectId || null);
   const [openCourseId, setOpenCourseId] = useState(null);
-  const [openCompetencyId, setOpenCompetencyId] = useState(null);
   const [addingCourseFor, setAddingCourseFor] = useState(null); // subjectId
   const [courseTitle, setCourseTitle] = useState("");
-  const [addingCompetencyFor, setAddingCompetencyFor] = useState(null); // courseId
-  const [compTitle, setCompTitle] = useState("");
   const [addingSubject, setAddingSubject] = useState(false);
   const [selectedSubjects, setSelectedSubjects] = useState(new Set());
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [addingQuestionnaireForCourse, setAddingQuestionnaireForCourse] = useState(null); // courseId
+  const [newQTitle, setNewQTitle] = useState("");
+  const [newQCount, setNewQCount] = useState("");
+  const [newQCompetencyNames, setNewQCompetencyNames] = useState([]);
+  const [newQCompetencyInput, setNewQCompetencyInput] = useState("");
 
   const addSubjects = () => {
     const selfId = ctx.data.admin.selfTeacherId;
@@ -3224,28 +3354,45 @@ function TeacherLevelSubjectsScreen({ ctx }) {
     ctx.setData((d) => updateLevel(d, yearId, level, (lv) => ({ ...lv, subjects: lv.subjects.map((s) => (s.id === subjectId ? { ...s, courses: [...(s.courses || []), course] } : s)) })));
     setCourseTitle(""); setAddingCourseFor(null); setOpenCourseId(course.id); ctx.showToast("Cours ajouté");
   };
-  const addCompetency = (subjectId, courseId) => {
-    if (!compTitle.trim()) return;
-    const competency = { id: uid("cp"), title: compTitle.trim(), description: "" };
-    ctx.setData((d) => updateLevel(d, yearId, level, (lv) => ({ ...lv, subjects: lv.subjects.map((s) => (s.id === subjectId ? { ...s, courses: (s.courses || []).map((co) => (co.id === courseId ? { ...co, competencies: [...co.competencies, competency] } : co)) } : s)) })));
-    setCompTitle(""); setAddingCompetencyFor(null); setOpenCompetencyId(competency.id); ctx.showToast("Compétence ajoutée");
+  const resetQuestionnaireForm = () => {
+    setAddingQuestionnaireForCourse(null); setNewQTitle(""); setNewQCount(""); setNewQCompetencyNames([]); setNewQCompetencyInput("");
+  };
+  const addCompetencyChip = () => {
+    if (!newQCompetencyInput.trim()) return;
+    setNewQCompetencyNames((arr) => [...arr, newQCompetencyInput.trim()]);
+    setNewQCompetencyInput("");
+  };
+
+  /* Questionnaire créé directement sous son cours — les compétences évaluées sont de simples
+     étiquettes libres saisies une par une (facultatives, aucune vraie entité Compétence à
+     gérer séparément). Le nombre de questions n'est qu'un objectif affiché — le questionnaire
+     démarre vide, les questions s'ajoutent ensuite une par une comme d'habitude. */
+  const addCourseQuestionnaire = (subjectId, courseId) => {
+    const count = parseInt(newQCount, 10);
+    if (!newQTitle.trim() || !count || count < 1) return;
+    const newId = uid("qz");
+    ctx.setData((d) => updateLevel(d, yearId, level, (lv) => ({ ...lv, subjects: lv.subjects.map((s) => (s.id === subjectId ? { ...s, questionnaires: [...s.questionnaires, { id: newId, title: newQTitle.trim(), description: "", courseId, competencyNames: [...newQCompetencyNames], targetQuestionCount: count, archived: false, questions: [] }] } : s)) })));
+    const classId = representativeClassFor(subjectId);
+    resetQuestionnaireForm();
+    ctx.showToast("Questionnaire créé");
+    if (classId) ctx.nav.push("createQuestion", { classId, subjectId, questionnaireId: newId });
   };
 
   return (
     <Screen>
-      <TopBar title={isIndependent ? "Matières et programme" : "Préparer mon programme"} subtitle={`${level} · ${yearLabel}`} onBack={() => ctx.nav.pop()} />
+      <TopBar title={isIndependent ? "Matières et programme" : "Préparer mes évaluations"} subtitle={`${level} · ${yearLabel}`} onBack={() => ctx.nav.pop()} />
       <div className="px-4 pt-4 space-y-2">
         {isIndependent && !readOnly && (
           addingSubject ? (
             <Card className="important-form-modal mb-3">
-              <p className="text-[11.5px] mb-2" style={{ color: COLORS.muted }}>Cochez les matières à ajouter au niveau « {level} ».</p>
+              <p className="text-[12px] mb-2" style={{ color: COLORS.muted }}>Cochez les matières à ajouter au niveau « {level} ».</p>
               <SubjectPicker catalog={ctx.data.subjectCatalog} selected={selectedSubjects} onToggle={(name) => setSelectedSubjects((prev) => { const n = new Set(prev); n.has(name) ? n.delete(name) : n.add(name); return n; })} onAddCustom={(name) => { ctx.setData((d) => (d.subjectCatalog.includes(name) ? d : { ...d, subjectCatalog: [...d.subjectCatalog, name] })); setSelectedSubjects((prev) => new Set(prev).add(name)); }} excluded={subjects.filter((s) => !s.archived).map((s) => s.name)} />
               <div className="flex gap-2 mt-3">
                 <Btn variant="ghost" full onClick={() => { setAddingSubject(false); setSelectedSubjects(new Set()); }}>Annuler</Btn>
                 <Btn full disabled={selectedSubjects.size === 0} onClick={addSubjects}>Ajouter ({selectedSubjects.size})</Btn>
               </div>
             </Card>
-          ) : <PageAction icon={Plus} title="Ajouter une matière" subtitle={`Compléter le programme de « ${level} »`} onClick={() => setAddingSubject(true)} />
+          ) : <Btn full icon={Plus} onClick={() => setAddingSubject(true)}>Ajouter une matière</Btn>
         )}
         <p className="text-[11px] -mt-1 mb-1" style={{ color: COLORS.muted }}>Partagé entre les {classes.length} section{classes.length > 1 ? "s" : ""} de ce niveau.</p>
         {subjects.filter((s) => !s.archived).map((s) => {
@@ -3257,81 +3404,87 @@ function TeacherLevelSubjectsScreen({ ctx }) {
             <Card key={s.id} className="!p-0 overflow-hidden">
               <div className="w-full flex items-center gap-3 p-4">
                 <button onClick={() => setOpenSubjectId(subjOpen ? null : s.id)} className="flex-1 min-w-0 flex items-center gap-3 text-left">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: COLORS.primarySoft }}><BookOpen size={18} color={COLORS.primary} /></div>
-                  <div className="flex-1 min-w-0"><p className="font-bold text-[13.5px]" style={{ color: COLORS.text }}>{s.name}</p><p className="text-[11.5px]" style={{ color: COLORS.muted }}>{courses.length} cours</p></div>
+                  <div className="w-10 h-10 rounded-[16px] flex items-center justify-center shrink-0" style={{ background: COLORS.primarySoft }}><BookOpen size={18} color={COLORS.primary} /></div>
+                  <div className="flex-1 min-w-0"><p className="font-bold text-[14px]" style={{ color: COLORS.text }}>{s.name}</p><p className="text-[12px]" style={{ color: COLORS.muted }}>{courses.length} cours</p></div>
                 </button>
-                {isIndependent && !readOnly && <button onClick={() => setConfirmDeleteId(s.id)} disabled={!canDeleteSubject} className="p-1.5 shrink-0" style={{ opacity: canDeleteSubject ? 1 : 0.3 }}><Trash2 size={15} color={COLORS.danger} /></button>}
-                <button onClick={() => setOpenSubjectId(subjOpen ? null : s.id)} className="shrink-0">{subjOpen ? <ChevronDown size={17} color={COLORS.primary} /> : <ChevronRight size={17} color={COLORS.muted} />}</button>
+                {isIndependent && !readOnly && <button onClick={() => setConfirmDeleteId(s.id)} disabled={!canDeleteSubject} className="p-1.5 shrink-0" style={{ opacity: canDeleteSubject ? 1 : 0.3 }}><Trash2 size={18} color={COLORS.danger} /></button>}
+                <button onClick={() => setOpenSubjectId(subjOpen ? null : s.id)} className="shrink-0">{subjOpen ? <ChevronDown size={18} color={COLORS.primary} /> : <ChevronRight size={18} color={COLORS.muted} />}</button>
               </div>
               {subjOpen && (
                 <div className="px-3 pb-3 space-y-2" style={{ borderTop: `1px solid ${COLORS.border}`, background: "#FBFBFD" }}>
+                  {courses.length === 0 && <p className="text-[11px] px-1 pt-2" style={{ color: COLORS.muted }}>Ajoutez un cours pour commencer à y créer des questionnaires.</p>}
                   {courses.map((course, i) => {
                     const courseOpen = openCourseId === course.id;
-                    const qCount = course.competencies.reduce((n, c) => n + s.questionnaires.filter((q) => !q.archived && (q.competencyIds || []).includes(c.id)).length, 0);
+                    const courseQuestionnaires = s.questionnaires.filter((q) => !q.archived && q.courseId === course.id);
                     return (
                       <div key={course.id} className="relative mt-2">
                         {i < courses.length - 1 && <div className="absolute" style={{ left: 19, top: 44, bottom: -8, width: 2, background: "#e4e7f1", zIndex: 0 }} />}
-                        <div className="relative rounded-xl overflow-hidden" style={{ background: "#fff", border: `1px solid ${COLORS.border}`, borderLeft: `3px solid ${COLORS.primary}` }}>
+                        <div className="relative rounded-[16px] overflow-hidden" style={{ background: "#fff", border: `1px solid ${COLORS.border}`, borderLeft: `3px solid ${COLORS.primary}` }}>
                           <button onClick={() => setOpenCourseId(courseOpen ? null : course.id)} className="w-full flex items-center gap-2.5 p-3 text-left">
                             <div className="course-number shrink-0">{String(i + 1).padStart(2, "0")}</div>
                             <div className="flex-1 min-w-0">
                               <p className="font-extrabold text-[13px]" style={{ color: COLORS.text }}>{course.title}</p>
-                              <p className="text-[10.5px] flex items-center gap-2.5 mt-0.5" style={{ color: COLORS.muted }}>
-                                <span className="flex items-center gap-1"><Target size={10} />{course.competencies.length} compétence(s)</span>
-                                <span className="flex items-center gap-1"><ListChecks size={10} />{qCount} questionnaire(s)</span>
-                              </p>
+                              <p className="text-[11px] flex items-center gap-1 mt-0.5" style={{ color: COLORS.muted }}><ListChecks size={10} />{courseQuestionnaires.length} questionnaire(s)</p>
                             </div>
-                            {courseOpen ? <ChevronDown size={15} color={COLORS.primary} className="shrink-0" /> : <ChevronRight size={15} color={COLORS.muted} className="shrink-0" />}
+                            {courseOpen ? <ChevronDown size={18} color={COLORS.primary} className="shrink-0" /> : <ChevronRight size={18} color={COLORS.muted} className="shrink-0" />}
                           </button>
                           {courseOpen && (
                             <div className="px-2.5 pb-2.5 space-y-1.5">
-                              {course.competencies.map((competency) => {
-                                const qs = s.questionnaires.filter((q) => !q.archived && (q.competencyIds || []).includes(competency.id));
-                                const compOpen = openCompetencyId === competency.id;
+                              {courseQuestionnaires.map((q) => {
+                                const skills = getQuestionnaireSkillLabels(s, q);
                                 return (
-                                  <div key={competency.id} className="rounded-lg overflow-hidden" style={{ background: "#fff", border: `1px solid ${COLORS.border}`, borderLeft: `3px solid ${COLORS.success}` }}>
-                                    <button onClick={() => setOpenCompetencyId(compOpen ? null : competency.id)} className="w-full flex items-center gap-2 p-2.5 text-left">
-                                      <div className="competency-check shrink-0" style={{ width: 28, height: 28 }}><Check size={13} /></div>
-                                      <div className="flex-1 min-w-0"><p className="font-bold text-[11.5px]" style={{ color: COLORS.text }}>{competency.title}</p><p className="text-[10px]" style={{ color: COLORS.muted }}>{qs.length} questionnaire(s)</p></div>
-                                      {compOpen ? <ChevronDown size={14} color={COLORS.primary} className="shrink-0" /> : <ChevronRight size={14} color={COLORS.muted} className="shrink-0" />}
-                                    </button>
-                                    {compOpen && (
-                                      <div className="px-2.5 pb-2.5 space-y-1">
-                                        {qs.map((q) => (
-                                          <button key={q.id} onClick={() => classId && ctx.nav.push("createQuestionnaire", { classId, subjectId: s.id, questionnaireId: q.id, courseId: course.id, competencyId: competency.id })} className="w-full flex items-center gap-2 py-2 px-2.5 rounded-lg" style={{ background: "#F7F8FA" }}>
-                                            <div className="shrink-0 rounded-full flex items-center justify-center" style={{ width: 22, height: 22, background: COLORS.accentSoft }}><ListChecks size={11} color={COLORS.accent} /></div>
-                                            <span className="text-[11px] truncate flex-1 text-left" style={{ color: COLORS.text }}>{q.title} · {q.questions.length} question(s)</span>
-                                            <Pencil size={13} color={COLORS.muted} className="shrink-0" />
-                                          </button>
-                                        ))}
-                                        {qs.length === 0 && <p className="text-[10.5px] px-1" style={{ color: COLORS.muted }}>Aucun questionnaire pour l'instant.</p>}
-                                        {!readOnly && <div className="pt-1"><AddRow tone="accent" label="Ajouter un questionnaire" onClick={() => classId && ctx.nav.push("createQuestionnaire", { classId, subjectId: s.id, courseId: course.id, competencyId: competency.id })} /></div>}
-                                      </div>
-                                    )}
-                                  </div>
+                                  <button key={q.id} onClick={() => classId && ctx.nav.push("createQuestionnaire", { classId, subjectId: s.id, questionnaireId: q.id, courseId: course.id })} className="w-full flex items-center gap-2 py-2 px-2.5 rounded-[10px] text-left" style={{ background: "#F7F8FA" }}>
+                                    <div className="shrink-0 rounded-full flex items-center justify-center" style={{ width: 22, height: 22, background: COLORS.accentSoft }}><ListChecks size={11} color={COLORS.accent} /></div>
+                                    <div className="flex-1 min-w-0">
+                                      <span className="text-[11px] block truncate" style={{ color: COLORS.text }}>{q.title} · {q.questions.length}{q.targetQuestionCount ? `/${q.targetQuestionCount}` : ""} question(s)</span>
+                                      {skills.length > 0 && <span className="text-[10px] block truncate" style={{ color: COLORS.muted }}>{skills.join(", ")}</span>}
+                                    </div>
+                                    <Pencil size={13} color={COLORS.muted} className="shrink-0" />
+                                  </button>
                                 );
                               })}
-                            {course.competencies.length === 0 && <p className="text-[11px] px-1" style={{ color: COLORS.muted }}>Aucune compétence pour l'instant.</p>}
-                            {!readOnly && (addingCompetencyFor === course.id ? (
-                              <div className="flex items-center gap-1.5 pt-1">
-                                <TextInput autoFocus value={compTitle} onChange={(e) => setCompTitle(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addCompetency(s.id, course.id)} placeholder="Nom de la compétence" style={{ minHeight: 36, fontSize: 12, padding: "8px 11px" }} />
-                                <button onClick={() => addCompetency(s.id, course.id)} disabled={!compTitle.trim()} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: compTitle.trim() ? COLORS.primary : "#E4E7F0" }}><Check size={16} color="#fff" /></button>
-                                <button onClick={() => { setAddingCompetencyFor(null); setCompTitle(""); }} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: "#F2F4F7" }}><X size={16} color={COLORS.muted} /></button>
-                              </div>
-                            ) : (
-                              <AddRow tone="success" label="Ajouter une compétence" onClick={() => setAddingCompetencyFor(course.id)} />
-                            ))}
-                          </div>
-                        )}
+                              {courseQuestionnaires.length === 0 && <p className="text-[11px] px-1" style={{ color: COLORS.muted }}>Aucun questionnaire pour l'instant.</p>}
+                              {!readOnly && <AddRow tone="accent" label="Ajouter un questionnaire" onClick={() => setAddingQuestionnaireForCourse(course.id)} />}
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
                   })}
+                  {/* Le formulaire (.important-form-modal) doit rester HORS de tout conteneur
+                     position:relative/overflow:hidden (comme les cartes de cours ci-dessus) —
+                     sinon il s'y positionne et s'y découpe au lieu de s'ancrer à tout l'écran. */}
+                  {!readOnly && addingQuestionnaireForCourse && (
+                    <Card className="important-form-modal">
+                      <Field label="Nom du questionnaire"><TextInput autoFocus value={newQTitle} onChange={(e) => setNewQTitle(e.target.value)} placeholder="Ex. Les fractions" /></Field>
+                      <Field label="Nombre de questions"><TextInput type="number" min="1" value={newQCount} onChange={(e) => setNewQCount(e.target.value)} placeholder="Ex. 8" /></Field>
+                      <Field label="Compétences évaluées (facultatif)">
+                        <div className="flex items-center gap-1.5">
+                          <TextInput value={newQCompetencyInput} onChange={(e) => setNewQCompetencyInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addCompetencyChip()} placeholder="Ex. Résoudre un problème" />
+                          <button onClick={addCompetencyChip} disabled={!newQCompetencyInput.trim()} className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: newQCompetencyInput.trim() ? COLORS.primary : "#E4E7F0" }}><Plus size={18} color="#fff" /></button>
+                        </div>
+                        {newQCompetencyNames.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {newQCompetencyNames.map((name, idx) => (
+                              <span key={idx} className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full text-[11px] font-semibold" style={{ background: COLORS.successSoft, color: COLORS.success }}>
+                                {name}
+                                <button onClick={() => setNewQCompetencyNames((arr) => arr.filter((_, j) => j !== idx))} className="p-0.5"><X size={11} /></button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </Field>
+                      <div className="flex gap-2 mt-1">
+                        <Btn variant="ghost" full onClick={resetQuestionnaireForm}>Annuler</Btn>
+                        <Btn full disabled={!newQTitle.trim() || !(parseInt(newQCount, 10) > 0)} onClick={() => addCourseQuestionnaire(s.id, addingQuestionnaireForCourse)}>Créer le questionnaire</Btn>
+                      </div>
+                    </Card>
+                  )}
                   {!readOnly && (addingCourseFor === s.id ? (
                     <div className="flex items-center gap-1.5 pt-1">
                       <TextInput autoFocus value={courseTitle} onChange={(e) => setCourseTitle(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addCourse(s.id)} placeholder="Nom du cours ou chapitre" style={{ minHeight: 38, fontSize: 12.5, padding: "9px 12px" }} />
-                      <button onClick={() => addCourse(s.id)} disabled={!courseTitle.trim()} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: courseTitle.trim() ? COLORS.primary : "#E4E7F0" }}><Check size={16} color="#fff" /></button>
-                      <button onClick={() => { setAddingCourseFor(null); setCourseTitle(""); }} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: "#F2F4F7" }}><X size={16} color={COLORS.muted} /></button>
+                      <button onClick={() => addCourse(s.id)} disabled={!courseTitle.trim()} className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: courseTitle.trim() ? COLORS.primary : "#E4E7F0" }}><Check size={18} color="#fff" /></button>
+                      <button onClick={() => { setAddingCourseFor(null); setCourseTitle(""); }} className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: "#F2F4F7" }}><X size={18} color={COLORS.muted} /></button>
                     </div>
                   ) : (
                     <AddRow tone="primary" label="Ajouter un cours" onClick={() => setAddingCourseFor(s.id)} />
@@ -3367,38 +3520,31 @@ function TeacherLevelClassesScreen({ ctx }) {
 
   return (
     <Screen>
-      <TopBar title="Mes classes" subtitle={`${level} · ${yearLabel}${readOnly ? " · lecture seule" : ""}`} onBack={() => ctx.nav.pop()} />
+      <TopBar title="Résultats de mes classes" subtitle={`${level} · ${yearLabel}${readOnly ? " · lecture seule" : ""}`} onBack={() => ctx.nav.pop()} />
       <div className="px-4 pt-4 space-y-2">
         {classes.length === 0 && <EmptyState icon={GraduationCap} title="Aucune classe" text="Créez une classe pour ce niveau pour commencer à évaluer." />}
         {classes.map((c) => {
-          /* Une seule matière dans cette classe (cas fréquent) → droit au tableau de bord de
-             la matière, sans faire choisir une matière qui n'a qu'une seule réponse possible.
-             Le bouton "évaluation" à droite est un raccourci direct, pour le moment où on est
-             déjà devant sa classe et qu'on sait exactement quoi lancer. */
+          /* Lancer une évaluation ne se fait plus depuis cet écran (uniquement résultats) — ça
+             reste le rôle exclusif de l'onglet "Évaluer", pour ne pas dupliquer l'action. Si la
+             classe a plusieurs matières, on filtre par matière directement dans l'écran de
+             résultats plutôt que de faire choisir une matière sur un écran séparé. */
           const mySubjects = subjects.filter((s) => (c.teacherBySubject || {})[s.id] === teacher.id);
-          const singleSubject = mySubjects.length === 1 ? mySubjects[0] : null;
-          const evalParams = singleSubject ? { classId: c.id, subjectId: singleSubject.id } : { classId: c.id };
           const courseProgress = getClassCourseProgress(ctx.data, c, mySubjects);
           return (
-            <Card key={c.id} onClick={() => (singleSubject ? ctx.nav.push("affectationDetails", { classId: c.id, subjectId: singleSubject.id }) : ctx.nav.push("teacherClassSubjects", { classId: c.id }))} className="flex flex-col gap-2.5">
+            <Card key={c.id} onClick={() => ctx.nav.push("evaluationsList", { classId: c.id, completedOnly: true })} className="flex flex-col gap-2.5">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: COLORS.accentSoft }}><GraduationCap size={18} color={COLORS.accent} /></div>
-                <div className="flex-1 min-w-0"><p className="font-bold text-[13.5px]" style={{ color: COLORS.text }}>{c.name}</p><p className="text-[11.5px]" style={{ color: COLORS.muted }}>{mySubjects.length} matière(s) · {c.students.filter((st) => !st.archived).length} élève(s)</p></div>
-                {!readOnly && <button onClick={(e) => { e.stopPropagation(); ctx.nav.push("evalPrep", evalParams); }} className="p-2 rounded-full shrink-0" style={{ background: COLORS.accentSoft }} aria-label={`Nouvelle évaluation pour ${c.name}`}><PlayCircle size={18} color={COLORS.accent} /></button>}
-                <ChevronRight size={17} color={COLORS.muted} className="shrink-0" />
+                <div className="w-10 h-10 rounded-[16px] flex items-center justify-center shrink-0" style={{ background: COLORS.accentSoft }}><GraduationCap size={18} color={COLORS.accent} /></div>
+                <div className="flex-1 min-w-0"><p className="font-bold text-[14px]" style={{ color: COLORS.text }}>{c.name}</p><p className="text-[12px]" style={{ color: COLORS.muted }}>{mySubjects.length} matière(s) · {c.students.filter((st) => !st.archived).length} élève(s)</p></div>
+                <ChevronRight size={18} color={COLORS.muted} className="shrink-0" />
               </div>
               {courseProgress.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                   {courseProgress.map((it) => (
                     <button
                       key={it.key}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (it.done) ctx.nav.push("evaluationsList", { classId: c.id, subjectId: it.subjectId, completedOnly: true });
-                        else if (!readOnly) ctx.nav.push("evalPrep", { classId: c.id, subjectId: it.subjectId });
-                      }}
+                      onClick={it.done ? (e) => { e.stopPropagation(); ctx.nav.push("evaluationsList", { classId: c.id, subjectId: it.subjectId, completedOnly: true }); } : undefined}
                       className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold"
-                      style={{ background: it.done ? COLORS.successSoft : "#F2F4F7", color: it.done ? COLORS.success : COLORS.muted }}
+                      style={{ background: it.done ? COLORS.successSoft : "#F2F4F7", color: it.done ? COLORS.success : COLORS.muted, cursor: it.done ? "pointer" : "default" }}
                     >
                       {it.done ? <Check size={10} /> : <Clock size={10} />}
                       {it.title}
@@ -3414,55 +3560,36 @@ function TeacherLevelClassesScreen({ ctx }) {
   );
 }
 
-/* Matières enseignées par ce prof dans CETTE classe — le point d'entrée vers
-   "Lancer une évaluation" / "Résultats" pour une section précise. */
-function TeacherClassSubjectsScreen({ ctx }) {
-  const { classId } = ctx.nav.current.params;
-  const teacher = findTeacher(ctx.data, ctx.currentUser.id);
-  const loc = locateClass(ctx.data, classId);
-  if (!loc) return null;
-  const { cls } = loc;
-  const mySubjects = getLevelSubjects(loc.yr, cls.level).filter((s) => (cls.teacherBySubject || {})[s.id] === teacher.id);
-
-  return (
-    <Screen>
-      <TopBar title={cls.name} subtitle={cls.level} onBack={() => ctx.nav.pop()} />
-      <div className="px-4 pt-4 space-y-2">
-        {mySubjects.map((s) => (
-          <Card key={s.id} onClick={() => ctx.nav.push("affectationDetails", { classId, subjectId: s.id })} className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: COLORS.primarySoft }}><BookOpen size={18} color={COLORS.primary} /></div>
-            <div className="flex-1"><p className="font-bold text-[13.5px]" style={{ color: COLORS.text }}>{s.name}</p></div>
-            <ChevronRight size={17} color={COLORS.muted} />
-          </Card>
-        ))}
-        {mySubjects.length === 0 && <EmptyState icon={BookOpen} title="Aucune matière" text="Vous n'enseignez aucune matière dans cette classe pour l'instant." />}
-      </div>
-    </Screen>
-  );
-}
-
 /* Un seul écran pour "mes évaluations" ET "mes résultats" — l'historique complet (en cours,
    terminées) et le tableau de bord de résultats vivent au même endroit, plutôt que dans deux
    onglets séparés qui montraient en fait la même liste de séances sous deux filtres différents. */
 function EvaluationsListScreen({ ctx }) {
   const teacher = findTeacher(ctx.data, ctx.currentUser.id);
   const scope = ctx.nav.current.params || {};
-  const scoped = scope.classId && scope.subjectId;
+  const classScoped = !!scope.classId;
   const teacherSessions = ctx.data.sessions.filter((s) => s.teacherId === teacher.id);
-  let allSessions = scoped ? teacherSessions.filter((s) => s.classId === scope.classId && s.subjectId === scope.subjectId) : teacherSessions;
-  if (scope.questionnaireId) allSessions = allSessions.filter((s) => s.questionnaireId === scope.questionnaireId);
-  allSessions = [...allSessions].reverse();
+  const allSessions = [...(classScoped ? teacherSessions.filter((s) => s.classId === scope.classId) : teacherSessions)].reverse();
+  const scopedLoc = classScoped ? locateClass(ctx.data, scope.classId) : null;
 
-  // Classes et matières distinctes de l'enseignant, pour les filtres — inutiles si déjà scopé à une seule matière
+  // Classes distinctes de l'enseignant, pour le filtre classe — uniquement dans l'onglet "Évaluer" (non scopé)
   const myClasses = [];
-  if (!scoped) {
+  if (!classScoped) {
     getTeacherAssignments(ctx.data, teacher.id).forEach(({ cls }) => { if (!myClasses.some((c) => c.id === cls.id)) myClasses.push(cls); });
   }
   const [classFilter, setClassFilterRaw] = useState("all");
-  const [subjectFilter, setSubjectFilter] = useState("all");
+  const [subjectFilter, setSubjectFilter] = useState(() => {
+    if (!scope.subjectId || !scopedLoc) return "all";
+    const s = getLevelSubjects(scopedLoc.yr, scopedLoc.cls.level).find((x) => x.id === scope.subjectId);
+    return s ? s.name : "all";
+  });
   const setClassFilter = (id) => { setClassFilterRaw(id); setSubjectFilter("all"); };
+
+  // Matières proposées au filtre : celles de la classe scopée (résultats d'une classe), ou
+  // celles de la classe sélectionnée dans le filtre "Classe" côté onglet "Évaluer".
   const mySubjects = [];
-  if (!scoped) {
+  if (classScoped) {
+    if (scopedLoc) getLevelSubjects(scopedLoc.yr, scopedLoc.cls.level).filter((s) => (scopedLoc.cls.teacherBySubject || {})[s.id] === teacher.id).forEach((s) => { if (!mySubjects.includes(s.name)) mySubjects.push(s.name); });
+  } else {
     getTeacherAssignments(ctx.data, teacher.id).forEach(({ cls, subject }) => {
       if (classFilter !== "all" && cls.id !== classFilter) return;
       if (!mySubjects.includes(subject.name)) mySubjects.push(subject.name);
@@ -3478,9 +3605,6 @@ function EvaluationsListScreen({ ctx }) {
   });
   const sessions = subjectFiltered.filter((s) => filter === "all" ? true : filter === "inprogress" ? s.status !== "completed" : s.status === "completed");
   const counts = { all: subjectFiltered.length, inprogress: subjectFiltered.filter((s) => s.status !== "completed").length, completed: subjectFiltered.filter((s) => s.status === "completed").length };
-  const scopedLoc = scoped ? locateClass(ctx.data, scope.classId) : null;
-  const scopedSubject = scopedLoc ? getLevelSubjects(scopedLoc.yr, scopedLoc.cls.level).find((s) => s.id === scope.subjectId) : null;
-  const scopedQuestionnaire = scope.questionnaireId && scopedSubject ? scopedSubject.questionnaires.find((q) => q.id === scope.questionnaireId) : null;
 
   let dashboard = null;
   if (filter === "completed" && sessions.length > 0) {
@@ -3493,7 +3617,7 @@ function EvaluationsListScreen({ ctx }) {
         <DonutChart segments={bandCounts.map((b) => ({ value: b.value, color: b.color }))} />
         <div className="flex-1 min-w-0">
           <p className="text-[11px] font-semibold" style={{ color: COLORS.muted }}>Moyenne générale</p>
-          <p className="text-[22px] font-extrabold mb-2" style={{ color: overallAvg >= 50 ? COLORS.success : COLORS.danger }}>{overallAvg}%</p>
+          <p className="text-[28px] font-extrabold mb-2" style={{ color: overallAvg >= 50 ? COLORS.success : COLORS.danger }}>{overallAvg}%</p>
           <div className="space-y-1">
             {bandCounts.filter((b) => b.value > 0).map((b) => (
               <div key={b.key} className="flex items-center gap-1.5 text-[11px]" style={{ color: COLORS.text }}>
@@ -3509,13 +3633,13 @@ function EvaluationsListScreen({ ctx }) {
 
   return (
     <Screen>
-      <TopBar title={scopedQuestionnaire ? `Résultats — ${scopedQuestionnaire.title}` : scoped ? "Évaluations" : "Mes évaluations"} subtitle={scoped ? `${scopedLoc?.cls.name} · ${scopedSubject?.name}` : undefined} onBack={scoped ? () => ctx.nav.pop() : undefined} right={<SyncIndicator ctx={ctx} />} />
+      <TopBar title={classScoped ? "Résultats" : "Mes évaluations"} subtitle={classScoped ? `${scopedLoc?.cls.name}${subjectFilter !== "all" ? " · " + subjectFilter : ""}` : undefined} onBack={classScoped ? () => ctx.nav.pop() : undefined} right={<SyncIndicator ctx={ctx} />} />
       <div className="px-4 pt-4 space-y-2">
-        <Btn full variant="accent" icon={PlayCircle} onClick={() => ctx.nav.push("evalPrep", scoped ? { classId: scope.classId, subjectId: scope.subjectId } : {})}>Nouvelle évaluation</Btn>
+        {!classScoped && <Btn full variant="accent" icon={PlayCircle} onClick={() => ctx.nav.push("evalPrep", {})}>Lancer une évaluation</Btn>}
 
-        {!scoped && (myClasses.length > 1 || mySubjects.length > 1) && (
+        {!classScoped && (myClasses.length > 1 || mySubjects.length > 1) && (
           <div className="mobile-filter-panel">
-            <div className="filter-heading"><SlidersHorizontal size={15}/><span>Affiner la liste</span><Badge tone="primary">{sessions.length}</Badge></div>
+            <div className="filter-heading"><SlidersHorizontal size={18}/><span>Affiner la liste</span><Badge tone="primary">{sessions.length}</Badge></div>
             <div className="grid grid-cols-2 gap-2">
               <label><span>Classe</span><select value={classFilter} onChange={(e) => setClassFilter(e.target.value)}><option value="all">Toutes</option>{myClasses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
               <label><span>Matière</span><select value={subjectFilter} onChange={(e) => setSubjectFilter(e.target.value)}><option value="all">Toutes</option>{mySubjects.map((name) => <option key={name} value={name}>{name}</option>)}</select></label>
@@ -3523,13 +3647,22 @@ function EvaluationsListScreen({ ctx }) {
           </div>
         )}
 
-        <div className="mobile-segmented flex p-1">
-          {[{ key: "all", label: `Toutes (${counts.all})` }, { key: "inprogress", label: `En cours (${counts.inprogress})` }, { key: "completed", label: `Résultats (${counts.completed})` }].map((f) => (
-            <button key={f.key} onClick={() => setFilter(f.key)} className={filter === f.key ? "active" : ""}>{f.label}</button>
-          ))}
-        </div>
+        {classScoped && mySubjects.length > 1 && (
+          <div className="mobile-filter-panel">
+            <div className="filter-heading"><SlidersHorizontal size={18}/><span>Filtrer par matière</span><Badge tone="primary">{sessions.length}</Badge></div>
+            <label><span>Matière</span><select value={subjectFilter} onChange={(e) => setSubjectFilter(e.target.value)}><option value="all">Toutes</option>{mySubjects.map((name) => <option key={name} value={name}>{name}</option>)}</select></label>
+          </div>
+        )}
 
-        {dashboard}
+        {!classScoped && (
+          <div className="mobile-segmented flex p-1">
+            {[{ key: "all", label: `Toutes (${counts.all})` }, { key: "inprogress", label: `En cours (${counts.inprogress})` }, { key: "completed", label: `Résultats (${counts.completed})` }].map((f) => (
+              <button key={f.key} onClick={() => setFilter(f.key)} className={filter === f.key ? "active" : ""}>{f.label}</button>
+            ))}
+          </div>
+        )}
+
+        {!classScoped && dashboard}
 
         {sessions.length === 0 ? (
           <EmptyState icon={filter === "completed" ? BarChart3 : ClipboardList} title={filter === "completed" ? "Aucun résultat pour l'instant" : "Aucune évaluation"} text={filter === "completed" ? "Les résultats apparaissent ici une fois une évaluation terminée." : "Lancez votre première évaluation depuis le bouton ci-dessus."} />
@@ -3541,8 +3674,8 @@ function EvaluationsListScreen({ ctx }) {
           return (
             <Card key={s.id} onClick={() => s.status === "completed" ? ctx.nav.push("sessionResultsGlobal", { sessionId: s.id }) : ctx.nav.push("sessionQuestion", { sessionId: s.id, index: s.currentQuestionIndex || 0 })} className="flex items-center justify-between">
               <div className="min-w-0 flex-1">
-                <p className="font-semibold text-[13px] truncate" style={{ color: COLORS.text }}>{scopedQuestionnaire ? s.date : questionnaire?.title}</p>
-                <p className="text-[11.5px] truncate" style={{ color: COLORS.muted }}>{scopedQuestionnaire ? `${questionnaire?.questions.length} question(s)` : `${cls?.name} · ${subject?.name} · ${s.date}`}</p>
+                <p className="font-semibold text-[13px] truncate" style={{ color: COLORS.text }}>{questionnaire?.title}</p>
+                <p className="text-[12px] truncate" style={{ color: COLORS.muted }}>{classScoped ? `${subject?.name} · ${s.date}` : `${cls?.name} · ${subject?.name} · ${s.date}`}</p>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
                 {avg !== null && <Badge tone={avg >= 50 ? "success" : "danger"}>Moy. {avg}%</Badge>}
@@ -3551,40 +3684,6 @@ function EvaluationsListScreen({ ctx }) {
             </Card>
           );
         })}
-      </div>
-    </Screen>
-  );
-}
-
-/* Volet "exécution" pour une classe précise : lancer une évaluation, voir les résultats.
-   La préparation (Cours/Compétences/Questionnaires) ne vit plus ici — elle se fait une seule
-   fois au niveau, depuis "Programme", partagée entre toutes les sections. "Questionnaires"
-   n'a plus sa place ici non plus : consulter/modifier un questionnaire se fait aussi depuis
-   Programme (sous sa compétence), et "Résultats" montre déjà, pour chaque évaluation
-   terminée, quel questionnaire a été utilisé et son résultat — inutile de dupliquer cette
-   information dans une troisième liste. */
-function AffectationDetailsScreen({ ctx }) {
-  const { classId, subjectId } = ctx.nav.current.params;
-  const loc = locateClass(ctx.data, classId);
-  if (!loc) return null;
-  const readOnly = !!loc.yr.archived;
-  const { subject } = findQuestionnaire(loc.yr, loc.cls, subjectId, null);
-  const sessionsHere = ctx.data.sessions.filter((s) => s.classId === classId && s.subjectId === subjectId);
-  const items = [
-    ...(readOnly ? [] : [{ key: "e", label: "Nouvelle évaluation", icon: PlayCircle, sub: "Lancer une session", go: () => ctx.nav.push("evalPrep", { classId, subjectId }) }]),
-    { key: "r", label: "Résultats", icon: BarChart3, sub: `${sessionsHere.length} session(s)`, go: () => ctx.nav.push("evaluationsList", { classId, subjectId, completedOnly: true }) },
-  ];
-  return (
-    <Screen>
-      <TopBar title={subject.name} subtitle={`${loc.cls.name}${readOnly ? " · lecture seule" : ""}`} onBack={() => ctx.nav.pop()} />
-      <div className="px-4 pt-4 grid grid-cols-2 gap-3">
-        {items.map((it) => (
-          <Card key={it.key} onClick={it.go} className="flex flex-col gap-2">
-            <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: COLORS.primarySoft }}><it.icon size={17} color={COLORS.primary} /></div>
-            <p className="font-bold text-[13.5px]" style={{ color: COLORS.text }}>{it.label}</p>
-            <p className="text-[11px]" style={{ color: COLORS.muted }}>{it.sub}</p>
-          </Card>
-        ))}
       </div>
     </Screen>
   );
@@ -3606,9 +3705,16 @@ function CreateQuestionnaireScreen({ ctx }) {
 
   const [title, setTitle] = useState(existing?.title || "");
   const [description, setDescription] = useState(existing?.description || "");
+  const [competencyNames, setCompetencyNames] = useState(existing?.competencyNames || []);
+  const [competencyInput, setCompetencyInput] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmDeleteQ, setConfirmDeleteQ] = useState(null);
   const qId = existing?.id || null;
+  const addCompetencyName = () => {
+    if (!competencyInput.trim()) return;
+    setCompetencyNames((arr) => [...arr, competencyInput.trim()]);
+    setCompetencyInput("");
+  };
 
   /* Un questionnaire se crée toujours partagé au niveau et le reste pour toujours — simple,
      une seule version, la même pour toutes les sections du niveau. Modifiable librement tant
@@ -3618,15 +3724,15 @@ function CreateQuestionnaireScreen({ ctx }) {
     if (!title.trim()) return;
     if (qId) {
       if (isOverride) {
-        ctx.setData((d) => updateClass(d, classId, (c) => ({ ...c, questionnaireOverrides: (c.questionnaireOverrides || []).map((q) => (q.id === qId ? { ...q, title, description, courseId: courseId || q.courseId, competencyIds: competencyId ? Array.from(new Set([...(q.competencyIds || []), competencyId])) : (q.competencyIds || []) } : q)) })));
+        ctx.setData((d) => updateClass(d, classId, (c) => ({ ...c, questionnaireOverrides: (c.questionnaireOverrides || []).map((q) => (q.id === qId ? { ...q, title, description, competencyNames } : q)) })));
       } else {
-        ctx.setData((d) => updateLevel(d, yr.id, cls.level, (lv) => ({ ...lv, subjects: lv.subjects.map((s) => (s.id === subjectId ? { ...s, questionnaires: s.questionnaires.map((q) => (q.id === qId ? { ...q, title, description, courseId: courseId || q.courseId, competencyIds: competencyId ? Array.from(new Set([...(q.competencyIds || []), competencyId])) : (q.competencyIds || []) } : q)) } : s)) })));
+        ctx.setData((d) => updateLevel(d, yr.id, cls.level, (lv) => ({ ...lv, subjects: lv.subjects.map((s) => (s.id === subjectId ? { ...s, questionnaires: s.questionnaires.map((q) => (q.id === qId ? { ...q, title, description, competencyNames } : q)) } : s)) })));
       }
       ctx.nav.pop();
     } else {
       const newId = uid("qz");
-      ctx.setData((d) => updateLevel(d, yr.id, cls.level, (lv) => ({ ...lv, subjects: lv.subjects.map((s) => (s.id === subjectId ? { ...s, questionnaires: [...s.questionnaires, { id: newId, title, description, courseId: courseId || null, competencyIds: competencyId ? [competencyId] : [], archived: false, questions: [] }] } : s)) })));
-      ctx.nav.push("createQuestion", { classId, subjectId, questionnaireId: newId, courseId, competencyId });
+      ctx.setData((d) => updateLevel(d, yr.id, cls.level, (lv) => ({ ...lv, subjects: lv.subjects.map((s) => (s.id === subjectId ? { ...s, questionnaires: [...s.questionnaires, { id: newId, title, description, courseId: courseId || null, competencyNames, archived: false, questions: [] }] } : s)) })));
+      ctx.nav.push("createQuestion", { classId, subjectId, questionnaireId: newId, courseId });
     }
   };
   const doDelete = () => {
@@ -3654,43 +3760,62 @@ function CreateQuestionnaireScreen({ ctx }) {
       <div className="important-form-modal px-4 pt-4">
         {isOverride ? (
           <Card className="mb-4 flex items-start gap-3" style={{ background: COLORS.accentSoft, border: "none" }}>
-            <Copy size={16} color={COLORS.accent} className="shrink-0 mt-0.5" />
-            <p className="text-[11.5px] leading-5" style={{ color: COLORS.accentDark }}>Copie propre à « {cls.name} » — vos modifications n'affectent ni le modèle partagé du niveau, ni les autres sections.</p>
+            <Copy size={18} color={COLORS.accent} className="shrink-0 mt-0.5" />
+            <p className="text-[12px] leading-5" style={{ color: COLORS.accentDark }}>Copie propre à « {cls.name} » — vos modifications n'affectent ni le modèle partagé du niveau, ni les autres sections.</p>
           </Card>
         ) : existing && siblingCount > 0 && !locked && (
           <Card className="mb-4 flex items-start gap-3" style={{ background: COLORS.primarySoft, border: "none" }}>
-            <Info size={16} color={COLORS.primary} className="shrink-0 mt-0.5" />
-            <p className="text-[11.5px] leading-5" style={{ color: COLORS.primaryDark }}>Questionnaire partagé avec {siblingCount} autre(s) section(s) de « {cls.level} ». Le modifier ici les modifie aussi là-bas.</p>
+            <Info size={18} color={COLORS.primary} className="shrink-0 mt-0.5" />
+            <p className="text-[12px] leading-5" style={{ color: COLORS.primaryDark }}>Questionnaire partagé avec {siblingCount} autre(s) section(s) de « {cls.level} ». Le modifier ici les modifie aussi là-bas.</p>
           </Card>
         )}
         <Field label="Titre du questionnaire"><TextInput autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex. Les fractions" /></Field>
         <Field label="Matière"><TextInput disabled value={subject.name} style={{ color: COLORS.muted, background: "#F2F4F7" }} /></Field>
         {linkedCourse && <Field label="Cours"><TextInput disabled value={linkedCourse.title} style={{ color: COLORS.muted, background: "#F2F4F7" }} /></Field>}
-        {linkedCompetency && <Field label="Compétence évaluée"><TextInput disabled value={linkedCompetency.title} style={{ color: COLORS.success, background: COLORS.successSoft }} /></Field>}
+        {linkedCompetency ? (
+          <Field label="Compétence évaluée"><TextInput disabled value={linkedCompetency.title} style={{ color: COLORS.success, background: COLORS.successSoft }} /></Field>
+        ) : (
+          <Field label="Compétences évaluées (facultatif)">
+            <div className="flex items-center gap-1.5">
+              <TextInput value={competencyInput} onChange={(e) => setCompetencyInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addCompetencyName()} placeholder="Ex. Résoudre un problème" />
+              <button onClick={addCompetencyName} disabled={!competencyInput.trim()} className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: competencyInput.trim() ? COLORS.primary : "#E4E7F0" }}><Plus size={18} color="#fff" /></button>
+            </div>
+            {competencyNames.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {competencyNames.map((name, idx) => (
+                  <span key={idx} className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full text-[11px] font-semibold" style={{ background: COLORS.successSoft, color: COLORS.success }}>
+                    {name}
+                    <button onClick={() => setCompetencyNames((arr) => arr.filter((_, j) => j !== idx))} className="p-0.5"><X size={11} /></button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </Field>
+        )}
         <Field label="Description (facultative)"><TextArea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ex. Notions de base sur les fractions" /></Field>
 
         {locked && (
           <Card className="mb-3 flex items-center gap-2" style={{ background: COLORS.warningSoft, border: "none" }}>
-            <Lock size={15} color={COLORS.warning} />
-            <p className="text-[11.5px]" style={{ color: COLORS.warning }}>Déjà utilisé dans une évaluation — les questions ne peuvent plus être modifiées ni supprimées.</p>
+            <Lock size={18} color={COLORS.warning} />
+            <p className="text-[12px]" style={{ color: COLORS.warning }}>Déjà utilisé dans une évaluation — les questions ne peuvent plus être modifiées ni supprimées.</p>
           </Card>
         )}
 
         {existing && (
           <div className="mb-4">
             <div className="flex items-center justify-between mb-2">
-              <p className="font-bold text-[13px]" style={{ color: COLORS.text }}>Questions ({existing.questions.length})</p>
+              <p className="font-bold text-[13px]" style={{ color: COLORS.text }}>Questions ({existing.questions.length}{existing.targetQuestionCount ? `/${existing.targetQuestionCount}` : ""})</p>
               {!locked && (
                 <AddRow tone="primary" full={false} label="Ajouter" onClick={() => ctx.nav.push("createQuestion", { classId, subjectId, questionnaireId: qId, courseId: courseId || existing?.courseId, competencyId })} />
               )}
             </div>
             {existing.questions.length === 0 ? (
-              <p className="text-[11.5px]" style={{ color: COLORS.muted }}>Aucune question pour l'instant.</p>
+              <p className="text-[12px]" style={{ color: COLORS.muted }}>Aucune question pour l'instant.</p>
             ) : (
               <div className="space-y-1.5">
                 {existing.questions.map((q, i) => (
                   <Card key={q.id} className="!py-2.5 flex items-center justify-between">
-                    <span className="text-[12.5px] truncate flex-1" style={{ color: COLORS.text }}>{i + 1}. {q.text}</span>
+                    <span className="text-[13px] truncate flex-1" style={{ color: COLORS.text }}>{i + 1}. {q.text}</span>
                     <div className="flex items-center gap-1.5">
                       <Badge tone="success">{q.correct}</Badge>
                       {!locked && (
@@ -3738,6 +3863,9 @@ function CreateQuestionScreen({ ctx }) {
   const [correct, setCorrect] = useState(editing?.correct || "A");
   const [count, setCount] = useState(questionnaire?.questions.length || 0);
   const canSave = text.trim() && choices.A.trim() && choices.B.trim() && choices.C.trim() && choices.D.trim();
+  const target = questionnaire?.targetQuestionCount || 0;
+  const remainingAfterThis = target ? Math.max(0, target - (count + 1)) : 0;
+  const belowTarget = !editing && target > 0 && remainingAfterThis > 0;
 
   const applyToQuestionnaires = (updater) => {
     if (isOverride) {
@@ -3769,13 +3897,18 @@ function CreateQuestionScreen({ ctx }) {
           <Field key={k} label={`Choix ${k}`}>
             <div className="flex items-center gap-2">
               <TextInput value={choices[k]} onChange={(e) => setChoices((c) => ({ ...c, [k]: e.target.value }))} placeholder={`Réponse ${k}`} />
-              <button onClick={() => setCorrect(k)} className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center font-bold text-[12px]" style={{ background: correct === k ? COLORS.success : COLORS.border, color: correct === k ? "#fff" : COLORS.muted }} title="Marquer comme bonne réponse">
-                {correct === k ? <Check size={15} /> : k}
+              <button onClick={() => setCorrect(k)} className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center font-bold text-[12px]" style={{ background: correct === k ? COLORS.success : COLORS.border, color: correct === k ? "#fff" : COLORS.muted }} title="Marquer comme bonne réponse">
+                {correct === k ? <Check size={18} /> : k}
               </button>
             </div>
           </Field>
         ))}
-        <p className="text-[11.5px] mb-4" style={{ color: COLORS.muted }}>Touchez le rond à droite d'un choix pour définir la bonne réponse (actuellement : <b style={{ color: COLORS.success }}>{correct}</b>).</p>
+        <p className="text-[12px] mb-4" style={{ color: COLORS.muted }}>Touchez le rond à droite d'un choix pour définir la bonne réponse (actuellement : <b style={{ color: COLORS.success }}>{correct}</b>).</p>
+        {!editing && target > 0 && (
+          <p className="text-[12px] mb-3" style={{ color: belowTarget ? COLORS.warning : COLORS.success }}>
+            {belowTarget ? `Encore ${remainingAfterThis} question(s) à ajouter avant de pouvoir terminer (objectif : ${target}).` : `Objectif de ${target} question(s) atteint — vous pouvez terminer.`}
+          </p>
+        )}
         {editing ? (
           <Btn full icon={Save} disabled={!canSave} onClick={() => saveQuestion(false)}>Enregistrer</Btn>
         ) : (
@@ -3784,7 +3917,7 @@ function CreateQuestionScreen({ ctx }) {
               <Btn variant="ghost" icon={X} onClick={() => ctx.nav.pop()}>Annuler</Btn>
               <Btn variant="secondary" icon={Plus} disabled={!canSave} onClick={() => saveQuestion(true)}>Ajouter une autre</Btn>
             </div>
-            <Btn full icon={Save} disabled={!canSave} onClick={() => saveQuestion(false)}>Enregistrer et terminer</Btn>
+            <Btn full icon={Save} disabled={!canSave || belowTarget} onClick={() => saveQuestion(false)}>Enregistrer et terminer</Btn>
           </>
         )}
       </div>
@@ -3840,8 +3973,8 @@ function EvalPrepScreen({ ctx }) {
   let title = "Choisir le niveau", body = null;
   if (step === 0) {
     body = <div className="px-4">
-      {levelGroups.map((g) => <OptionCard key={levelKey(g.yearId, g.level)} icon={School} title={g.level} subtitle={`${g.yearLabel} · ${g.classes.length} classe(s)`} selected={level === levelKey(g.yearId, g.level)} onClick={() => { setLevel(levelKey(g.yearId, g.level)); setClassId(""); setSubjectId(""); setCourseId(""); setQuestionnaireId(""); setStep(1); }} />)}
-      {levelGroups.length === 0 && <EmptyState icon={School} title="Aucun niveau" text="Aucune classe ne vous est encore affectée." />}
+      {levelGroups.map((g) => <OptionCard key={levelKey(g.yearId, g.level)} icon={Layers} title={g.level} subtitle={`${g.yearLabel} · ${g.classes.length} classe(s)`} selected={level === levelKey(g.yearId, g.level)} onClick={() => { setLevel(levelKey(g.yearId, g.level)); setClassId(""); setSubjectId(""); setCourseId(""); setQuestionnaireId(""); setStep(1); }} />)}
+      {levelGroups.length === 0 && <EmptyState icon={Layers} title="Aucun niveau" text="Aucune classe ne vous est encore affectée." />}
     </div>;
   } else if (step === 1) {
     title = "Choisir la classe";
@@ -3857,8 +3990,8 @@ function EvalPrepScreen({ ctx }) {
     title = "Choisir le cours";
     const courses = subject?.courses || [];
     body = <div className="px-4">
-      {courses.map((c) => { const count = subject.questionnaires.filter((q) => !q.archived && q.courseId === c.id).length; return <OptionCard key={c.id} icon={BookOpen} title={c.title} subtitle={`${c.competencies.length} compétence(s) · ${count} questionnaire(s)`} selected={courseId === c.id} onClick={() => { setCourseId(c.id); setQuestionnaireId(""); setStep(4); }} />; })}
-      {courses.length === 0 && <EmptyState icon={BookOpen} title="Aucun cours disponible" text="Ajoutez d'abord un cours et ses compétences dans cette matière." action={<Btn size="sm" icon={Plus} onClick={() => ctx.nav.push("teacherLevelSubjects", { yearId: loc.yr.id, level: loc.cls.level, subjectId })}>Ajouter un cours</Btn>} />}
+      {courses.map((c) => { const count = subject.questionnaires.filter((q) => !q.archived && q.courseId === c.id).length; return <OptionCard key={c.id} icon={BookOpen} title={c.title} subtitle={`${count} questionnaire(s)`} selected={courseId === c.id} onClick={() => { setCourseId(c.id); setQuestionnaireId(""); setStep(4); }} />; })}
+      {courses.length === 0 && <EmptyState icon={BookOpen} title="Aucun cours disponible" text="Ajoutez d'abord un cours dans cette matière." action={<Btn size="sm" icon={Plus} onClick={() => ctx.nav.push("teacherLevelSubjects", { yearId: loc.yr.id, level: loc.cls.level, subjectId })}>Ajouter un cours</Btn>} />}
     </div>;
   } else if (step === 4) {
     title = "Choisir le questionnaire";
@@ -3878,10 +4011,11 @@ function EvalPrepScreen({ ctx }) {
     const selectedQ = displayQs.find((q) => q.id === questionnaireId);
     body = <div className="px-4">
       {displayQs.map((q) => {
-        const skills = getQuestionnaireCompetencies(subject, q);
-        return <OptionCard key={q.id} icon={q.isOverride ? Copy : ListChecks} title={q.title} subtitle={`${q.isOverride ? `Propre à ${cls.name} · ` : ""}${q.questions.length} question(s)${skills.length ? ` · ${skills.map((s) => s.title).join(", ")}` : ""}`} disabled={q.questions.length === 0} selected={questionnaireId === q.id} onClick={() => setQuestionnaireId(q.id)} />;
+        const skills = getQuestionnaireSkillLabels(subject, q);
+        const belowTarget = q.targetQuestionCount > 0 && q.questions.length < q.targetQuestionCount;
+        return <OptionCard key={q.id} icon={q.isOverride ? Copy : ListChecks} title={q.title} subtitle={`${q.isOverride ? `Propre à ${cls.name} · ` : ""}${q.questions.length}${q.targetQuestionCount ? `/${q.targetQuestionCount}` : ""} question(s)${belowTarget ? " · incomplet" : ""}${skills.length ? ` · ${skills.join(", ")}` : ""}`} disabled={q.questions.length === 0 || belowTarget} selected={questionnaireId === q.id} onClick={() => setQuestionnaireId(q.id)} />;
       })}
-      {displayQs.length === 0 && <EmptyState icon={ListChecks} title="Aucun questionnaire pour ce cours" text="Créez un questionnaire depuis une compétence de ce cours avant de lancer l'évaluation." action={<Btn size="sm" icon={Plus} onClick={() => ctx.nav.push("teacherLevelSubjects", { yearId: loc.yr.id, level: loc.cls.level, subjectId })}>Voir le programme</Btn>} />}
+      {displayQs.length === 0 && <EmptyState icon={ListChecks} title="Aucun questionnaire pour ce cours" text="Créez un questionnaire dans ce cours avant de lancer l'évaluation." action={<Btn size="sm" icon={Plus} onClick={() => ctx.nav.push("teacherLevelSubjects", { yearId: loc.yr.id, level: loc.cls.level, subjectId })}>Voir le programme</Btn>} />}
       {selectedQ && !selectedQ.isOverride && (
         <div className="mt-3 space-y-2">
           <p className="text-[11px] text-center" style={{ color: COLORS.muted }}>Partagé avec les autres sections de {cls.level}.</p>
@@ -3899,17 +4033,17 @@ function EvalPrepScreen({ ctx }) {
     </div>;
   } else if (step === 5) {
     title = "Résumé de l'évaluation";
-    const skills = getQuestionnaireCompetencies(subject, questionnaire);
+    const skills = getQuestionnaireSkillLabels(subject, questionnaire);
     body = <div className="px-4">
       <Card className="mb-4" style={{ background: COLORS.primarySoft, border: "none" }}>
         <p className="font-bold text-[13px] mb-2" style={{ color: COLORS.primaryDark }}>Résumé</p>
-        <div className="space-y-2 text-[12.5px]" style={{ color: COLORS.primaryDark }}>
-          <p className="flex items-center gap-2"><School size={14} className="shrink-0" />{cls.level}</p>
-          <p className="flex items-center gap-2"><GraduationCap size={14} className="shrink-0" />{cls.name} ({cls.students.filter((s) => !s.archived).length} élèves)</p>
-          <p className="flex items-center gap-2"><BookOpen size={14} className="shrink-0" />{subject.name} · {course.title}</p>
-          {skills.length > 0 && <p className="flex items-center gap-2"><Target size={14} className="shrink-0" />{skills.map((s) => s.title).join(", ")}</p>}
-          <p className="flex items-center gap-2"><ClipboardList size={14} className="shrink-0" />{questionnaire.title}</p>
-          <p className="flex items-center gap-2"><ListChecks size={14} className="shrink-0" />{questionnaire.questions.length} questions</p>
+        <div className="space-y-2 text-[13px]" style={{ color: COLORS.primaryDark }}>
+          <p className="flex items-center gap-2"><Layers size={18} className="shrink-0" />{cls.level}</p>
+          <p className="flex items-center gap-2"><GraduationCap size={18} className="shrink-0" />{cls.name} ({cls.students.filter((s) => !s.archived).length} élèves)</p>
+          <p className="flex items-center gap-2"><BookOpen size={18} className="shrink-0" />{subject.name}{course ? ` · ${course.title}` : ""}</p>
+          {skills.length > 0 && <p className="flex items-center gap-2"><Target size={18} className="shrink-0" />{skills.join(", ")}</p>}
+          <p className="flex items-center gap-2"><ClipboardList size={18} className="shrink-0" />{questionnaire.title}</p>
+          <p className="flex items-center gap-2"><ListChecks size={18} className="shrink-0" />{questionnaire.questions.length} questions</p>
         </div>
       </Card>
       <Btn full variant="accent" icon={PlayCircle} onClick={start}>Démarrer l'évaluation</Btn>
@@ -3938,12 +4072,12 @@ function SessionQuestionScreen({ ctx }) {
     <Screen>
       <TopBar title={`Question ${index + 1} / ${total}`} subtitle={`${loc.cls.name} · ${questionnaire.title}`} onBack={() => ctx.nav.pop()} />
       <div className="px-4 pt-4">
-        <Card className="mb-4"><p className="font-bold text-[16px] leading-snug" style={{ color: COLORS.text }}>{question.text}</p></Card>
+        <Card className="mb-4"><p className="font-bold text-[18px] leading-snug" style={{ color: COLORS.text }}>{question.text}</p></Card>
         <div className="space-y-2 mb-6">
           {["A", "B", "C", "D"].map((k) => (
-            <div key={k} className="flex items-center gap-3 px-3 py-3 rounded-xl" style={{ background: "#F7F8FA" }}>
-              <span className="w-7 h-7 rounded-full flex items-center justify-center font-bold text-[12.5px] shrink-0" style={{ background: COLORS.primary, color: "#fff" }}>{k}</span>
-              <span className="text-[13.5px]" style={{ color: COLORS.text }}>{question.choices[k]}</span>
+            <div key={k} className="flex items-center gap-3 px-3 py-3 rounded-[16px]" style={{ background: "#F7F8FA" }}>
+              <span className="w-7 h-7 rounded-full flex items-center justify-center font-bold text-[13px] shrink-0" style={{ background: COLORS.primary, color: "#fff" }}>{k}</span>
+              <span className="text-[14px]" style={{ color: COLORS.text }}>{question.choices[k]}</span>
             </div>
           ))}
         </div>
@@ -4081,7 +4215,7 @@ function ScanSimulationScreen({ ctx }) {
       <TopBar title="Scanner un élève" subtitle={`Question ${index + 1}`} onBack={() => setScanMode(null)} />
       <div className="px-4 pt-4">
         <SearchInput autoFocus value={studentSearch} onChange={(e) => setStudentSearch(e.target.value)} placeholder="Rechercher un élève" className="mb-3" />
-        <div className="space-y-2 max-h-[520px] overflow-y-auto">{filteredStudents.map((student) => <Card key={student.id} onClick={() => setIndividualStudentId(student.id)} className="flex items-center gap-3 !py-3"><div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: COLORS.primarySoft }}><User size={16} color={COLORS.primary} /></div><span className="text-[12.5px] font-semibold flex-1" style={{ color: COLORS.text }}>{student.name}</span><ChevronRight size={16} color={COLORS.muted} /></Card>)}</div>
+        <div className="space-y-2 max-h-[520px] overflow-y-auto">{filteredStudents.map((student) => <Card key={student.id} onClick={() => setIndividualStudentId(student.id)} className="flex items-center gap-3 !py-3"><div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: COLORS.primarySoft }}><User size={18} color={COLORS.primary} /></div><span className="text-[13px] font-semibold flex-1" style={{ color: COLORS.text }}>{student.name}</span><ChevronRight size={18} color={COLORS.muted} /></Card>)}</div>
       </div>
     </Screen>
   );
@@ -4093,7 +4227,7 @@ function ScanSimulationScreen({ ctx }) {
       <Screen>
         <TopBar title="Organiser le scan" subtitle="Mode par rangée" onBack={() => setScanMode(null)} />
         <div className="px-4 pt-5">
-          <Card className="mb-4" style={{ background: COLORS.primarySoft, border: "none" }}><Users size={24} color={COLORS.primary} className="mb-2" /><p className="text-[13.5px] font-bold" style={{ color: COLORS.primaryDark }}>Combien de rangées voulez-vous scanner ?</p><p className="text-[11.5px] mt-1 leading-5" style={{ color: COLORS.muted }}>KAGAT répartira automatiquement les {detectableStudents.length} élèves présents entre les rangées.</p></Card>
+          <Card className="mb-4" style={{ background: COLORS.primarySoft, border: "none" }}><Users size={24} color={COLORS.primary} className="mb-2" /><p className="text-[14px] font-bold" style={{ color: COLORS.primaryDark }}>Combien de rangées voulez-vous scanner ?</p><p className="text-[12px] mt-1 leading-5" style={{ color: COLORS.muted }}>KAGAT répartira automatiquement les {detectableStudents.length} élèves présents entre les rangées.</p></Card>
           <Field label="Nombre de rangées"><TextInput autoFocus type="number" min="1" max={Math.max(1, detectableStudents.length)} value={rowCount} onChange={(e) => setRowCount(e.target.value)} placeholder="Ex. 4" /></Field>
           {validRowCount && <Card className="mb-4 !py-3"><p className="text-[12px]" style={{ color: COLORS.text }}><b>{parsedRowCount} rangée{parsedRowCount > 1 ? "s" : ""}</b> · environ {Math.ceil(detectableStudents.length / parsedRowCount)} élève(s) par rangée</p></Card>}
           <Btn full icon={Camera} disabled={!validRowCount} onClick={() => { setZoneIndex(0); setRowsConfigured(true); }}>Commencer par la rangée 1</Btn>
@@ -4114,7 +4248,7 @@ function ScanSimulationScreen({ ctx }) {
             {zones.map((z, i) => {
               const done = z.every((s) => detectedIdsRef.current.has(s.id)) && z.length > 0;
               return (
-                <button key={i} onClick={() => setZoneIndex(i)} className="shrink-0 px-3 py-1.5 rounded-full text-[11.5px] font-semibold flex items-center gap-1"
+                <button key={i} onClick={() => setZoneIndex(i)} className="shrink-0 px-3 py-1.5 rounded-full text-[12px] font-semibold flex items-center gap-1"
                   style={{ background: i === zoneIndex ? COLORS.primary : done ? COLORS.successSoft : COLORS.primarySoft, color: i === zoneIndex ? "#fff" : done ? COLORS.success : COLORS.primary }}>
                   {done && <CheckCircle2 size={12} />}Rangée {i + 1}
                 </button>
@@ -4124,18 +4258,18 @@ function ScanSimulationScreen({ ctx }) {
         )}
         <Card className="mb-3 !py-2.5">
           <button className="w-full flex items-center justify-between" onClick={() => setAbsentPanelOpen((v) => !v)}>
-            <span className="flex items-center gap-2 text-[12.5px] font-semibold" style={{ color: COLORS.text }}>
-              <UserX size={15} color={COLORS.muted} /> Élèves absents aujourd'hui
+            <span className="flex items-center gap-2 text-[13px] font-semibold" style={{ color: COLORS.text }}>
+              <UserX size={18} color={COLORS.muted} /> Élèves absents aujourd'hui
               {declaredAbsentIds.length > 0 && <Badge tone="neutral">{declaredAbsentIds.length}</Badge>}
             </span>
-            <ChevronRight size={16} color={COLORS.muted} style={{ transform: absentPanelOpen ? "rotate(90deg)" : "none" }} />
+            <ChevronRight size={18} color={COLORS.muted} style={{ transform: absentPanelOpen ? "rotate(90deg)" : "none" }} />
           </button>
           {absentPanelOpen && (
             <div className="mt-2">
               <SearchInput value={absentSearch} onChange={(e) => setAbsentSearch(e.target.value)} placeholder="Rechercher un élève à signaler absent" className="mb-2" />
               <div className="max-h-[180px] overflow-y-auto space-y-1">
                 {filteredAbsentList.slice(0, 30).map((s) => (
-                  <label key={s.id} className="flex items-center gap-2 py-1 text-[12.5px]" style={{ color: COLORS.text }}>
+                  <label key={s.id} className="flex items-center gap-2 py-1 text-[13px]" style={{ color: COLORS.text }}>
                     <input type="checkbox" checked={declaredAbsentIds.includes(s.id)} onChange={() => toggleAbsent(s.id)} />{s.name}
                   </label>
                 ))}
@@ -4143,15 +4277,15 @@ function ScanSimulationScreen({ ctx }) {
             </div>
           )}
         </Card>
-        <div className="rounded-2xl mb-3 flex flex-col items-center justify-center py-8 relative overflow-hidden" style={{ background: "#0F1E33" }}>
-          <div className="absolute inset-4 rounded-xl" style={{ border: "2px dashed rgba(255,255,255,0.25)" }} />
+        <div className="rounded-[16px] mb-3 flex flex-col items-center justify-center py-8 relative overflow-hidden" style={{ background: "#0F1E33" }}>
+          <div className="absolute inset-4 rounded-[16px]" style={{ border: "2px dashed rgba(255,255,255,0.25)" }} />
           <Camera size={28} color="rgba(255,255,255,0.6)" />
           <p className="text-[12px] mt-2" style={{ color: "rgba(255,255,255,0.7)" }}>{scanStatusText}</p>
           {scanning && <div className="flex gap-1 mt-2">{[0, 1, 2].map((i) => <span key={i} className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "#fff", animationDelay: `${i * 150}ms` }} />)}</div>}
           {lastFeed.length > 0 && (
             <div className="w-full mt-3 px-4 space-y-1">
               {lastFeed.map((f, i) => (
-                <div key={f.studentId + i} className="flex items-center justify-between text-[11px] px-2 py-1 rounded-lg" style={{ background: "rgba(255,255,255,0.08)", opacity: 1 - i * 0.18 }}>
+                <div key={f.studentId + i} className="flex items-center justify-between text-[11px] px-2 py-1 rounded-[10px]" style={{ background: "rgba(255,255,255,0.08)", opacity: 1 - i * 0.18 }}>
                   <span style={{ color: "#fff" }}>{f.name}</span><span style={{ color: "#8FE3C7" }}>Réponse {f.choice}</span>
                 </div>
               ))}
@@ -4161,14 +4295,14 @@ function ScanSimulationScreen({ ctx }) {
         <Card className="flex items-center justify-between mb-3" style={{ background: COLORS.primarySoft, border: "none" }}>
           <div>
             <p className="text-[12px] font-semibold" style={{ color: COLORS.primaryDark }}>Élèves détectés (total)</p>
-            <p className="text-[22px] font-extrabold" style={{ color: COLORS.primary }}>{detected.length} <span className="text-[14px] font-semibold" style={{ color: COLORS.muted }}>/ {total}</span></p>
+            <p className="text-[28px] font-extrabold" style={{ color: COLORS.primary }}>{detected.length} <span className="text-[14px] font-semibold" style={{ color: COLORS.muted }}>/ {total}</span></p>
             {declaredAbsentIds.length > 0 && <p className="text-[11px]" style={{ color: COLORS.muted }}>dont {declaredAbsentIds.length} absent(s) signalé(s)</p>}
           </div>
-          <ScanLine size={26} color={COLORS.primary} />
+          <ScanLine size={24} color={COLORS.primary} />
         </Card>
         {notDetectedInZone.length > 0 && scanMode !== "individual" && (
           <Card className="mb-4">
-            <p className="font-bold text-[12.5px] mb-2" style={{ color: COLORS.text }}>Non détectés dans cette rangée ({notDetectedInZone.length})</p>
+            <p className="font-bold text-[13px] mb-2" style={{ color: COLORS.text }}>Non détectés dans cette rangée ({notDetectedInZone.length})</p>
             <div className="flex flex-wrap gap-1.5">
               {notDetectedInZone.slice(0, 8).map((s) => <span key={s.id} className="text-[11px] px-2 py-1 rounded-full" style={{ background: COLORS.dangerSoft, color: COLORS.danger }}>{s.name}</span>)}
               {notDetectedInZone.length > 8 && <span className="text-[11px] px-2 py-1 rounded-full" style={{ background: COLORS.dangerSoft, color: COLORS.danger }}>+{notDetectedInZone.length - 8} autres</span>}
@@ -4238,7 +4372,7 @@ function VerifyAnswersScreen({ ctx }) {
   return (
     <Screen>
       <TopBar title="Vérifier les réponses" subtitle={`Question ${index + 1} — ${detectedCount}/${students.length} détectés`} onBack={() => ctx.nav.pop()}
-        right={<button onClick={() => { setSelectMode((v) => !v); setSelected(new Set()); }} className="text-[11.5px] font-semibold px-2.5 py-1.5 rounded-lg" style={{ background: selectMode ? COLORS.primary : COLORS.primarySoft, color: selectMode ? "#fff" : COLORS.primary }}>{selectMode ? "Terminer" : "Sélection multiple"}</button>} />
+        right={<button onClick={() => { setSelectMode((v) => !v); setSelected(new Set()); }} className="text-[12px] font-semibold px-2.5 py-1.5 rounded-[10px]" style={{ background: selectMode ? COLORS.primary : COLORS.primarySoft, color: selectMode ? "#fff" : COLORS.primary }}>{selectMode ? "Terminer" : "Sélection multiple"}</button>} />
       <div className="px-4 pt-3">
         <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher un élève" className="mb-2" />
         <div className="mobile-segmented flex p-1 mb-3">
@@ -4248,13 +4382,13 @@ function VerifyAnswersScreen({ ctx }) {
         </div>
         {selectMode && (
           <div className="flex items-center justify-between mb-2 px-1">
-            <button onClick={selectAllVisible} className="text-[11.5px] font-semibold" style={{ color: COLORS.primary }}>Tout sélectionner ({visibleStudents.length})</button>
-            <span className="text-[11.5px]" style={{ color: COLORS.muted }}>{selected.size} sélectionné(s)</span>
+            <button onClick={selectAllVisible} className="text-[12px] font-semibold" style={{ color: COLORS.primary }}>Tout sélectionner ({visibleStudents.length})</button>
+            <span className="text-[12px]" style={{ color: COLORS.muted }}>{selected.size} sélectionné(s)</span>
           </div>
         )}
-        <div className="rounded-2xl overflow-hidden mb-4" style={{ border: `1px solid ${COLORS.border}` }}>
+        <div className="rounded-[16px] overflow-hidden mb-4" style={{ border: `1px solid ${COLORS.border}` }}>
           <div className="max-h-[380px] overflow-y-auto">
-            {visibleStudents.length === 0 && <div className="py-8 text-center text-[12.5px]" style={{ color: COLORS.muted }}>Aucun élève ne correspond.</div>}
+            {visibleStudents.length === 0 && <div className="py-8 text-center text-[13px]" style={{ color: COLORS.muted }}>Aucun élève ne correspond.</div>}
             {visibleStudents.map((s, i) => {
               const choice = session.answers[s.id]?.[question.id];
               const isAbsentDeclared = declaredAbsentIds.includes(s.id) && !choice;
@@ -4263,13 +4397,13 @@ function VerifyAnswersScreen({ ctx }) {
                   style={{ borderTop: i ? `1px solid ${COLORS.border}` : "none", background: selected.has(s.id) ? COLORS.primarySoft : i % 2 ? "#FBFCFD" : "#fff", cursor: selectMode ? "pointer" : "default" }}>
                   <div className="flex items-center gap-2 min-w-0">
                     {selectMode && <input type="checkbox" readOnly checked={selected.has(s.id)} className="mr-1" />}
-                    {choice ? <UserCheck size={15} color={COLORS.success} /> : <UserX size={15} color={isAbsentDeclared ? COLORS.muted : COLORS.danger} />}
-                    <span className="text-[12.5px] font-medium truncate" style={{ color: COLORS.text }}>{s.name}</span>
+                    {choice ? <UserCheck size={18} color={COLORS.success} /> : <UserX size={18} color={isAbsentDeclared ? COLORS.muted : COLORS.danger} />}
+                    <span className="text-[13px] font-medium truncate" style={{ color: COLORS.text }}>{s.name}</span>
                   </div>
                   {!selectMode && (correcting === s.id ? (
                     <div className="flex gap-1.5">
                       {["A", "B", "C", "D"].map((k) => <button key={k} onClick={() => setChoice(s.id, k)} className="w-8 h-8 rounded-full text-[11px] font-bold" style={{ background: choice === k ? COLORS.primary : COLORS.border, color: choice === k ? "#fff" : COLORS.muted }}>{k}</button>)}
-                      <button onClick={() => setChoice(s.id, null)} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: COLORS.dangerSoft }}><X size={14} color={COLORS.danger} /></button>
+                      <button onClick={() => setChoice(s.id, null)} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: COLORS.dangerSoft }}><X size={18} color={COLORS.danger} /></button>
                     </div>
                   ) : (
                     <button onClick={() => setCorrecting(s.id)} className="flex items-center gap-1.5 py-1">
@@ -4288,8 +4422,8 @@ function VerifyAnswersScreen({ ctx }) {
         <div className="sticky bottom-0 px-4 py-3" style={{ background: COLORS.surface, borderTop: `1px solid ${COLORS.border}` }}>
           <p className="text-[11px] font-semibold mb-2" style={{ color: COLORS.muted }}>Attribuer aux {selected.size} élève(s) sélectionné(s) :</p>
           <div className="flex gap-2">
-            {["A", "B", "C", "D"].map((k) => <button key={k} onClick={() => setChoiceBulk(k)} className="flex-1 py-2.5 rounded-xl font-bold text-[13px]" style={{ background: COLORS.primarySoft, color: COLORS.primary }}>{k}</button>)}
-            <button onClick={() => setChoiceBulk(null)} className="flex-1 py-2.5 rounded-xl font-semibold text-[12px]" style={{ background: COLORS.dangerSoft, color: COLORS.danger }}>Absent</button>
+            {["A", "B", "C", "D"].map((k) => <button key={k} onClick={() => setChoiceBulk(k)} className="flex-1 rounded-[16px] font-bold text-[13px]" style={{ minHeight: 40, background: COLORS.primarySoft, color: COLORS.primary }}>{k}</button>)}
+            <button onClick={() => setChoiceBulk(null)} className="flex-1 rounded-[16px] font-semibold text-[12px]" style={{ minHeight: 40, background: COLORS.dangerSoft, color: COLORS.danger }}>Absent</button>
           </div>
         </div>
       )}
@@ -4331,12 +4465,16 @@ function computeResults(ctx, sessionId) {
 function ResultsTabs({ ctx, sessionId, active }) {
   const tabs = [{ key: "sessionResultsGlobal", label: "Classe" }, { key: "sessionResultsByQuestion", label: "Par question" }, { key: "sessionResultsByStudent", label: "Par élève" }];
   return (
-    <div className="flex gap-2 px-4 pb-3">
-      {tabs.map((t) => <button key={t.key} onClick={() => ctx.nav.resetTo(t.key, { sessionId })} className="flex-1 py-2 rounded-xl text-[12px] font-semibold" style={{ background: active === t.key ? COLORS.primary : COLORS.primarySoft, color: active === t.key ? "#fff" : COLORS.primary }}>{t.label}</button>)}
+    <div className="px-4 pb-3">
+      <div className="mobile-segmented flex p-1">
+        {tabs.map((t) => (
+          <button key={t.key} onClick={() => ctx.nav.resetTo(t.key, { sessionId })} className={active === t.key ? "active" : ""}>{t.label}</button>
+        ))}
+      </div>
     </div>
   );
 }
-function DonutChart({ segments, size = 132, strokeWidth = 16 }) {
+function DonutChart({ segments, size = 132, strokeWidth = 16, centerValue, centerLabel }) {
   const total = segments.reduce((sum, seg) => sum + seg.value, 0);
   const r = (size - strokeWidth) / 2;
   const c = 2 * Math.PI * r;
@@ -4355,35 +4493,9 @@ function DonutChart({ segments, size = 132, strokeWidth = 16 }) {
             transform={`rotate(-90 ${size / 2} ${size / 2})`} strokeLinecap="butt" />
         );
       })}
-      <text x={size / 2} y={size / 2 - 3} textAnchor="middle" fontSize="22" fontWeight="800" fill={COLORS.text}>{total}</text>
-      <text x={size / 2} y={size / 2 + 15} textAnchor="middle" fontSize="10" fill={COLORS.muted}>{total > 1 ? "évaluations" : "évaluation"}</text>
+      <text x={size / 2} y={size / 2 - 3} textAnchor="middle" fontSize="22" fontWeight="800" fill={COLORS.text}>{centerValue !== undefined ? centerValue : total}</text>
+      <text x={size / 2} y={size / 2 + 15} textAnchor="middle" fontSize="10" fill={COLORS.muted}>{centerLabel !== undefined ? centerLabel : (total > 1 ? "évaluations" : "évaluation")}</text>
     </svg>
-  );
-}
-/* Répartition globale — Correct / Incorrect / Sans réponse : la seule agrégation qui garde un sens
-   toutes questions confondues, contrairement à des lettres A/B/C/D dont la signification change à chaque question. */
-function OutcomeBar({ correct, incorrect, noAnswer }) {
-  const total = correct + incorrect + noAnswer;
-  const pct = (n) => (total ? Math.round((n / total) * 100) : 0);
-  const segments = [
-    { key: "correct", value: correct, color: COLORS.success, label: "Correct" },
-    { key: "incorrect", value: incorrect, color: COLORS.danger, label: "Incorrect" },
-    { key: "noAnswer", value: noAnswer, color: COLORS.warning, label: "Sans réponse" },
-  ];
-  return (
-    <div>
-      <div className="h-4 rounded-full overflow-hidden flex mb-3" style={{ background: "#EEF1F4" }}>
-        {segments.map((s) => s.value > 0 && <div key={s.key} style={{ width: `${pct(s.value)}%`, background: s.color }} />)}
-      </div>
-      <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-        {segments.map((s) => (
-          <div key={s.key} className="flex items-center gap-1.5 text-[11.5px]" style={{ color: COLORS.text }}>
-            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: s.color }} />
-            {s.label} <b>{pct(s.value)}%</b>
-          </div>
-        ))}
-      </div>
-    </div>
   );
 }
 
@@ -4434,49 +4546,63 @@ function ResultsGlobalScreen({ ctx }) {
     ctx.nav.resetTo("sessionQuestion", { sessionId: newSessionId, index: 0 });
   };
 
+  const participationPct = r.students.length ? Math.round((r.participants / r.students.length) * 100) : 0;
+  const incorrectCount = r.perQuestion.reduce((sum, pq) => sum + pq.incorrect, 0);
+  const noAnswerCount = r.perQuestion.reduce((sum, pq) => sum + pq.noAnswer, 0);
+  const outcomeTotal = r.totalCorrect + incorrectCount + noAnswerCount;
+  const outcomePct = (n) => (outcomeTotal ? Math.round((n / outcomeTotal) * 100) : 0);
+  const outcomeSegments = [
+    { key: "correct", value: r.totalCorrect, color: COLORS.success, label: "Correct" },
+    { key: "incorrect", value: incorrectCount, color: COLORS.danger, label: "Incorrect" },
+    { key: "noAnswer", value: noAnswerCount, color: COLORS.warning, label: "Sans réponse" },
+  ];
+
   return (
     <Screen>
       <TopBar title="Résultats" subtitle={`${r.loc.cls.name} · ${r.questionnaire.title}`} onBack={() => ctx.nav.pop()} />
       <ResultsTabs ctx={ctx} sessionId={sessionId} active="sessionResultsGlobal" />
-      <div className="px-4 space-y-3">
+      <div className="px-4 pb-4 space-y-4">
         {isWeak && (
-          <Card style={{ background: COLORS.dangerSoft, border: "none" }}>
-            <div className="flex items-start gap-2 mb-3">
-              <AlertTriangle size={18} color={COLORS.danger} className="mt-0.5 shrink-0" />
-              <p className="text-[12.5px]" style={{ color: COLORS.danger }}>
+          <Card className="flex items-start gap-2.5" style={{ background: COLORS.dangerSoft, border: "none", borderLeft: `3px solid ${COLORS.danger}` }}>
+            <AlertTriangle size={18} color={COLORS.danger} className="mt-0.5 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-[12px] leading-5" style={{ color: COLORS.danger }}>
                 Résultats faibles sur « {r.questionnaire.title} ». Nous recommandons de revoir le cours correspondant avec la classe avant de continuer.
               </p>
+              <button onClick={() => setConfirmRetry(true)} className="mt-2 flex items-center gap-1.5 text-[12px] font-bold" style={{ color: COLORS.danger }}>
+                <RefreshCw size={13} /> Refaire ce questionnaire
+              </button>
             </div>
-            <Btn full variant="danger" icon={RefreshCw} onClick={() => setConfirmRetry(true)}>Refaire ce questionnaire</Btn>
           </Card>
         )}
 
-        <Card style={{ background: isWeak ? COLORS.dangerSoft : COLORS.successSoft, border: "none" }}>
-          <p className="text-[11.5px] font-semibold" style={{ color: isWeak ? COLORS.danger : COLORS.success }}>Moyenne de la classe</p>
-          <p className="text-[40px] font-extrabold leading-none my-1" style={{ color: isWeak ? COLORS.danger : COLORS.success }}>{r.classAverage}%</p>
-          <p className="text-[11.5px] font-semibold flex items-center gap-1" style={{ color: isWeak ? COLORS.danger : COLORS.success }}>
-            {isWeak ? <XCircle size={13} /> : <CheckCircle2 size={13} />}
-            {isWeak ? `En dessous du seuil de réussite (${WEAK_RESULT_THRESHOLD}%)` : `Au-dessus du seuil de réussite (${WEAK_RESULT_THRESHOLD}%)`}
-          </p>
-        </Card>
-
+        <SectionLabel>Vue d'ensemble</SectionLabel>
         <div className="grid grid-cols-2 gap-3">
-          <Card className="text-center">
-            <p className="text-[24px] font-extrabold" style={{ color: r.participants >= r.students.length * 0.8 ? COLORS.success : COLORS.warning }}>{r.students.length ? Math.round((r.participants / r.students.length) * 100) : 0}%</p>
-            <p className="text-[11px]" style={{ color: COLORS.muted }}>Participation ({r.participants} sur {r.students.length})</p>
-          </Card>
-          <Card className="text-center">
-            <p className="text-[24px] font-extrabold" style={{ color: COLORS.text }}>{r.students.length}</p>
-            <p className="text-[11px]" style={{ color: COLORS.muted }}>Élèves inscrits</p>
-          </Card>
+          <div className="col-span-2">
+            <StatCard icon={isWeak ? XCircle : CheckCircle2} value={`${r.classAverage}%`}
+              label={`Moyenne de la classe · ${isWeak ? "sous" : "au-dessus du"} seuil (${WEAK_RESULT_THRESHOLD}%)`}
+              tone={isWeak ? "danger" : "success"} />
+          </div>
+          <StatCard icon={Users} value={`${participationPct}%`} label={`Participation (${r.participants} sur ${r.students.length})`} tone={r.participants >= r.students.length * 0.8 ? "success" : "warning"} />
+          <StatCard icon={GraduationCap} value={r.students.length} label="Élèves inscrits" />
         </div>
+
         <Card>
-          <p className="font-bold text-[13px] mb-3" style={{ color: COLORS.text }}>Répartition des réponses</p>
-          <OutcomeBar
-            correct={r.totalCorrect}
-            incorrect={r.perQuestion.reduce((sum, pq) => sum + pq.incorrect, 0)}
-            noAnswer={r.perQuestion.reduce((sum, pq) => sum + pq.noAnswer, 0)}
-          />
+          <p className="text-[11px] font-extrabold uppercase mb-3" style={{ color: COLORS.muted, letterSpacing: "0.09em" }}>Répartition des réponses</p>
+          <div className="flex items-center gap-4">
+            <DonutChart segments={outcomeSegments} size={100} strokeWidth={14} centerValue={`${outcomePct(r.totalCorrect)}%`} centerLabel="correct" />
+            <div className="flex-1 min-w-0 space-y-2.5">
+              {outcomeSegments.map((s) => (
+                <div key={s.key} className="flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-1.5 text-[12px]" style={{ color: COLORS.text }}>
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: s.color }} />
+                    {s.label}
+                  </span>
+                  <b className="text-[13px]" style={{ color: COLORS.text }}>{outcomePct(s.value)}%</b>
+                </div>
+              ))}
+            </div>
+          </div>
         </Card>
       </div>
       <ConfirmModal open={confirmRetry} title="Refaire ce questionnaire ?" text="Une nouvelle session démarre avec les mêmes questions, pour toute la classe. Les résultats précédents restent conservés séparément." onCancel={() => setConfirmRetry(false)} onConfirm={retryQuestionnaire} confirmLabel="Démarrer" />
@@ -4491,11 +4617,11 @@ function ResultsByQuestionScreen({ ctx }) {
     <Screen>
       <TopBar title="Résultats" subtitle={`${r.loc.cls.name} · ${r.questionnaire.title}`} onBack={() => ctx.nav.pop()} />
       <ResultsTabs ctx={ctx} sessionId={sessionId} active="sessionResultsByQuestion" />
-      <div className="px-4 space-y-3">
+      <div className="px-4 space-y-2">
         {r.perQuestion.map((pq, i) => {
           const weak = pq.rate < WEAK_RESULT_THRESHOLD;
           return (
-            <Card key={pq.question.id} style={weak ? { borderColor: "#F0C6C1" } : undefined}>
+            <Card key={pq.question.id} style={weak ? { border: "1.5px solid #F0C6C1" } : undefined}>
               <p className="font-bold text-[13px] mb-1" style={{ color: COLORS.text }}>Q{i + 1}. {pq.question.text}</p>
               {weak && (
                 <p className="text-[11px] font-semibold mb-2 flex items-center gap-1" style={{ color: COLORS.danger }}>
@@ -4525,15 +4651,15 @@ function ResultsByStudentScreen({ ctx }) {
       <Screen>
         <TopBar title={selected.student.name} subtitle={`Carte #${selected.student.cardNumber || "—"}`} onBack={() => ctx.nav.push("sessionResultsByStudent", { sessionId })} />
         <div className="px-4 pt-4">
-          <Card className="flex items-center justify-between mb-4" style={{ background: COLORS.primarySoft, border: "none" }}>
-            <div><p className="text-[12px] font-semibold" style={{ color: COLORS.primaryDark }}>Score</p><p className="text-[24px] font-extrabold" style={{ color: COLORS.primary }}>{selected.score}/{r.questions.length}</p></div>
-            <p className="text-[26px] font-extrabold" style={{ color: COLORS.primary }}>{selected.pct}%</p>
-          </Card>
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <StatCard icon={ClipboardList} value={`${selected.score}/${r.questions.length}`} label="Score" />
+            <StatCard icon={CheckCircle2} value={`${selected.pct}%`} label="Réussite" tone={selected.pct >= 50 ? "success" : "danger"} />
+          </div>
           <div className="space-y-2">
             {selected.detail.map((d, i) => (
               <Card key={d.question.id} className="flex items-center justify-between">
                 <div className="min-w-0 flex-1">
-                  <p className="text-[12.5px] font-medium truncate" style={{ color: COLORS.text }}>Q{i + 1}. {d.question.text}</p>
+                  <p className="text-[13px] font-medium truncate" style={{ color: COLORS.text }}>Q{i + 1}. {d.question.text}</p>
                   <p className="text-[11px]" style={{ color: COLORS.muted }}>Réponse : {d.choice || "aucune"} · Correcte : {d.question.correct}</p>
                 </div>
                 {d.choice ? (d.correct ? <CheckCircle2 size={18} color={COLORS.success} /> : <XCircle size={18} color={COLORS.danger} />) : <UserX size={18} color={COLORS.muted} />}
@@ -4554,8 +4680,8 @@ function ResultsByStudentScreen({ ctx }) {
         <div className="space-y-1.5 max-h-[500px] overflow-y-auto">
           {filtered.map((p) => (
             <Card key={p.student.id} onClick={() => ctx.nav.push("sessionResultsByStudent", { sessionId, studentId: p.student.id })} className="flex items-center justify-between !py-2.5">
-              <span className="text-[12.5px] font-medium truncate" style={{ color: COLORS.text }}>{p.student.name}</span>
-              <div className="flex items-center gap-2"><span className="text-[11.5px]" style={{ color: COLORS.muted }}>{p.score}/{r.questions.length}</span><Badge tone={p.pct >= 50 ? "success" : "danger"}>{p.pct}%</Badge></div>
+              <span className="text-[13px] font-medium truncate" style={{ color: COLORS.text }}>{p.student.name}</span>
+              <div className="flex items-center gap-2"><span className="text-[12px]" style={{ color: COLORS.muted }}>{p.score}/{r.questions.length}</span><Badge tone={p.pct >= 50 ? "success" : "danger"}>{p.pct}%</Badge></div>
             </Card>
           ))}
         </div>
@@ -4595,14 +4721,14 @@ function SyncScreen({ ctx }) {
         <Card className="flex items-center gap-2 mb-4">
           {ctx.isOnline ? <Wifi size={18} color={COLORS.success} /> : <WifiOff size={18} color={COLORS.warning} />}
           <div>
-            <p className="font-bold text-[13.5px]" style={{ color: COLORS.text }}>{ctx.isOnline ? "Connexion disponible" : "Mode hors ligne"}</p>
+            <p className="font-bold text-[14px]" style={{ color: COLORS.text }}>{ctx.isOnline ? "Connexion disponible" : "Mode hors ligne"}</p>
             <p className="text-[11px]" style={{ color: COLORS.muted }}>{ctx.isOnline ? "Détectée automatiquement — synchronisation en cours dès qu'une donnée change." : "Détecté automatiquement — les données seront envoyées dès le retour du réseau."}</p>
           </div>
         </Card>
 
         {alert.level !== "ok" && (
           <Card className="mb-4 flex items-center gap-2" style={{ background: alert.level === "critical" ? COLORS.dangerSoft : COLORS.warningSoft, border: "none" }}>
-            <AlertTriangle size={16} color={alert.level === "critical" ? COLORS.danger : COLORS.warning} />
+            <AlertTriangle size={18} color={alert.level === "critical" ? COLORS.danger : COLORS.warning} />
             <p className="text-[12px] font-semibold" style={{ color: alert.level === "critical" ? COLORS.danger : COLORS.warning }}>
               {alert.count} session(s) en attente{alert.oldestDays > 0 ? `, la plus ancienne depuis ${alert.oldestDays} jour(s)` : ""}. Connectez-vous pour sécuriser vos données.
             </p>
@@ -4619,7 +4745,7 @@ function SyncScreen({ ctx }) {
               return (
                 <Card key={s.id} className="flex items-center justify-between !py-2.5">
                   <div className="min-w-0">
-                    <p className="text-[12.5px] font-medium truncate" style={{ color: COLORS.text }}>{cls?.name} · {s.date}</p>
+                    <p className="text-[13px] font-medium truncate" style={{ color: COLORS.text }}>{cls?.name} · {s.date}</p>
                     <p className="text-[11px]" style={{ color: COLORS.muted }}>{s.lastSyncedAt ? `Synchronisé à ${new Date(s.lastSyncedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}` : "Jamais synchronisé"}</p>
                   </div>
                   <Badge tone={meta.tone} icon={meta.icon}>{meta.label}</Badge>
@@ -4629,7 +4755,7 @@ function SyncScreen({ ctx }) {
           </div>
         )}
         <Btn full icon={syncing ? RefreshCw : UploadCloud} disabled={!ctx.isOnline || syncing} onClick={syncNow}>{syncing ? "Synchronisation en cours…" : "Synchroniser maintenant"}</Btn>
-        {!ctx.isOnline && <p className="text-[11.5px] mt-2 text-center" style={{ color: COLORS.warning }}>Activez la connexion pour synchroniser.</p>}
+        {!ctx.isOnline && <p className="text-[12px] mt-2 text-center" style={{ color: COLORS.warning }}>Activez la connexion pour synchroniser.</p>}
       </div>
     </Screen>
   );
@@ -4645,7 +4771,7 @@ const SCREENS = {
   importStudents: ImportStudentsScreen, importPreview: ImportPreviewScreen,
   subjects: SubjectsScreen, teachersList: TeachersListScreen, teacherDetails: TeacherDetailsScreen, createTeacher: CreateTeacherScreen,
   shareCredentials: ShareCredentialsScreen, assignClassesToTeacher: AssignClassesToTeacherScreen,
-  teacherDashboard: TeacherDashboardScreen, teacherYears: TeacherYearsScreen, teacherLevels: TeacherLevelsScreen, teacherLevelDetails: TeacherLevelDetailsScreen, teacherLevelSubjects: TeacherLevelSubjectsScreen, teacherLevelClasses: TeacherLevelClassesScreen, teacherClassSubjects: TeacherClassSubjectsScreen, affectationDetails: AffectationDetailsScreen,
+  teacherDashboard: TeacherDashboardScreen, teacherYears: TeacherYearsScreen, teacherLevels: TeacherLevelsScreen, teacherLevelDetails: TeacherLevelDetailsScreen, teacherLevelSubjects: TeacherLevelSubjectsScreen, teacherLevelClasses: TeacherLevelClassesScreen,
   evaluationsList: EvaluationsListScreen,
   createQuestionnaire: CreateQuestionnaireScreen, createQuestion: CreateQuestionScreen,
   evalPrep: EvalPrepScreen, sessionQuestion: SessionQuestionScreen, scanSimulation: ScanSimulationScreen,
@@ -4760,7 +4886,7 @@ export default function KagatPrototype() {
 
   return (
     <div className="prototype-stage w-full min-h-[100vh] flex items-center justify-center py-6" style={{ fontFamily: "'Plus Jakarta Sans', 'Segoe UI', sans-serif" }}>
-      <div className="prototype-note hidden sm:flex"><Info size={14} /><span>Prototype déployé présentant les fonctionnalités de base de l’application KAGAT.</span></div>
+      <div className="prototype-note hidden sm:flex"><Info size={18} /><span>Prototype déployé présentant les fonctionnalités de base de l’application KAGAT.</span></div>
       <div className="phone-shell relative w-full max-w-[410px] flex flex-col overflow-hidden" style={{ background: COLORS.bg }}>
         <div className="phone-status flex items-center justify-between px-6 pt-2 pb-1 text-[10px] font-bold shrink-0" style={{ color: COLORS.text, background: COLORS.surface }}>
           <span>9:41</span>
@@ -4769,7 +4895,7 @@ export default function KagatPrototype() {
         {activeYearLabel && (
           <div className="app-year-banner flex items-center justify-center gap-1.5 py-1 shrink-0" style={{ background: COLORS.primarySoft }}>
             <Calendar size={10.5} color={COLORS.primary} />
-            <span className="text-[10px] font-bold" style={{ color: COLORS.primaryDark }}>Année en cours · {activeYearLabel}</span>
+            <span className="text-[10px] font-bold" style={{ color: COLORS.primaryDark }}>Année scolaire en cours · {activeYearLabel}</span>
           </div>
         )}
         <div className="app-scroll flex-1 overflow-y-auto relative" style={{ background: COLORS.bg }}>
@@ -4783,23 +4909,16 @@ export default function KagatPrototype() {
 }
 
 function StatCard({ icon: Icon, value, label, tone = "primary" }) {
-  const color = tone === "accent" ? COLORS.accent : tone === "success" ? COLORS.success : tone === "warning" ? COLORS.warning : COLORS.primary;
-  const soft = tone === "accent" ? COLORS.accentSoft : tone === "success" ? COLORS.successSoft : tone === "warning" ? COLORS.warningSoft : COLORS.primarySoft;
+  const color = tone === "accent" ? COLORS.accent : tone === "success" ? COLORS.success : tone === "warning" ? COLORS.warning : tone === "danger" ? COLORS.danger : COLORS.primary;
+  const soft = tone === "accent" ? COLORS.accentSoft : tone === "success" ? COLORS.successSoft : tone === "warning" ? COLORS.warningSoft : tone === "danger" ? COLORS.dangerSoft : COLORS.primarySoft;
   return (
     <Card className="stat-card">
-      <div className="stat-icon" style={{ background: soft, color }}><Icon size={17} /></div>
-      <p className="text-[23px] font-extrabold tracking-[-0.04em] mt-3" style={{ color: COLORS.text }}>{value}</p>
-      <p className="text-[10.5px] font-semibold mt-0.5" style={{ color: COLORS.muted }}>{label}</p>
+      <div className="stat-icon" style={{ background: soft, color }}><Icon size={18} /></div>
+      <p className="text-[28px] font-extrabold tracking-[-0.04em] mt-3" style={{ color: COLORS.text }}>{value}</p>
+      <p className="text-[11px] font-semibold mt-0.5" style={{ color: COLORS.muted }}>{label}</p>
     </Card>
   );
 }
 
-function PageAction({ icon: Icon = Plus, title, subtitle, onClick, tone = "primary" }) {
-  return (
-    <button onClick={onClick} className={`page-action page-action--${tone} w-full flex items-center gap-3 text-left`}>
-      <span className="page-action-icon"><Icon size={19} /></span>
-      <span className="flex-1"><b>{title}</b>{subtitle && <small>{subtitle}</small>}</span>
-      <ChevronRight size={17} />
-    </button>
-  );
-}
+/* Composant retiré — remplacé partout par Btn (voir plus haut) pour rester cohérent avec les
+   autres boutons de l'app. */

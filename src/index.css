@@ -18,8 +18,19 @@ body {
 
 button, input, textarea, select { font: inherit; }
 button { cursor: pointer; }
+
+/* Champs numériques stylés comme les autres (pilule pleine largeur) — les flèches natives du
+   navigateur casseraient cette cohérence visuelle. */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
 button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
-  outline: 3px solid rgba(53, 88, 212, .18) !important;
+  outline: 3px solid rgba(30,119,180, .18) !important;
   outline-offset: 2px;
 }
 
@@ -27,93 +38,112 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
   flex-direction:column;
   gap:14px;
   background:
-    radial-gradient(circle at 14% 18%, rgba(124,77,219,.14), transparent 26%),
-    radial-gradient(circle at 86% 82%, rgba(53,88,212,.16), transparent 25%),
+    radial-gradient(circle at 14% 18%, rgba(30,119,180,.14), transparent 26%),
+    radial-gradient(circle at 86% 82%, rgba(30,119,180,.16), transparent 25%),
     linear-gradient(135deg, #f8f9fd 0%, #e9edfa 100%);
 }
 .prototype-note { align-items:center; gap:7px; max-width:410px; color:#687083; font-size:10px; font-weight:600; }
-.prototype-note svg { color:#3558d4; flex-shrink:0; }
+.prototype-note svg { color:#1E77B4; flex-shrink:0; }
 
-.phone-shell { height:min(844px, calc(125vh - 78px)); zoom:.8; border-radius:42px; border:9px solid #171a22; box-shadow:0 35px 80px rgba(29,38,67,.28), 0 4px 16px rgba(29,38,67,.16); }
+/* Pas de `zoom` ici : propriété non standard, mal/différemment supportée hors Chrome (Safari,
+   nombreux émulateurs) — combinée à la barre de navigation en position:sticky, elle peut faire
+   "sortir" la barre visuellement du cadre du téléphone selon le moteur de rendu. La formule de
+   hauteur ci-dessous suffit déjà à faire tenir le mockup dans la fenêtre, sans mise à l'échelle
+   supplémentaire. */
+.phone-shell { height:min(844px, calc(125vh - 78px)); border-radius:42px; border:9px solid #171a22; box-shadow:0 35px 80px rgba(29,38,67,.28), 0 4px 16px rgba(29,38,67,.16); }
 .phone-status:after { content:""; position:absolute; width:92px; height:24px; border-radius:0 0 16px 16px; background:#171a22; top:0; left:50%; transform:translateX(-50%); }
 .app-topbar, .app-bottom-nav { backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
 .app-topbar { box-shadow:0 1px 0 rgba(27,35,59,.055); }
 .topbar-action { background:#fff; border:1px solid #e5e8f2; box-shadow:0 4px 12px rgba(38,48,82,.06); }
-.topbar-brand { color:#3558d4; background:linear-gradient(145deg,#ebeefe,#f2ecff); }
-.app-bottom-nav { margin:0 10px 9px; border:1px solid #e7e9f1; border-radius:22px; box-shadow:0 12px 34px rgba(30,40,75,.14); }
+.topbar-brand { color:#1E77B4; background:#DCEDF7; }
+.app-bottom-nav { margin:0; border-top:1px solid #e7e9f1; border-radius:0; box-shadow:0 -4px 16px rgba(30,40,75,.08); padding-bottom:env(safe-area-inset-bottom, 0px); }
 .nav-icon { min-height:30px; }
 .app-screen { min-height:100%; }
-.app-card--interactive:hover { border-color:#cfd6f5 !important; box-shadow:0 12px 30px rgba(38,48,82,.09) !important; transform:translateY(-1px); }
+.app-card--interactive:hover { box-shadow:0 2px 4px rgba(23,32,51,.10), 0 8px 20px rgba(23,32,51,.08) !important; transform:translateY(-1px); }
 .app-button { min-height:46px; }
 .app-button svg { width:16px; height:16px; flex-shrink:0; }
 .app-button:hover:not(:disabled) { filter:brightness(1.045); transform:translateY(-1px); }
 .app-button:active:not(:disabled) { filter:brightness(.97); transform:translateY(0) scale(.97); }
-.app-button--ghost:hover:not(:disabled) { background:rgba(53,88,212,.06); }
-.app-button--text:hover:not(:disabled) { background:rgba(53,88,212,.07); transform:none; }
+.app-button--ghost:hover:not(:disabled) { background:rgba(30,119,180,.06); }
+.app-button--text:hover:not(:disabled) { background:rgba(30,119,180,.07); transform:none; }
 .app-button--secondary:hover:not(:disabled) { filter:brightness(.98); }
 .app-badge { letter-spacing:.01em; }
 .app-field input, .app-field textarea, .app-field select { transition:border-color .2s, box-shadow .2s, background .2s; }
 .app-field input:hover, .app-field textarea:hover, .app-field select:hover { border-color:#cbd2e8 !important; }
-.app-field input:focus, .app-field textarea:focus, .app-field select:focus { border-color:#3558d4 !important; box-shadow:0 0 0 4px rgba(53,88,212,.09); background:#fff !important; }
-.section-label > span { width:18px; height:3px; border-radius:3px; background:linear-gradient(90deg,#3558d4,#7c4ddb); }
+.app-field input:focus, .app-field textarea:focus, .app-field select:focus { border-color:#1E77B4 !important; box-shadow:0 0 0 4px rgba(30,119,180,.09); background:#fff !important; }
+
+/* TextField Material 3 "outlined" — label au repos dans le contour du champ, qui migre
+   au-dessus (plus petit, en couleur d'accent) au focus ou dès que le champ n'est plus vide.
+   :has() couvre aussi les champs enveloppés dans un conteneur (ex. champ + bouton "+"). */
+.app-field-label{
+  position:absolute; left:13px; top:15px;
+  font-size:13.5px; font-weight:600; color:#687083;
+  background:#fff; padding:0 4px; margin-left:-4px;
+  pointer-events:none; transition:top .15s ease, font-size .15s ease, color .15s ease;
+  z-index:1;
+}
+.app-field:focus-within .app-field-label,
+.app-field:has(input:not(:placeholder-shown)):not(:has(input[type="checkbox"])):not(:has(input[type="radio"])) .app-field-label,
+.app-field:has(textarea:not(:placeholder-shown)) .app-field-label{
+  top:-8px; font-size:11px; font-weight:700;
+}
+.app-field:focus-within .app-field-label{ color:#1E77B4; }
+/* Le texte d'exemple ("Ex. …") ne sert que d'indice complémentaire une fois le label
+   remonté — au repos, il resterait visuellement superposé au label et double le texte. */
+.app-field input::placeholder, .app-field textarea::placeholder{ color:transparent; transition:color .1s ease; }
+.app-field input:focus::placeholder, .app-field textarea:focus::placeholder{ color:#9AA5B8; }
+.section-label > span { width:18px; height:3px; border-radius:3px; background:#1E77B4; }
 .empty-state { margin:8px 0; border:1px dashed #d9deed; border-radius:24px; background:rgba(255,255,255,.46); }
-.empty-state-icon { box-shadow:inset 0 0 0 1px rgba(53,88,212,.07); }
-.option-icon { box-shadow:inset 0 0 0 1px rgba(53,88,212,.06); }
+.empty-state-icon { box-shadow:inset 0 0 0 1px rgba(30,119,180,.07); }
+.option-icon { box-shadow:inset 0 0 0 1px rgba(30,119,180,.06); }
 .stat-card { position:relative; overflow:hidden; padding:14px !important; min-height:126px; }
-.stat-card:after { content:""; position:absolute; width:64px; height:64px; right:-24px; bottom:-30px; border-radius:50%; background:rgba(53,88,212,.045); }
+.stat-card:after { content:""; position:absolute; width:64px; height:64px; right:-24px; bottom:-30px; border-radius:50%; background:rgba(30,119,180,.045); }
 .stat-icon { width:34px; height:34px; display:flex; align-items:center; justify-content:center; border-radius:12px; }
-.dashboard-hero { min-height:112px; padding:18px; border-radius:25px; display:flex; align-items:center; gap:14px; color:white; background:linear-gradient(135deg,#2949bd 0%,#6551d8 100%); box-shadow:0 18px 32px rgba(58,67,178,.22); position:relative; overflow:hidden; }
+.dashboard-hero { min-height:112px; padding:18px; border-radius:25px; display:flex; align-items:center; gap:14px; color:white; background:#1E77B4; box-shadow:0 18px 32px rgba(30,119,180,.28); position:relative; overflow:hidden; }
 .dashboard-hero:after { content:""; position:absolute; width:120px; height:120px; border:24px solid rgba(255,255,255,.07); border-radius:50%; right:-42px; top:-47px; }
 .dashboard-hero-icon { width:48px; height:48px; border-radius:17px; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.14); flex-shrink:0; }
 .dashboard-hero p { font-size:12px; font-weight:700; line-height:1.5; margin-top:7px; max-width:225px; }
 .teacher-hero { background:linear-gradient(135deg,#116f67 0%,#2a9b82 100%); box-shadow:0 18px 32px rgba(22,134,111,.20); }
 .hero-play { width:38px; height:38px; border-radius:13px; display:flex; align-items:center; justify-content:center; background:#fff; color:#16866f; z-index:1; box-shadow:0 8px 18px rgba(8,73,62,.18); }
 .quick-action { padding:13px !important; }
-.class-card { border-left:3px solid #3558d4 !important; }
+.class-card { border-left:3px solid #1E77B4 !important; }
 .subject-chip { transition:transform .15s, filter .15s; }
 .subject-chip:hover { transform:translateY(-1px); filter:brightness(.97); }
 .wizard-shell { border:1px solid #e4e7f1; border-radius:22px; background:rgba(255,255,255,.82); box-shadow:0 8px 24px rgba(38,48,82,.05); }
-.wizard-count { width:34px; height:34px; display:flex; align-items:center; justify-content:center; border-radius:12px; color:#fff; background:linear-gradient(145deg,#3558d4,#6c51d5); font-size:11px; font-weight:800; box-shadow:0 7px 14px rgba(53,88,212,.18); }
+.wizard-count { width:34px; height:34px; display:flex; align-items:center; justify-content:center; border-radius:12px; color:#fff; background:#1E77B4; font-size:11px; font-weight:800; box-shadow:0 7px 14px rgba(30,119,180,.24); }
 .wizard-dot { width:18px; height:18px; border-radius:50%; border:2px solid #d9deeb; background:#fff; display:flex; align-items:center; justify-content:center; color:#fff; flex-shrink:0; transition:all .25s ease; }
 .wizard-dot > span { width:5px; height:5px; border-radius:50%; background:#d9deeb; }
-.wizard-dot.active { border:5px solid #dfe5ff; background:#3558d4; box-shadow:0 0 0 2px rgba(53,88,212,.10); }
+.wizard-dot.active { border:5px solid #dfe5ff; background:#1E77B4; box-shadow:0 0 0 2px rgba(30,119,180,.10); }
 .wizard-dot.active > span { display:none; }
 .wizard-dot.done { border-color:#16866f; background:#16866f; }
 .wizard-line { height:3px; flex:1; background:#e4e7ef; transition:background .25s ease; }
 .wizard-line.done { background:#16866f; }
 .wizard-summary { display:flex; align-items:center; gap:6px; color:#687083; background:#f6f7fb; border-radius:10px; padding:7px 9px; font-size:9.5px; font-weight:700; }
 .wizard-summary svg { color:#16866f; flex-shrink:0; }
-.page-action { min-height:56px; padding:8px 11px; margin-bottom:8px; border-radius:17px; color:#fff; background:linear-gradient(135deg,#3558d4,#604fd2); box-shadow:0 8px 18px rgba(53,88,212,.16); position:relative; overflow:hidden; }
-.page-action:after { content:""; position:absolute; width:70px; height:70px; border:16px solid rgba(255,255,255,.07); border-radius:50%; right:-24px; top:-24px; }
-.page-action > * { position:relative; z-index:1; }
-.page-action-icon { width:36px; height:36px; display:flex; align-items:center; justify-content:center; border-radius:12px; background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.14); flex-shrink:0; }
-.page-action-icon svg { width:17px; height:17px; }
-.page-action b { display:block; font-size:11.5px; }
-.page-action small { display:block; margin-top:2px; color:rgba(255,255,255,.76); font-size:8.5px; font-weight:600; }
-.page-action:hover { filter:brightness(1.04); transform:translateY(-1px); }
 .mobile-filter-panel { padding:13px; border:1px solid #e2e5ef; border-radius:19px; background:#fff; box-shadow:0 7px 20px rgba(38,48,82,.045); }
-.filter-heading { display:flex; align-items:center; gap:7px; color:#3558d4; font-size:10.5px; font-weight:800; margin-bottom:10px; }
+.filter-heading { display:flex; align-items:center; gap:7px; color:#1E77B4; font-size:10.5px; font-weight:800; margin-bottom:10px; }
 .filter-heading .app-badge { margin-left:auto; }
 .mobile-filter-panel label > span { display:block; margin:0 0 5px 2px; color:#687083; font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; }
-.mobile-filter-panel select { width:100%; height:39px; padding:0 28px 0 10px; border:1px solid #e0e4ef; border-radius:12px; background:#f7f8fc; color:#172033; font-size:10.5px; font-weight:700; outline:none; }
-.mobile-filter-panel select:focus { border-color:#3558d4; box-shadow:0 0 0 3px rgba(53,88,212,.09); }
+.mobile-filter-panel select { width:100%; height:40px; padding:0 28px 0 10px; border:1px solid #e0e4ef; border-radius:12px; background:#f7f8fc; color:#172033; font-size:10.5px; font-weight:700; outline:none; }
+.mobile-filter-panel select:focus { border-color:#1E77B4; box-shadow:0 0 0 3px rgba(30,119,180,.09); }
 .mobile-segmented { gap:3px; border-radius:15px; background:#e9ecf4; }
-.mobile-segmented button { flex:1; min-height:34px; padding:5px 4px; border-radius:11px; color:#687083; font-size:9.5px; font-weight:800; transition:all .18s; }
+.mobile-segmented button { flex:1; min-height:40px; padding:5px 4px; border-radius:11px; color:#687083; font-size:9.5px; font-weight:800; transition:all .18s; }
 .mobile-segmented button.active { color:#172033; background:#fff; box-shadow:0 3px 10px rgba(38,48,82,.10); }
 .course-card { min-height:72px; }
-.course-number { width:40px; height:40px; border-radius:14px; display:flex; align-items:center; justify-content:center; flex-shrink:0; color:#3558d4; background:#ebeefe; font-size:10px; font-weight:800; }
+.course-number { width:40px; height:40px; border-radius:14px; display:flex; align-items:center; justify-content:center; flex-shrink:0; color:#1E77B4; background:#DCEDF7; font-size:10px; font-weight:800; }
 .competency-card { min-height:70px; border-left:3px solid #16866f !important; }
 .competency-check { width:36px; height:36px; border-radius:13px; display:flex; align-items:center; justify-content:center; flex-shrink:0; color:#16866f; background:#e4f7f1; }
 
-/* Material-style list surfaces used throughout classes, teachers and evaluations */
-.app-screen .space-y-2 > .app-card + .app-card { margin-top:9px; }
-.app-screen .overflow-x-auto button { transition:all .18s ease; border:1px solid rgba(53,88,212,.05); }
+/* Material-style list surfaces used throughout classes, teachers and evaluations —
+   plus d'écart de marge spécifique aux cartes, la grille 8dp de space-y-2 suffit
+   maintenant que Card n'a plus de bordure à compenser visuellement. */
+.app-screen .overflow-x-auto button { transition:all .18s ease; border:1px solid rgba(30,119,180,.05); }
 .app-screen table { border-collapse:separate; border-spacing:0; overflow:hidden; border-radius:18px; }
 .app-screen hr { border-color:#e7e9f1; }
 .brand-mark { box-shadow:0 22px 42px rgba(77,75,202,.28); position:relative; }
-.brand-mark:after { content:""; position:absolute; inset:-10px; border:1px solid rgba(53,88,212,.13); border-radius:38px; }
-.welcome-hero { min-height:680px; background:radial-gradient(circle at 50% 27%, rgba(53,88,212,.11), transparent 31%); }
-.demo-account-button { border:1px solid #dde2f2; color:#3558d4; background:#f7f8ff; border-radius:13px; padding:10px 6px; font-size:11px; font-weight:700; }
+.brand-mark:after { content:""; position:absolute; inset:-10px; border:1px solid rgba(30,119,180,.13); border-radius:38px; }
+.welcome-hero { min-height:680px; background:radial-gradient(circle at 50% 27%, rgba(30,119,180,.11), transparent 31%); }
+.demo-account-button { border:1px solid #dde2f2; color:#1E77B4; background:#f7f8ff; border-radius:13px; padding:10px 6px; font-size:11px; font-weight:700; }
 .demo-account-button:hover { background:#ebefff; }
 .app-scroll { scrollbar-width:none; }
 .app-scroll::-webkit-scrollbar { display:none; }
@@ -160,7 +190,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 
 @media (max-width: 640px) {
   .prototype-stage { padding:0 !important; background:#f6f7fb; }
-  .phone-shell { height:100dvh; max-width:none; zoom:1; border:0; border-radius:0; box-shadow:none; }
+  .phone-shell { height:100dvh; max-width:none; border:0; border-radius:0; box-shadow:none; }
   .phone-status:after { display:none; }
   .important-form-modal {
     left:8px;
