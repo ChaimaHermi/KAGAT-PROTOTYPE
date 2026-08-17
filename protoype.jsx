@@ -345,15 +345,6 @@ function makeIndependentDemoData() {
     ],
   };
 }
-/* Connexion rapide de démonstration pour le mode indépendant — même principe que
-   quickSocialAuth, avec des données déjà remplies pour voir tout de suite comment ça marche. */
-function quickIndependentDemoAuth(ctx) {
-  const demoData = makeIndependentDemoData();
-  ctx.setData(demoData);
-  ctx.setCurrentUser({ type: "teacher", id: demoData.admin.selfTeacherId });
-  ctx.showToast("Connecté à l'espace de démonstration (enseignant indépendant).");
-  ctx.enterApp("teacher", "independent");
-}
 
 /* --------------------------- HELPERS DE DONNEES --------------------------- */
 function locateClass(data, classId) {
@@ -960,7 +951,7 @@ const TEACHER_TABS = [
 const INDEPENDENT_TABS = [
   { key: "accueil", label: "Accueil", icon: Home, root: "teacherDashboard" },
   { key: "classes", label: "Classes", icon: School, root: "years" },
-  { key: "evaluations", label: "Évaluations", icon: ClipboardList, root: "evaluationsList" },
+  { key: "evaluations", label: "Évaluer", icon: ClipboardList, root: "evaluationsList" },
   { key: "profil", label: "Profil", icon: User, root: "myProfile" },
 ];
 function getTabsFor(ctx) {
@@ -1068,14 +1059,13 @@ function WelcomeScreen({ ctx }) {
         </div>
 
         {/* Groupe secondaire, nettement séparé (bordure) : pour le petit nombre d'utilisateurs
-            qui arrivent ici sans compte — visible, mais sans concurrencer l'action principale. */}
+            qui arrivent ici sans compte — visible, mais sans concurrencer l'action principale.
+            Les comptes de démonstration (gestionnaire / enseignante / enseignant indépendant)
+            vivent tous au même endroit, sur l'écran de connexion, pour un seul parcours cohérent. */}
         <div className="w-full mt-6 pt-5 flex flex-col items-center gap-3.5" style={{ borderTop: `1px solid ${COLORS.border}` }}>
           <button onClick={() => ctx.nav.push("register")} className="text-center">
             <span className="text-[13px]" style={{ color: COLORS.muted }}>Vous n’avez pas de compte ? </span>
             <span className="text-[13px] font-bold" style={{ color: COLORS.primary }}>Créer un compte</span>
-          </button>
-          <button onClick={() => quickIndependentDemoAuth(ctx)} className="flex items-center gap-1.5 text-[12px] font-semibold" style={{ color: COLORS.muted }}>
-            <User size={18} /> Essayer comme enseignant indépendant (démo)
           </button>
         </div>
       </div>
@@ -3635,7 +3625,7 @@ function EvaluationsListScreen({ ctx }) {
     <Screen>
       <TopBar title={classScoped ? "Résultats" : "Mes évaluations"} subtitle={classScoped ? `${scopedLoc?.cls.name}${subjectFilter !== "all" ? " · " + subjectFilter : ""}` : undefined} onBack={classScoped ? () => ctx.nav.pop() : undefined} right={<SyncIndicator ctx={ctx} />} />
       <div className="px-4 pt-4 space-y-2">
-        {!classScoped && <Btn full variant="accent" icon={PlayCircle} onClick={() => ctx.nav.push("evalPrep", {})}>Lancer une évaluation</Btn>}
+        {!classScoped && <Btn full variant="success" icon={PlayCircle} onClick={() => ctx.nav.push("evalPrep", {})}>Lancer une évaluation</Btn>}
 
         {!classScoped && (myClasses.length > 1 || mySubjects.length > 1) && (
           <div className="mobile-filter-panel">
@@ -4046,7 +4036,7 @@ function EvalPrepScreen({ ctx }) {
           <p className="flex items-center gap-2"><ListChecks size={18} className="shrink-0" />{questionnaire.questions.length} questions</p>
         </div>
       </Card>
-      <Btn full variant="accent" icon={PlayCircle} onClick={start}>Démarrer l'évaluation</Btn>
+      <Btn full variant="success" icon={PlayCircle} onClick={start}>Démarrer l'évaluation</Btn>
     </div>;
   }
 
