@@ -1496,15 +1496,15 @@ function LoginScreen({ ctx }) {
   const [error, setError] = useState("");
 
   const loadDemoAccount = (role) => {
-    const demoData = makeInitialData();
+    const demoData = role === "independent" ? makeIndependentDemoData() : makeInitialData();
     ctx.setData(demoData);
-    if (role === "admin") { setUsername(demoData.admin.username); setPassword(demoData.admin.password); }
+    if (role === "admin" || role === "independent") { setUsername(demoData.admin.username); setPassword(demoData.admin.password); }
     else {
       const demoTeacher = demoData.teachers.find((t) => t.id === "t1");
       setUsername(demoTeacher.username); setPassword(demoTeacher.password);
     }
     setError("");
-    ctx.showToast(role === "admin" ? "Compte gestionnaire démo chargé" : "Compte enseignant démo chargé");
+    ctx.showToast(role === "admin" ? "Compte gestionnaire démo chargé" : role === "independent" ? "Compte enseignant indépendant démo chargé" : "Compte enseignant démo chargé");
   };
 
   const submit = () => {
@@ -1555,6 +1555,7 @@ function LoginScreen({ ctx }) {
         <div className="grid grid-cols-2 gap-2 mt-3">
           <button onClick={() => loadDemoAccount("admin")} className="demo-account-button">Démo gestionnaire</button>
           <button onClick={() => loadDemoAccount("teacher")} className="demo-account-button">Démo enseignante</button>
+          <button onClick={() => loadDemoAccount("independent")} className="demo-account-button col-span-2">Démo enseignant indépendant</button>
         </div>
         <button onClick={() => ctx.nav.push("forgotPassword")} className="w-full text-center mt-3">
           <span className="text-[12px] font-semibold" style={{ color: COLORS.primary }}>Mot de passe oublié ?</span>
@@ -3155,7 +3156,6 @@ function TeacherDashboardScreen({ ctx }) {
   const totalClasses = levelGroups.reduce((sum, g) => sum + g.classes.length, 0);
   const totalStudents = levelGroups.reduce((sum, g) => sum + g.classes.reduce((n, c) => n + c.students.filter((s) => !s.archived).length, 0), 0);
   const inProgress = ctx.data.sessions.filter((s) => s.teacherId === teacher.id && s.status !== "completed").length;
-  const isIndependent = ctx.data.establishment?.accountType === "independent";
 
   return (
     <Screen>
@@ -3166,7 +3166,7 @@ function TeacherDashboardScreen({ ctx }) {
           <div className="flex-1"><Badge tone="success">Prêt pour la classe</Badge><p>Lancez une évaluation en quelques secondes.</p></div>
           <button onClick={() => ctx.nav.push("evalPrep", {})} className="hero-play" aria-label="Lancer une évaluation"><PlayCircle size={20}/></button>
         </div>
-        <OnboardingTip ctx={ctx} text={isIndependent ? "Dans l'onglet Classes → un niveau : préparez vos cours et questionnaires une seule fois (partagés entre vos sections), puis lancez l'évaluation dans la classe de votre choix." : "Dans l'onglet Programme : préparez vos cours et questionnaires une seule fois (partagés entre vos sections), puis lancez l'évaluation dans la classe de votre choix."} />
+        <OnboardingTip ctx={ctx} text="Dans l'onglet « Classes », préparez vos cours et vos questionnaires. Ensuite, dans l'onglet « Évaluer », lancez vos évaluations et consultez les résultats." />
 
         {alert.level !== "ok" && (
           <Card onClick={() => ctx.nav.push("sync")} className="flex items-center gap-2" style={{ background: alert.level === "critical" ? COLORS.dangerSoft : COLORS.warningSoft, border: "none" }}>
@@ -4351,6 +4351,7 @@ function VerifyAnswersScreen({ ctx }) {
     setSelected(new Set()); setSelectMode(false);
   };
 
+  const isLastQuestion = index === questionnaire.questions.length - 1;
   const detectedCount = students.filter((s) => session.answers[s.id]?.[question.id]).length;
   const visibleStudents = students.filter((s) => {
     if (!s.name.toLowerCase().includes(search.toLowerCase())) return false;
@@ -4416,7 +4417,15 @@ function VerifyAnswersScreen({ ctx }) {
             })}
           </div>
         </div>
-        {!selectMode && <Btn full icon={Check} onClick={() => setConfirmValidate(true)}>Valider cette question</Btn>}
+        {!selectMode && (
+          <>
+            <p className="flex items-center gap-1.5 text-[12px] font-medium mb-2" style={{ color: detectedCount < students.length ? COLORS.warning : COLORS.success }}>
+              {detectedCount < students.length ? <AlertTriangle size={14} /> : <CheckCircle2 size={14} />}
+              {detectedCount < students.length ? `Vérifiez que tous les élèves ont répondu — ${students.length - detectedCount} non détecté(s).` : "Toutes les réponses ont été détectées."}
+            </p>
+            <Btn full icon={isLastQuestion ? CheckCircle2 : ArrowRight} onClick={() => setConfirmValidate(true)}>{isLastQuestion ? "Terminer et voir les résultats" : "Continuer à la question suivante"}</Btn>
+          </>
+        )}
       </div>
       {selectMode && selected.size > 0 && (
         <div className="sticky bottom-0 px-4 py-3" style={{ background: COLORS.surface, borderTop: `1px solid ${COLORS.border}` }}>
@@ -4427,7 +4436,7 @@ function VerifyAnswersScreen({ ctx }) {
           </div>
         </div>
       )}
-      <ConfirmModal open={confirmValidate} title="Valider la question ?" text="Les réponses seront enregistrées et vous passerez à la question suivante (ou aux résultats)." onCancel={() => setConfirmValidate(false)} onConfirm={() => { setConfirmValidate(false); validateQuestion(); }} confirmLabel="Valider" />
+      <ConfirmModal open={confirmValidate} title={isLastQuestion ? "Terminer l'évaluation ?" : "Continuer à la question suivante ?"} text={isLastQuestion ? "Les réponses seront enregistrées et vous accéderez aux résultats." : "Les réponses seront enregistrées et vous passerez à la question suivante."} onCancel={() => setConfirmValidate(false)} onConfirm={() => { setConfirmValidate(false); validateQuestion(); }} confirmLabel={isLastQuestion ? "Terminer" : "Continuer"} />
     </Screen>
   );
 }
