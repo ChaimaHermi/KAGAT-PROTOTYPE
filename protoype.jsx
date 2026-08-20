@@ -3147,6 +3147,22 @@ function TeacherDashboardScreen({ ctx }) {
   const totalStudents = levelGroups.reduce((sum, g) => sum + g.classes.reduce((n, c) => n + c.students.filter((s) => !s.archived).length, 0), 0);
   const inProgress = ctx.data.sessions.filter((s) => s.teacherId === teacher.id && s.status !== "completed").length;
 
+  /* Relancer une évaluation, c'est presque toujours reprendre la même classe et la même
+     matière que la dernière fois. On le propose en un geste, plutôt que de faire retraverser
+     l'assistant — qui reste la voie normale pour une combinaison inédite. */
+  const resume = (() => {
+    const last = ctx.data.sessions
+      .filter((s) => s.teacherId === teacher.id)
+      .reduce((latest, s) => (!latest || (s.createdAt || 0) > (latest.createdAt || 0) ? s : latest), null);
+    if (!last) return null;
+    const l = locateClass(ctx.data, last.classId);
+    if (!l || l.yr.archived || l.cls.archived) return null;
+    const subject = getLevelSubjects(l.yr, l.cls.level).find((s) => s.id === last.subjectId);
+    if (!subject) return null;
+    const course = (subject.courses || []).find((c) => c.id === last.courseId);
+    return { classId: l.cls.id, className: l.cls.name, subjectId: subject.id, subjectName: subject.name, courseId: course?.id, courseTitle: course?.title };
+  })();
+
   return (
     <Screen>
       <TopBar title={`Bienvenue, ${teacher.name.split(" ")[0]}`} subtitle={`${ctx.data.establishment.name} · KAGAT`} right={<SyncIndicator ctx={ctx} />} />
@@ -3156,6 +3172,16 @@ function TeacherDashboardScreen({ ctx }) {
           <div className="flex-1"><Badge tone="success">Prêt pour la classe</Badge><p>Lancez une évaluation en quelques secondes.</p></div>
           <button onClick={() => ctx.nav.push("evalPrep", {})} className="hero-play" aria-label="Lancer une évaluation"><PlayCircle size={20}/></button>
         </div>
+        {resume && (
+          <Card onClick={() => ctx.nav.push("evalPrep", { classId: resume.classId, subjectId: resume.subjectId, ...(resume.courseId ? { courseId: resume.courseId } : {}) })} className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-[16px] flex items-center justify-center shrink-0" style={{ background: COLORS.successSoft }}><PlayCircle size={20} color={COLORS.success} /></div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-[13px] truncate" style={{ color: COLORS.text }}>Reprendre · {resume.className}</p>
+              <p className="text-[12px] truncate" style={{ color: COLORS.muted }}>{resume.subjectName}{resume.courseTitle ? ` · ${resume.courseTitle}` : ""}</p>
+            </div>
+            <ChevronRight size={18} color={COLORS.muted} className="shrink-0" />
+          </Card>
+        )}
         <OnboardingTip ctx={ctx} text="Dans l'onglet « Classes », préparez vos cours et vos questionnaires. Ensuite, dans l'onglet « Évaluer », lancez vos évaluations et consultez les résultats." />
 
         {alert.level !== "ok" && (
@@ -3926,15 +3952,23 @@ function EvalPrepScreen({ ctx }) {
      dans l'app : niveau → classe → matière → cours → questionnaire. */
   const preset = ctx.nav.current.params || {};
   const presetLoc = preset.classId ? locateClass(ctx.data, preset.classId) : null;
-  const initialStep = preset.classId && preset.subjectId ? 3 : preset.classId ? 2 : 0;
+  const initialStep = preset.classId && preset.subjectId && preset.courseId ? 4
+    : preset.classId && preset.subjectId ? 3
+    : preset.classId ? 2 : 0;
   const levelKey = (yearId, level) => `${yearId}|${level}`;
 
   const [level, setLevel] = useState(presetLoc ? levelKey(presetLoc.yr.id, presetLoc.cls.level) : "");
   const [classId, setClassId] = useState(preset.classId || "");
   const [subjectId, setSubjectId] = useState(preset.subjectId || "");
-  const [courseId, setCourseId] = useState("");
+  const [courseId, setCourseId] = useState(preset.courseId || "");
   const [questionnaireId, setQuestionnaireId] = useState("");
   const [step, setStep] = useState(initialStep);
+  /* Absents déclarés une seule fois, au lancement : l'absence est un fait de la séance, pas
+     de la question. Avant cette correction, le panneau vivait dans l'écran de scan et était
+     donc re-parcouru à chaque question. */
+  const [absentIds, setAbsentIds] = useState(() => new Set());
+  const [absentPanelOpen, setAbsentPanelOpen] = useState(false);
+  const [absentSearch, setAbsentSearch] = useState("");
 
   const loc = classId ? locateClass(ctx.data, classId) : null;
   const cls = loc?.cls;
@@ -3945,6 +3979,31 @@ function EvalPrepScreen({ ctx }) {
   const classesOfLevel = selectedGroup?.classes || [];
   const mySubjects = assignments.filter(({ cls: assignedClass }) => assignedClass.id === classId);
 
+  const levelCount = levelGroups.length;
+  const classCount = classesOfLevel.length;
+  const subjectCount = mySubjects.length;
+  const courseCount = (subject?.courses || []).length;
+
+  /* Une étape qui n'offre qu'un seul choix ne pose pas une question : elle impose sa réponse.
+     On la franchit automatiquement — une enseignante de primaire avec une classe et une
+     matière traversait six écrans dont quatre n'avaient qu'une seule carte à toucher.
+     movingBackRef empêche le retour arrière d'être immédiatement réavancé par cet effet. */
+  const movingBackRef = useRef(false);
+  useEffect(() => {
+    if (movingBackRef.current) { movingBackRef.current = false; return; }
+    if (step === 0 && levelCount === 1) {
+      const g = levelGroups[0];
+      setLevel(levelKey(g.yearId, g.level)); setClassId(""); setSubjectId(""); setCourseId(""); setQuestionnaireId(""); setStep(1);
+    } else if (step === 1 && classCount === 1) {
+      setClassId(classesOfLevel[0].id); setSubjectId(""); setCourseId(""); setQuestionnaireId(""); setAbsentIds(new Set()); setStep(2);
+    } else if (step === 2 && subjectCount === 1) {
+      setSubjectId(mySubjects[0].subject.id); setCourseId(""); setQuestionnaireId(""); setStep(3);
+    } else if (step === 3 && courseCount === 1) {
+      setCourseId(subject.courses[0].id); setQuestionnaireId(""); setStep(4);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, levelCount, classCount, subjectCount, courseCount]);
+
   const start = () => {
     const sessionId = uid("sess");
     const participantSnapshot = cls.students.filter((s) => !s.archived).map((s) => ({ id: s.id, name: s.name, cardNumber: s.cardNumber, studentCode: s.studentCode }));
@@ -3952,13 +4011,22 @@ function EvalPrepScreen({ ctx }) {
       id: sessionId, classId, subjectId, courseId, questionnaireId, teacherId: teacher.id,
       date: new Date().toLocaleDateString("fr-FR"), createdAt: Date.now(),
       questionIds: questionnaire.questions.map((q) => q.id), currentQuestionIndex: 0,
-      participantSnapshot, answers: {}, questionStatus: {}, declaredAbsentIds: [], status: "in_progress",
+      participantSnapshot, answers: {}, questionStatus: {}, declaredAbsentIds: [...absentIds], status: "in_progress",
+      scanMode: null, scanRowCount: null,
       syncStatus: "pending", lastSyncedAt: null,
     }] }));
     ctx.nav.push("sessionQuestion", { sessionId, index: 0 });
   };
 
-  const goBack = () => { if (step === initialStep) { ctx.nav.pop(); return; } setStep((s) => s - 1); };
+  // Le retour arrière saute lui aussi les étapes à choix unique, sinon il y resterait bloqué.
+  const stepChoiceCount = (s) => (s === 0 ? levelCount : s === 1 ? classCount : s === 2 ? subjectCount : s === 3 ? courseCount : 2);
+  const goBack = () => {
+    let s = step - 1;
+    while (s >= initialStep && stepChoiceCount(s) <= 1) s--;
+    if (s < initialStep) { ctx.nav.pop(); return; }
+    movingBackRef.current = true;
+    setStep(s);
+  };
 
   let title = "Choisir le niveau", body = null;
   if (step === 0) {
@@ -3969,7 +4037,7 @@ function EvalPrepScreen({ ctx }) {
   } else if (step === 1) {
     title = "Choisir la classe";
     body = <div className="px-4">
-      {classesOfLevel.map((c) => <OptionCard key={c.id} icon={GraduationCap} title={c.name} subtitle={`${c.students.filter((s) => !s.archived).length} élèves`} selected={classId === c.id} onClick={() => { setClassId(c.id); setSubjectId(""); setCourseId(""); setQuestionnaireId(""); setStep(2); }} />)}
+      {classesOfLevel.map((c) => <OptionCard key={c.id} icon={GraduationCap} title={c.name} subtitle={`${c.students.filter((s) => !s.archived).length} élèves`} selected={classId === c.id} onClick={() => { setClassId(c.id); setSubjectId(""); setCourseId(""); setQuestionnaireId(""); setAbsentIds(new Set()); setStep(2); }} />)}
     </div>;
   } else if (step === 2) {
     title = "Choisir la matière";
@@ -4024,26 +4092,66 @@ function EvalPrepScreen({ ctx }) {
   } else if (step === 5) {
     title = "Résumé de l'évaluation";
     const skills = getQuestionnaireSkillLabels(subject, questionnaire);
+    const roster = cls.students.filter((s) => !s.archived);
+    const absentMatches = roster.filter((s) => s.name.toLowerCase().includes(absentSearch.toLowerCase()));
+    const toggleAbsent = (id) => setAbsentIds((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
     body = <div className="px-4">
-      <Card className="mb-4" style={{ background: COLORS.primarySoft, border: "none" }}>
+      <Card className="mb-3" style={{ background: COLORS.primarySoft, border: "none" }}>
         <p className="font-bold text-[13px] mb-2" style={{ color: COLORS.primaryDark }}>Résumé</p>
         <div className="space-y-2 text-[13px]" style={{ color: COLORS.primaryDark }}>
           <p className="flex items-center gap-2"><Layers size={18} className="shrink-0" />{cls.level}</p>
-          <p className="flex items-center gap-2"><GraduationCap size={18} className="shrink-0" />{cls.name} ({cls.students.filter((s) => !s.archived).length} élèves)</p>
+          <p className="flex items-center gap-2"><GraduationCap size={18} className="shrink-0" />{cls.name} ({roster.length} élèves{absentIds.size > 0 ? ` · ${roster.length - absentIds.size} attendus` : ""})</p>
           <p className="flex items-center gap-2"><BookOpen size={18} className="shrink-0" />{subject.name}{course ? ` · ${course.title}` : ""}</p>
           {skills.length > 0 && <p className="flex items-center gap-2"><Target size={18} className="shrink-0" />{skills.join(", ")}</p>}
           <p className="flex items-center gap-2"><ClipboardList size={18} className="shrink-0" />{questionnaire.title}</p>
           <p className="flex items-center gap-2"><ListChecks size={18} className="shrink-0" />{questionnaire.questions.length} questions</p>
         </div>
       </Card>
+
+      {/* Appel des absents : une fois pour la séance entière, avant le premier scan. */}
+      <Card className="mb-4 !py-3">
+        <button className="w-full flex items-center justify-between" onClick={() => setAbsentPanelOpen((v) => !v)}>
+          <span className="flex items-center gap-2 text-[13px] font-semibold" style={{ color: COLORS.text }}>
+            <UserX size={18} color={COLORS.muted} /> Élèves absents aujourd'hui
+            {absentIds.size > 0 && <Badge tone="warning">{absentIds.size}</Badge>}
+          </span>
+          <ChevronRight size={18} color={COLORS.muted} style={{ transform: absentPanelOpen ? "rotate(90deg)" : "none" }} />
+        </button>
+        {!absentPanelOpen && (
+          <p className="text-[12px] mt-1.5" style={{ color: COLORS.muted }}>
+            {absentIds.size === 0 ? "Aucun absent signalé. À déclarer une seule fois — valable pour toutes les questions." : `${absentIds.size} absent(s) — ils ne seront pas attendus au scan.`}
+          </p>
+        )}
+        {absentPanelOpen && (
+          <div className="mt-2.5">
+            <SearchInput value={absentSearch} onChange={(e) => setAbsentSearch(e.target.value)} placeholder="Rechercher un élève" className="mb-2" />
+            <div className="max-h-[220px] overflow-y-auto space-y-0.5">
+              {absentMatches.map((s) => (
+                <label key={s.id} className="flex items-center gap-2.5 py-1.5 text-[13px]" style={{ color: COLORS.text }}>
+                  <input type="checkbox" checked={absentIds.has(s.id)} onChange={() => toggleAbsent(s.id)} />{s.name}
+                </label>
+              ))}
+              {absentMatches.length === 0 && <p className="text-[12px] py-2 text-center" style={{ color: COLORS.muted }}>Aucun élève ne correspond.</p>}
+            </div>
+          </div>
+        )}
+      </Card>
+
       <Btn full variant="success" icon={PlayCircle} onClick={start}>Démarrer l'évaluation</Btn>
     </div>;
   }
 
+  /* La barre de progression ne compte que les étapes réellement présentées : afficher « 5/6 »
+     à quelqu'un qui n'a fait qu'un seul choix (parce que les quatre précédentes ont été
+     franchies automatiquement) décrirait un parcours qui n'a pas eu lieu. */
+  const ALL_STEP_LABELS = ["Choisir le niveau", "Choisir la classe", "Choisir la matière", "Choisir le cours", "Choisir le questionnaire", "Confirmer la séance"];
+  const visibleSteps = [0, 1, 2, 3, 4, 5].filter((s) => s >= initialStep && stepChoiceCount(s) > 1);
+  const visiblePos = Math.max(0, visibleSteps.indexOf(step));
+
   return (
     <Screen>
       <TopBar title={title} onBack={goBack} />
-      <WizardProgress step={step} totalSteps={6} labels={["Choisir le niveau", "Choisir la classe", "Choisir la matière", "Choisir le cours", "Choisir le questionnaire", "Confirmer la séance"]} crumbs={[cls?.level, cls?.name, subject?.name, course?.title, questionnaire?.title].filter(Boolean)} helperText="Préparez la séance avant de lancer le scan" />
+      <WizardProgress step={visiblePos} totalSteps={visibleSteps.length} labels={visibleSteps.map((s) => ALL_STEP_LABELS[s])} crumbs={[cls?.level, cls?.name, subject?.name, course?.title, questionnaire?.title].filter(Boolean)} helperText="Préparez la séance avant de lancer le scan" />
       <div className="pt-2">{body}</div>
     </Screen>
   );
@@ -4102,11 +4210,16 @@ function ScanSimulationScreen({ ctx }) {
   const question = questionnaire.questions[index];
   const students = session.participantSnapshot || loc.cls.students.filter((s) => !s.archived);
   const total = students.length;
-  const [scanMode, setScanMode] = useState(null); // "all" | "rows" | "individual"
+  /* Le mode de scan et le découpage en rangées décrivent l'organisation de la CLASSE, pas
+     d'une question : ils appartiennent à la séance et sont donc stockés sur la session. Sans
+     ça, chaque question repart d'un composant neuf et redemande le même choix — dix fois pour
+     un questionnaire de dix questions, devant les élèves. Le mode "individual" fait exception :
+     scanner un seul élève est un geste ponctuel de correction, jamais mémorisé. */
+  const [scanMode, setScanMode] = useState(() => session.scanMode || null); // "all" | "rows" | "individual"
   const [individualStudentId, setIndividualStudentId] = useState("");
   const [studentSearch, setStudentSearch] = useState("");
-  const [rowCount, setRowCount] = useState("");
-  const [rowsConfigured, setRowsConfigured] = useState(false);
+  const [rowCount, setRowCount] = useState(() => (session.scanRowCount ? String(session.scanRowCount) : ""));
+  const [rowsConfigured, setRowsConfigured] = useState(() => !!session.scanRowCount);
 
   const [absentPanelOpen, setAbsentPanelOpen] = useState(false);
   const [absentSearch, setAbsentSearch] = useState("");
@@ -4184,15 +4297,24 @@ function ScanSimulationScreen({ ctx }) {
 
   const filteredAbsentList = students.filter((s) => s.name.toLowerCase().includes(absentSearch.toLowerCase()));
   const filteredStudents = detectableStudents.filter((s) => s.name.toLowerCase().includes(studentSearch.toLowerCase()));
-  const chooseMode = (mode) => {
-    detectedIdsRef.current = new Set(); setDetected([]); setLastFeed([]); setZoneIndex(0); setIndividualStudentId(""); setRowCount(""); setRowsConfigured(false); setScanMode(mode);
+  const resetScanState = () => {
+    detectedIdsRef.current = new Set(); setDetected([]); setLastFeed([]); setZoneIndex(0);
+    setIndividualStudentId(""); setRowCount(""); setRowsConfigured(false);
   };
+  const chooseMode = (mode) => {
+    resetScanState();
+    setScanMode(mode);
+    // "individual" ne redéfinit pas l'organisation de la séance : on garde le mode mémorisé.
+    if (mode !== "individual") ctx.setData((d) => updateSession(d, sessionId, (s) => ({ ...s, scanMode: mode, scanRowCount: null })));
+  };
+  // Revenir au choix du mode en cours de séance, sans quitter le scan (action « Mode »).
+  const changeMode = () => { resetScanState(); setScanMode(null); };
 
   if (!scanMode) return (
     <Screen>
-      <TopBar title="Comment souhaitez-vous scanner ?" subtitle={`Question ${index + 1}`} onBack={() => ctx.nav.pop()} />
+      <TopBar title="Comment souhaitez-vous scanner ?" subtitle="Choix valable pour toute la séance" onBack={() => ctx.nav.pop()} />
       <div className="px-4 pt-4">
-        <Card className="mb-4" style={{ background: COLORS.primarySoft, border: "none" }}><Badge tone="primary">Recommandé</Badge><p className="text-[12px] mt-2" style={{ color: COLORS.primaryDark }}>Choisissez le mode adapté à l’organisation de votre classe. Vous vérifierez les réponses avant leur validation.</p></Card>
+        <Card className="mb-4" style={{ background: COLORS.primarySoft, border: "none" }}><Badge tone="primary">Une seule fois</Badge><p className="text-[12px] mt-2" style={{ color: COLORS.primaryDark }}>Choisissez le mode adapté à l’organisation de votre classe. Il sera conservé pour toutes les questions de cette séance — vous pourrez en changer à tout moment depuis l’écran de scan.</p></Card>
         <OptionCard icon={Camera} title="Scanner toute la classe" subtitle="Détecter automatiquement plusieurs cartes en continu" onClick={() => chooseMode("all")} />
         <OptionCard icon={Users} title="Scanner par rangée" subtitle="Avancer groupe par groupe et repérer les absents" onClick={() => chooseMode("rows")} />
         <OptionCard icon={User} title="Scanner un élève" subtitle="Enregistrer ou remplacer une réponse individuellement" onClick={() => chooseMode("individual")} />
@@ -4202,7 +4324,7 @@ function ScanSimulationScreen({ ctx }) {
 
   if (scanMode === "individual" && !individualStudentId) return (
     <Screen>
-      <TopBar title="Scanner un élève" subtitle={`Question ${index + 1}`} onBack={() => setScanMode(null)} />
+      <TopBar title="Scanner un élève" subtitle={`Question ${index + 1}`} onBack={changeMode} />
       <div className="px-4 pt-4">
         <SearchInput autoFocus value={studentSearch} onChange={(e) => setStudentSearch(e.target.value)} placeholder="Rechercher un élève" className="mb-3" />
         <div className="space-y-2 max-h-[520px] overflow-y-auto">{filteredStudents.map((student) => <Card key={student.id} onClick={() => setIndividualStudentId(student.id)} className="flex items-center gap-3 !py-3"><div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: COLORS.primarySoft }}><User size={18} color={COLORS.primary} /></div><span className="text-[13px] font-semibold flex-1" style={{ color: COLORS.text }}>{student.name}</span><ChevronRight size={18} color={COLORS.muted} /></Card>)}</div>
@@ -4215,12 +4337,12 @@ function ScanSimulationScreen({ ctx }) {
     const validRowCount = Number.isInteger(parsedRowCount) && parsedRowCount >= 1 && parsedRowCount <= Math.max(1, detectableStudents.length);
     return (
       <Screen>
-        <TopBar title="Organiser le scan" subtitle="Mode par rangée" onBack={() => setScanMode(null)} />
+        <TopBar title="Organiser le scan" subtitle="Mode par rangée · toute la séance" onBack={changeMode} />
         <div className="px-4 pt-5">
-          <Card className="mb-4" style={{ background: COLORS.primarySoft, border: "none" }}><Users size={24} color={COLORS.primary} className="mb-2" /><p className="text-[14px] font-bold" style={{ color: COLORS.primaryDark }}>Combien de rangées voulez-vous scanner ?</p><p className="text-[12px] mt-1 leading-5" style={{ color: COLORS.muted }}>KAGAT répartira automatiquement les {detectableStudents.length} élèves présents entre les rangées.</p></Card>
+          <Card className="mb-4" style={{ background: COLORS.primarySoft, border: "none" }}><Users size={24} color={COLORS.primary} className="mb-2" /><p className="text-[14px] font-bold" style={{ color: COLORS.primaryDark }}>Combien de rangées voulez-vous scanner ?</p><p className="text-[12px] mt-1 leading-5" style={{ color: COLORS.muted }}>KAGAT répartira automatiquement les {detectableStudents.length} élèves présents entre les rangées. Ce découpage vaut pour toutes les questions de la séance.</p></Card>
           <Field label="Nombre de rangées"><TextInput autoFocus type="number" min="1" max={Math.max(1, detectableStudents.length)} value={rowCount} onChange={(e) => setRowCount(e.target.value)} placeholder="Ex. 4" /></Field>
           {validRowCount && <Card className="mb-4 !py-3"><p className="text-[12px]" style={{ color: COLORS.text }}><b>{parsedRowCount} rangée{parsedRowCount > 1 ? "s" : ""}</b> · environ {Math.ceil(detectableStudents.length / parsedRowCount)} élève(s) par rangée</p></Card>}
-          <Btn full icon={Camera} disabled={!validRowCount} onClick={() => { setZoneIndex(0); setRowsConfigured(true); }}>Commencer par la rangée 1</Btn>
+          <Btn full icon={Camera} disabled={!validRowCount} onClick={() => { setZoneIndex(0); setRowsConfigured(true); ctx.setData((d) => updateSession(d, sessionId, (s) => ({ ...s, scanRowCount: parsedRowCount }))); }}>Commencer par la rangée 1</Btn>
         </div>
       </Screen>
     );
@@ -4231,7 +4353,10 @@ function ScanSimulationScreen({ ctx }) {
 
   return (
     <Screen>
-      <TopBar title="Scan en cours" subtitle={`Question ${index + 1} · ${modeLabel}`} onBack={() => setScanMode(null)} />
+      {/* Retour = quitter le scan. Changer de mode est une action à part entière, pas un
+          retour arrière : elle vit à droite de la barre, disponible sans quitter la séance. */}
+      <TopBar title="Scan en cours" subtitle={`Question ${index + 1} · ${modeLabel}`} onBack={() => ctx.nav.pop()}
+        right={<button onClick={changeMode} className="flex items-center gap-1 text-[12px] font-semibold px-2.5 py-1.5 rounded-[10px]" style={{ background: COLORS.primarySoft, color: COLORS.primary }}><SlidersHorizontal size={13} />Mode</button>} />
       <div className="px-4 pt-3">
         {scanMode === "rows" && zones.length > 1 && (
           <div className="flex gap-1.5 overflow-x-auto pb-1 mb-3 -mx-1 px-1">
@@ -4248,9 +4373,11 @@ function ScanSimulationScreen({ ctx }) {
         )}
         <Card className="mb-3 !py-2.5">
           <button className="w-full flex items-center justify-between" onClick={() => setAbsentPanelOpen((v) => !v)}>
+            {/* Les absents ont déjà été déclarés au lancement de la séance : ce panneau n'est
+                plus qu'un rattrapage pour les retardataires, d'où le libellé « Ajuster ». */}
             <span className="flex items-center gap-2 text-[13px] font-semibold" style={{ color: COLORS.text }}>
-              <UserX size={18} color={COLORS.muted} /> Élèves absents aujourd'hui
-              {declaredAbsentIds.length > 0 && <Badge tone="neutral">{declaredAbsentIds.length}</Badge>}
+              <UserX size={18} color={COLORS.muted} /> Ajuster les absents
+              <Badge tone="neutral">{declaredAbsentIds.length}</Badge>
             </span>
             <ChevronRight size={18} color={COLORS.muted} style={{ transform: absentPanelOpen ? "rotate(90deg)" : "none" }} />
           </button>
@@ -4353,11 +4480,27 @@ function VerifyAnswersScreen({ ctx }) {
   const toggleSelect = (studentId) => setSelected((prev) => { const next = new Set(prev); next.has(studentId) ? next.delete(studentId) : next.add(studentId); return next; });
   const selectAllVisible = () => setSelected(new Set(visibleStudents.map((s) => s.id)));
 
+  /* Passer à la question suivante n'est ni destructif ni définitif : on enchaîne directement
+     et on laisse une sortie de secours dans le toast, plutôt que de bloquer sur une modale
+     dix fois par séance — au troisième affichage elle n'est plus lue, elle est tapée, donc
+     elle ne protège plus rien. Même principe que le retrait d'un élève, déjà annulable.
+     Terminer l'évaluation, en revanche, clôt la séance : là, la confirmation reste. */
   const validateQuestion = () => {
     ctx.setData((d) => updateSession(d, sessionId, (s) => ({ ...s, questionStatus: { ...s.questionStatus, [question.id]: "validated" } })));
     const nextIndex = index + 1;
-    if (nextIndex < questionnaire.questions.length) ctx.nav.resetTo("sessionQuestion", { sessionId, index: nextIndex });
-    else { ctx.setData((d) => updateSession(d, sessionId, (s) => ({ ...s, status: "completed" }))); ctx.nav.resetTo("sessionResultsGlobal", { sessionId }); }
+    if (nextIndex < questionnaire.questions.length) {
+      ctx.nav.resetTo("sessionQuestion", { sessionId, index: nextIndex });
+      ctx.showToast(`Question ${index + 1} validée`, {
+        actionLabel: "Annuler",
+        duration: 5000,
+        onAction: () => {
+          ctx.setData((d) => updateSession(d, sessionId, (s) => ({ ...s, questionStatus: { ...s.questionStatus, [question.id]: "scanned" } })));
+          // Reconstitue la pile telle qu'elle était : l'écran de vérification garde son retour.
+          ctx.nav.resetTo("sessionQuestion", { sessionId, index });
+          ctx.nav.push("verifyAnswers", { sessionId, index });
+        },
+      });
+    } else { ctx.setData((d) => updateSession(d, sessionId, (s) => ({ ...s, status: "completed" }))); ctx.nav.resetTo("sessionResultsGlobal", { sessionId }); }
   };
 
   return (
@@ -4413,7 +4556,7 @@ function VerifyAnswersScreen({ ctx }) {
               {detectedCount < students.length ? <AlertTriangle size={14} /> : <CheckCircle2 size={14} />}
               {detectedCount < students.length ? `Vérifiez que tous les élèves ont répondu — ${students.length - detectedCount} non détecté(s).` : "Toutes les réponses ont été détectées."}
             </p>
-            <Btn full icon={isLastQuestion ? CheckCircle2 : ArrowRight} onClick={() => setConfirmValidate(true)}>{isLastQuestion ? "Terminer et voir les résultats" : "Continuer à la question suivante"}</Btn>
+            <Btn full icon={isLastQuestion ? CheckCircle2 : ArrowRight} onClick={() => (isLastQuestion ? setConfirmValidate(true) : validateQuestion())}>{isLastQuestion ? "Terminer et voir les résultats" : "Continuer à la question suivante"}</Btn>
           </>
         )}
       </div>
@@ -4426,7 +4569,7 @@ function VerifyAnswersScreen({ ctx }) {
           </div>
         </div>
       )}
-      <ConfirmModal open={confirmValidate} title={isLastQuestion ? "Terminer l'évaluation ?" : "Continuer à la question suivante ?"} text={isLastQuestion ? "Les réponses seront enregistrées et vous accéderez aux résultats." : "Les réponses seront enregistrées et vous passerez à la question suivante."} onCancel={() => setConfirmValidate(false)} onConfirm={() => { setConfirmValidate(false); validateQuestion(); }} confirmLabel={isLastQuestion ? "Terminer" : "Continuer"} />
+      <ConfirmModal open={confirmValidate && isLastQuestion} title="Terminer l'évaluation ?" text="Les réponses seront enregistrées et la séance sera clôturée. Vous accéderez ensuite aux résultats." onCancel={() => setConfirmValidate(false)} onConfirm={() => { setConfirmValidate(false); validateQuestion(); }} confirmLabel="Terminer" />
     </Screen>
   );
 }
